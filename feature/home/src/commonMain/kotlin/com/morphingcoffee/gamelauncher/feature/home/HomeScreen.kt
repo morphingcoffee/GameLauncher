@@ -18,9 +18,7 @@ import com.morphingcoffee.gamelauncher.core.designsystem.LauncherTheme
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
-fun HomeScreen(
-    viewModel: HomeViewModel = koinViewModel(),
-) {
+fun HomeScreen(viewModel: HomeViewModel = koinViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
@@ -33,9 +31,10 @@ fun HomeScreen(
 @Composable
 fun HomeScreenContent(state: HomeState) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -76,10 +75,11 @@ private fun HomeScreenDefaultPreview() {
 private fun HomeScreenCustomPreview() {
     LauncherTheme {
         HomeScreenContent(
-            state = HomeState(
-                title = "Game Launcher",
-                subtitle = "Pick a game to install or play",
-            ),
+            state =
+                HomeState(
+                    title = "Game Launcher",
+                    subtitle = "Pick a game to install or play",
+                ),
         )
     }
 }

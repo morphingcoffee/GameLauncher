@@ -14,7 +14,6 @@ import kotlinx.coroutines.launch
 abstract class MviViewModel<State, Event, Effect>(
     initialState: State,
 ) : ViewModel() {
-
     private val _state = MutableStateFlow(initialState)
     val state: StateFlow<State> = _state.asStateFlow()
 

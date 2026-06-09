@@ -18,9 +18,7 @@ fun App() {
 }
 
 @Composable
-internal fun AppNavigation(
-    homeContent: @Composable () -> Unit = { HomeScreen() },
-) {
+internal fun AppNavigation(homeContent: @Composable () -> Unit = { HomeScreen() }) {
     LauncherTheme {
         val backStack = rememberNavBackStack(appNavigationConfig, AppDestination.Home)
 
@@ -29,9 +27,10 @@ internal fun AppNavigation(
             onBack = { backStack.removeLastOrNull() },
             entryProvider = { key ->
                 when (key) {
-                    AppDestination.Home -> NavEntry(key) {
-                        homeContent()
-                    }
+                    AppDestination.Home ->
+                        NavEntry(key) {
+                            homeContent()
+                        }
                     else -> error("Unknown destination: $key")
                 }
             },

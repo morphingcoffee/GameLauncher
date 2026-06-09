@@ -16,10 +16,12 @@ sealed interface AppDestination : NavKey {
     data object Home : AppDestination
 }
 
-val appNavigationConfig: SavedStateConfiguration = SavedStateConfiguration {
-    serializersModule = SerializersModule {
-        polymorphic(NavKey::class) {
-            subclassesOfSealed<AppDestination>()
-        }
+val appNavigationConfig: SavedStateConfiguration =
+    SavedStateConfiguration {
+        serializersModule =
+            SerializersModule {
+                polymorphic(NavKey::class) {
+                    subclassesOfSealed<AppDestination>()
+                }
+            }
     }
-}
