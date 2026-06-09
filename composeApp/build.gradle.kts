@@ -112,7 +112,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi)
             packageName = "GameLauncher"
-            packageVersion = "1.0.0"
+            packageVersion = "0.0.1"
             description = "Cross-platform desktop game launcher"
             vendor = "GameLauncher"
 
