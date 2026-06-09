@@ -3,6 +3,7 @@ import org.gradle.kotlin.dsl.getByType
 import org.jlleitschuh.gradle.ktlint.KtlintExtension
 
 plugins {
+    alias(libs.plugins.androidLibrary) apply false
     alias(libs.plugins.kotlinMultiplatform) apply false
     alias(libs.plugins.kotlinSerialization) apply false
     alias(libs.plugins.composeMultiplatform) apply false

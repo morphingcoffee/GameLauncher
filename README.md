@@ -27,11 +27,15 @@ First run downloads Gradle dependencies and may take a few minutes.
 
 ### Run from the IDE
 
-1. Open the project root in **IntelliJ IDEA** or **Android Studio** (KMP support enabled).
-2. Wait for Gradle sync to finish.
-3. Run the **`composeApp`** desktop configuration, or execute `composeApp [desktop]` → `desktopRun`.
+1. Open the project root in **Android Studio** or **IntelliJ IDEA** with the **Kotlin Multiplatform** plugin.
+2. Wait for Gradle sync to finish (Android SDK via `local.properties` is required for the `androidTarget` used by Compose previews).
+3. Run the **`composeApp`** desktop configuration, or execute `:composeApp:run`.
 
-That is all that is required for local development right now.
+### Compose previews
+
+`@Preview` composables in `commonMain` render in Android Studio when the **Kotlin Multiplatform** plugin is enabled. Modules include an `androidTarget` (library stub) to power the Android preview tooling; desktop remains the primary ship target (macOS / Windows).
+
+If no run configuration appears for desktop-only projects, create a **Gradle** run config with task `:composeApp:run`.
 
 ### Optional (contributors)
 

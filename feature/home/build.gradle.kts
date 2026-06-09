@@ -1,14 +1,27 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.androidLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.koinCompiler)
 }
 
 kotlin {
+    androidTarget {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
+    }
     jvm("desktop")
 
     sourceSets {
+        val androidMain by getting {
+            dependencies {
+                implementation(libs.kotlinx.coroutines.android)
+            }
+        }
         val desktopMain by getting {
             dependencies {
                 implementation(libs.compose.ui.tooling.desktop)
@@ -36,6 +49,28 @@ kotlin {
             }
         }
     }
+}
+
+android {
+    namespace = "com.morphingcoffee.gamelauncher.feature.home"
+    compileSdk =
+        libs.versions.android.compileSdk
+            .get()
+            .toInt()
+    defaultConfig {
+        minSdk =
+            libs.versions.android.minSdk
+                .get()
+                .toInt()
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    debugImplementation(libs.compose.ui.tooling)
 }
 
 koinCompiler {
