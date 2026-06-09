@@ -112,13 +112,27 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi)
             packageName = "GameLauncher"
-            packageVersion = "1.0.0"
+            packageVersion = "0.0.1"
             description = "Cross-platform desktop game launcher"
             vendor = "GameLauncher"
 
             macOS {
                 bundleID = "com.morphingcoffee.gamelauncher.desktop"
+                // JDK 17 jpackage rejects app-version with major 0; keep global 0.0.1 for artifact names.
+                packageVersion = "1.0.0"
             }
         }
+    }
+}
+
+tasks.register("printPackageVersion") {
+    notCompatibleWithConfigurationCache("Reads packageVersion from Compose Desktop DSL")
+    group = "distribution"
+    description = "Prints packageVersion for CI artifact naming"
+    doLast {
+        println(
+            compose.desktop.application.nativeDistributions.packageVersion
+                ?: error("packageVersion is not set"),
+        )
     }
 }

@@ -1,0 +1,141 @@
+name: Desktop installers
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: desktop-installers-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-macos:
+    name: macOS (DMG + app zip)
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Grant execute permission for Gradle wrapper
+        run: chmod +x ./gradlew
+
+      - name: Build macOS app image
+        run: ./gradlew :composeApp:createDistributable --no-daemon
+
+      - name: Ad-hoc sign app bundle
+        run: codesign --force --deep --sign - "composeApp/build/compose/binaries/main/app/GameLauncher.app"
+
+      - name: Resolve package version
+        run: echo "PACKAGE_VERSION=$(./gradlew -q :composeApp:printPackageVersion --no-daemon)" >> "$GITHUB_ENV"
+
+      - name: Create DMG from signed app
+        run: |
+          hdiutil create \
+            -volname "Game Launcher" \
+            -srcfolder "composeApp/build/compose/binaries/main/app/GameLauncher.app" \
+            -ov -format UDZO \
+            "GameLauncher-${PACKAGE_VERSION}.dmg"
+
+      - name: Create portable ZIP
+        run: |
+          ditto -c -k --keepParent \
+            "composeApp/build/compose/binaries/main/app/GameLauncher.app" \
+            "GameLauncher-macos.zip"
+
+      - name: Upload macOS artifacts
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: GameLauncher-macos
+          path: |
+            GameLauncher-${{ env.PACKAGE_VERSION }}.dmg
+            GameLauncher-macos.zip
+          if-no-files-found: error
+
+      - name: Fork PR artifact note
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ### Artifacts skipped
+
+          Pull requests from forks run with a read-only `GITHUB_TOKEN`, so installer artifacts are not uploaded. Builds still validate on macOS and Windows; download artifacts from `main` pushes or same-repo PRs.
+          EOF
+
+      - name: macOS install notes
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ### macOS artifacts
+
+          GitHub adds a quarantine flag to downloaded files. After downloading:
+
+          ```bash
+          xattr -cr GameLauncher.app   # if using the zip
+          # or, for the DMG: mount it, then run the same on the copied .app
+          ```
+
+          Then open **Game Launcher** normally. Full Developer ID signing and notarization are planned later ([#9](https://github.com/morphingcoffee/GameLauncher/issues/9)).
+          EOF
+
+  build-windows:
+    name: Windows (MSI)
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      # windows-latest ships WiX 3.14+; do not pin an older Chocolatey version (downgrade fails).
+      - name: Verify WiX Toolset
+        shell: pwsh
+        run: |
+          if (-not (Get-Command candle.exe -ErrorAction SilentlyContinue)) {
+            choco install wixtoolset -y --no-progress
+          }
+
+      - name: Package MSI
+        shell: pwsh
+        run: .\gradlew.bat :composeApp:packageMsi --no-daemon
+
+      - name: Upload Windows artifact
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: GameLauncher-windows
+          path: composeApp/build/compose/binaries/main/msi/*.msi
+          if-no-files-found: error
+
+      - name: Fork PR artifact note
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ### Artifacts skipped
+
+          Pull requests from forks run with a read-only `GITHUB_TOKEN`, so installer artifacts are not uploaded. Builds still validate on macOS and Windows; download artifacts from `main` pushes or same-repo PRs.
+          EOF
+
+      - name: Windows install notes
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ### Windows artifact
+
+          Run the MSI installer. Windows SmartScreen may warn about an unknown publisher — choose **More info** → **Run anyway**. Authenticode signing is planned for a later release.
+          EOF
