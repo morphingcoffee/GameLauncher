@@ -79,6 +79,13 @@ Subdirs: `downloads/`, `games/{gameId}/`
 - Overrides via env: `GAME_LAUNCHER_MANIFEST_URL` (see `.env.example`)
 - Secrets: macOS Keychain only (`security`); see `secret-hygiene` — never in project config files
 
+## Architecture (Stage 1)
+
+- **MVI:** lightweight `MviViewModel` in `:core:architecture`; features expose `State` / `Event` / `Effect`
+- **DI:** Koin 4.2 + Compiler Plugin (`compileSafety = true`); `@KoinApplication` aggregator in `:composeApp`
+- **Navigation:** Navigation 3; typed `AppDestination : NavKey` in `:core:navigation`
+- **Modules:** `:composeApp`, `:core:architecture`, `:core:designsystem`, `:core:navigation`, `:feature:home`
+
 ## Implementation phases
 
 | Phase | Scope |
