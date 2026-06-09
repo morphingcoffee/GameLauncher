@@ -89,9 +89,10 @@ echo "$DIFF" | grep -qE 'Bearer eyJ[A-Za-z0-9_-]{10,}\.' && report "Bearer JWT d
 echo "$DIFF" | grep -qE '(password|passwd|secret|api[_-]?key)[[:space:]]*[=:][[:space:]]*["'"'"'][^"'"'"']{8,}' && report "Hardcoded credential assignment detected"
 
 # --- Forbidden files in diff ---
-echo "$DIFF" | grep -qE '^diff --git a/\.env ' && report ".env file must not be committed"
-echo "$DIFF" | grep -qE '^diff --git a/\.cursor/mcp\.json ' && report ".cursor/mcp.json must not exist in project (use ~/.cursor/mcp.json + Keychain)"
-echo "$DIFF" | grep -qE '^diff --git a/local\.properties ' && report "local.properties must not be committed"
+# Match the post-change path (b/...). New files appear as "a/dev/null b/<path>".
+echo "$DIFF" | grep -qE '^diff --git .* b/\.env$' && report ".env file must not be committed"
+echo "$DIFF" | grep -qE '^diff --git .* b/\.cursor/mcp\.json$' && report ".cursor/mcp.json must not exist in project (use ~/.cursor/mcp.json + Keychain)"
+echo "$DIFF" | grep -qE '^diff --git .* b/local\.properties$' && report "local.properties must not be committed"
 
 # --- Local path leaks (in added lines only) ---
 ADDED="$(echo "$DIFF" | grep '^+' | grep -v '^+++' || true)"
