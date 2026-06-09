@@ -122,3 +122,15 @@ compose.desktop {
         }
     }
 }
+
+tasks.register("printPackageVersion") {
+    notCompatibleWithConfigurationCache("Reads packageVersion from Compose Desktop DSL")
+    group = "distribution"
+    description = "Prints packageVersion for CI artifact naming"
+    doLast {
+        println(
+            compose.desktop.application.nativeDistributions.packageVersion
+                ?: error("packageVersion is not set"),
+        )
+    }
+}

@@ -65,8 +65,10 @@ On every pull request and push to `main`, [`.github/workflows/desktop-installers
 
 | Runner | Artifacts |
 |--------|-----------|
-| `macos-latest` | `GameLauncher-1.0.0.dmg`, `GameLauncher-macos.zip` (ad-hoc signed `.app`) |
-| `windows-latest` | `GameLauncher-1.0.0.msi` |
+| `macos-latest` | `GameLauncher-{version}.dmg`, `GameLauncher-macos.zip` (ad-hoc signed `.app`) |
+| `windows-latest` | `GameLauncher-{version}.msi` |
+
+`{version}` matches `packageVersion` in [`composeApp/build.gradle.kts`](composeApp/build.gradle.kts).
 
 Download from the workflow run → **Artifacts**.
 

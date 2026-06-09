@@ -35,13 +35,16 @@ jobs:
       - name: Ad-hoc sign app bundle
         run: codesign --force --deep --sign - "composeApp/build/compose/binaries/main/app/GameLauncher.app"
 
+      - name: Resolve package version
+        run: echo "PACKAGE_VERSION=$(./gradlew -q :composeApp:printPackageVersion --no-daemon)" >> "$GITHUB_ENV"
+
       - name: Create DMG from signed app
         run: |
           hdiutil create \
             -volname "Game Launcher" \
             -srcfolder "composeApp/build/compose/binaries/main/app/GameLauncher.app" \
             -ov -format UDZO \
-            "GameLauncher-1.0.0.dmg"
+            "GameLauncher-${PACKAGE_VERSION}.dmg"
 
       - name: Create portable ZIP
         run: |
@@ -55,7 +58,7 @@ jobs:
         with:
           name: GameLauncher-macos
           path: |
-            GameLauncher-1.0.0.dmg
+            GameLauncher-${{ env.PACKAGE_VERSION }}.dmg
             GameLauncher-macos.zip
           if-no-files-found: error
 
