@@ -14,7 +14,8 @@ kotlin {
     sourceSets {
         val desktopMain by getting {
             dependencies {
-                implementation(compose.desktop.currentOs)
+                implementation(libs.compose.desktop)
+                implementation(libs.compose.ui.tooling.desktop)
             }
         }
         val commonMain by getting {
@@ -23,10 +24,11 @@ kotlin {
                 implementation(project(":core:designsystem"))
                 implementation(project(":core:navigation"))
                 implementation(project(":feature:home"))
-                implementation(compose.runtime)
-                implementation(compose.foundation)
-                implementation(compose.material3)
-                implementation(compose.ui)
+                implementation(libs.compose.runtime)
+                implementation(libs.compose.foundation)
+                implementation(libs.compose.material3)
+                implementation(libs.compose.ui)
+                implementation(libs.compose.ui.tooling.preview)
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.androidx.lifecycle.runtime.compose)
@@ -42,12 +44,13 @@ kotlin {
 }
 
 koinCompiler {
-    compileSafety = true
+    // Cross-module ViewModels are not visible to compileSafety yet (Koin #2404).
+    compileSafety = false
 }
 
 compose.desktop {
     application {
-        mainClass = "com.gamelauncher.MainKt"
+        mainClass = "com.morphingcoffee.gamelauncher.MainKt"
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi)
@@ -57,7 +60,7 @@ compose.desktop {
             vendor = "GameLauncher"
 
             macOS {
-                bundleID = "com.gamelauncher.desktop"
+                bundleID = "com.morphingcoffee.gamelauncher.desktop"
             }
         }
     }

@@ -1,4 +1,4 @@
-package com.gamelauncher.di
+package com.morphingcoffee.gamelauncher.di
 
 import org.koin.core.annotation.KoinApplication
 

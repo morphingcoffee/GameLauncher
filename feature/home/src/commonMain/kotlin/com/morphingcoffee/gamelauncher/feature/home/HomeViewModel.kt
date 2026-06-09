@@ -1,6 +1,6 @@
-package com.gamelauncher.feature.home
+package com.morphingcoffee.gamelauncher.feature.home
 
-import com.gamelauncher.core.architecture.MviViewModel
+import com.morphingcoffee.gamelauncher.core.architecture.MviViewModel
 
 class HomeViewModel : MviViewModel<HomeState, HomeEvent, HomeEffect>(
     initialState = HomeState(),

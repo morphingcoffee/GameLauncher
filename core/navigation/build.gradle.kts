@@ -11,10 +11,10 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation(compose.runtime)
+                implementation(libs.compose.runtime)
+                implementation(libs.compose.ui)
                 implementation(libs.navigation3.ui)
                 implementation(libs.androidx.savedstate)
-                implementation(libs.androidx.savedstate.serialization)
                 implementation(libs.kotlinx.serialization.json)
             }
         }

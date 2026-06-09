@@ -1,4 +1,4 @@
-package com.gamelauncher.feature.home
+package com.morphingcoffee.gamelauncher.feature.home
 
 sealed interface HomeEvent {
     data object Started : HomeEvent

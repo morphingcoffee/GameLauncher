@@ -9,15 +9,21 @@ kotlin {
     jvm("desktop")
 
     sourceSets {
+        val desktopMain by getting {
+            dependencies {
+                implementation(libs.compose.ui.tooling.desktop)
+            }
+        }
         val commonMain by getting {
             dependencies {
                 implementation(project(":core:architecture"))
                 implementation(project(":core:designsystem"))
                 implementation(project(":core:navigation"))
-                implementation(compose.runtime)
-                implementation(compose.foundation)
-                implementation(compose.material3)
-                implementation(compose.ui)
+                implementation(libs.compose.runtime)
+                implementation(libs.compose.foundation)
+                implementation(libs.compose.material3)
+                implementation(libs.compose.ui)
+                implementation(libs.compose.ui.tooling.preview)
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.androidx.lifecycle.viewmodel)
                 implementation(libs.androidx.lifecycle.viewmodel.compose)

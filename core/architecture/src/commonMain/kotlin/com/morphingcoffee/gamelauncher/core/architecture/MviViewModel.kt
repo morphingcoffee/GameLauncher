@@ -1,4 +1,4 @@
-package com.gamelauncher.core.architecture
+package com.morphingcoffee.gamelauncher.core.architecture
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
