@@ -19,7 +19,7 @@ description: >-
 | Windows profile paths | `C:\Users\alice\...` |
 | Hostnames / IPs | `morphingcoffee-macbook.local`, `192.168.x.x` |
 | IDE machine state | `.idea/`, `local.properties` |
-| MCP config with real token | `.cursor/mcp.json` |
+| MCP config with PAT (project or global with literal token) | use `~/.cursor/mcp.json` with `${env:GITHUB_PAT}` only; PAT from Keychain |
 
 ## Safe patterns
 
@@ -33,8 +33,8 @@ description: >-
 | Committed | Local only |
 |-----------|------------|
 | `.env.example` (empty values) | `.env` |
-| `.cursor/mcp.json.example` | `.cursor/mcp.json` |
-| `Config.kt` placeholders | Keychain → env vars |
+| `scripts/mcp-github.global.json.example` | `~/.cursor/mcp.json` (env ref only, no literal PAT) |
+| `Config.kt` placeholders | Keychain → `security find-generic-password` |
 
 ## PR / issue hygiene
 

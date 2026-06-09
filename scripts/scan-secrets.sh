@@ -46,7 +46,7 @@ echo "$DIFF" | grep -qE '(password|passwd|secret|api[_-]?key)[[:space:]]*[=:][[:
 
 # --- Forbidden files in diff ---
 echo "$DIFF" | grep -qE '^diff --git a/\.env ' && report ".env file must not be committed"
-echo "$DIFF" | grep -qE '^diff --git a/\.cursor/mcp\.json ' && report ".cursor/mcp.json must not be committed (use .example + Keychain)"
+echo "$DIFF" | grep -qE '^diff --git a/\.cursor/mcp\.json ' && report ".cursor/mcp.json must not exist in project (use ~/.cursor/mcp.json + Keychain)"
 echo "$DIFF" | grep -qE '^diff --git a/local\.properties ' && report "local.properties must not be committed"
 
 # --- Local path leaks (in added lines only) ---

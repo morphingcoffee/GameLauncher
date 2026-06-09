@@ -10,4 +10,4 @@ alwaysApply: true
 - **Link work to issues:** branch names like `phase-N/short-desc`; PR body includes `Closes #N`
 - **Project board:** repository-level "Game Launcher Roadmap" (record project number here after creation)
 - **Before commit/push:** follow `secret-hygiene` skill; run `scripts/scan-secrets.sh`
-- **Secrets:** never commit PATs or CDN/bucket credentials; use macOS Keychain + env vars for local values
+- **Secrets:** PAT only in macOS Keychain (`security`); inject via `scripts/github-pat-from-keychain.sh` or `scripts/open-cursor-with-github.sh` — never in project config files; global MCP config at `~/.cursor/mcp.json` uses `${env:GITHUB_PAT}` only

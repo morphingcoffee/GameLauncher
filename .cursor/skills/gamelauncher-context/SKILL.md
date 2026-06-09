@@ -77,7 +77,7 @@ Subdirs: `downloads/`, `games/{gameId}/`
 
 - Public defaults in `Config.kt` (placeholder CDN host)
 - Overrides via env: `GAME_LAUNCHER_MANIFEST_URL` (see `.env.example`)
-- Secrets: macOS Keychain — see `secret-hygiene` skill
+- Secrets: macOS Keychain only (`security`); see `secret-hygiene` — never in project config files
 
 ## Implementation phases
 
