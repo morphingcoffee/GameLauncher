@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scans staged (or all tracked) diff for likely secrets and local path leaks.
+# Scans staged diff (pre-commit) or uncommitted + unpushed changes (pre-push).
 # Exit 0 = clean, 1 = findings (blocks commit/push).
 set -euo pipefail
 
@@ -8,22 +8,66 @@ cd "$ROOT"
 
 MODE="${1:-staged}"
 if [[ "$MODE" == "staged" ]]; then
-  DIFF_TARGET="--cached"
   LABEL="staged"
 elif [[ "$MODE" == "all" ]]; then
-  DIFF_TARGET="HEAD"
-  LABEL="tracked"
+  LABEL="push"
 else
   echo "Usage: $0 [staged|all]" >&2
   exit 2
 fi
 
-# Skip if not a git repo or empty diff
+# Skip if not a git repo
 if ! git rev-parse --git-dir >/dev/null 2>&1; then
   exit 0
 fi
 
-DIFF="$(git diff $DIFF_TARGET --diff-filter=ACMRTUXB --no-color 2>/dev/null || true)"
+push_scan_base() {
+  if git rev-parse --verify '@{u}' >/dev/null 2>&1; then
+    echo '@{u}'
+    return 0
+  fi
+  local default_branch="main"
+  local origin_head
+  if origin_head="$(git symbolic-ref --quiet refs/remotes/origin/HEAD 2>/dev/null)"; then
+    default_branch="${origin_head#refs/remotes/origin/}"
+  fi
+  if git rev-parse --verify "origin/${default_branch}" >/dev/null 2>&1; then
+    echo "origin/${default_branch}"
+    return 0
+  fi
+  return 1
+}
+
+collect_diff() {
+  local diff=""
+  local part
+
+  if [[ "$MODE" == "staged" ]]; then
+    git diff --cached --diff-filter=ACMRTUXB --no-color 2>/dev/null || true
+    return 0
+  fi
+
+  part="$(git diff HEAD --diff-filter=ACMRTUXB --no-color 2>/dev/null || true)"
+  if [[ -n "$part" ]]; then
+    diff="$part"
+  fi
+
+  local base
+  if base="$(push_scan_base)"; then
+    part="$(git diff "${base}...HEAD" --diff-filter=ACMRTUXB --no-color 2>/dev/null || true)"
+    if [[ -n "$part" ]]; then
+      if [[ -n "$diff" ]]; then
+        diff="${diff}"$'\n'"${part}"
+      else
+        diff="$part"
+      fi
+    fi
+  fi
+
+  printf '%s' "$diff"
+}
+
+DIFF="$(collect_diff)"
 if [[ -z "$DIFF" ]]; then
   exit 0
 fi
