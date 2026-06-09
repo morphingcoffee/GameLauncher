@@ -31,7 +31,7 @@ kotlin {
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.androidx.lifecycle.runtime.compose)
                 implementation(libs.navigation3.ui)
-                implementation(platform(libs.koin.bom))
+                implementation(project.dependencies.platform(libs.koin.bom))
                 implementation(libs.koin.core)
                 implementation(libs.koin.annotations)
                 implementation(libs.koin.compose)
