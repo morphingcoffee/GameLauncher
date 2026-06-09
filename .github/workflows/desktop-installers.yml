@@ -14,7 +14,7 @@ jobs:
   build-macos:
     name: macOS (DMG + app zip)
     runs-on: macos-latest
-    timeout-minutes: 45
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -89,7 +89,7 @@ jobs:
   build-windows:
     name: Windows (MSI)
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
