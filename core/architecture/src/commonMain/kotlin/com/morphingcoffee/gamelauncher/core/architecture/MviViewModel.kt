@@ -17,7 +17,8 @@ abstract class MviViewModel<State, Event, Effect>(
     private val _state = MutableStateFlow(initialState)
     val state: StateFlow<State> = _state.asStateFlow()
 
-    private val _effects = MutableSharedFlow<Effect>()
+    // Buffer one-shot effects so emit does not suspend when the UI collector is not active yet.
+    private val _effects = MutableSharedFlow<Effect>(extraBufferCapacity = 1)
     val effects: SharedFlow<Effect> = _effects.asSharedFlow()
 
     protected fun updateState(reducer: State.() -> State) {
@@ -25,8 +26,10 @@ abstract class MviViewModel<State, Event, Effect>(
     }
 
     protected fun sendEffect(effect: Effect) {
-        viewModelScope.launch {
-            _effects.emit(effect)
+        if (!_effects.tryEmit(effect)) {
+            viewModelScope.launch {
+                _effects.emit(effect)
+            }
         }
     }
 
