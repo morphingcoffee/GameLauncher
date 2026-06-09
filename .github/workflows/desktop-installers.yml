@@ -1,0 +1,111 @@
+name: Desktop installers
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: desktop-installers-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-macos:
+    name: macOS (DMG + app zip)
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Grant execute permission for Gradle wrapper
+        run: chmod +x ./gradlew
+
+      - name: Build macOS app image
+        run: ./gradlew :composeApp:createDistributable --no-daemon
+
+      - name: Ad-hoc sign app bundle
+        run: codesign --force --deep --sign - "composeApp/build/compose/binaries/main/app/GameLauncher.app"
+
+      - name: Create DMG from signed app
+        run: |
+          hdiutil create \
+            -volname "Game Launcher" \
+            -srcfolder "composeApp/build/compose/binaries/main/app/GameLauncher.app" \
+            -ov -format UDZO \
+            "GameLauncher-1.0.0.dmg"
+
+      - name: Create portable ZIP
+        run: |
+          ditto -c -k --keepParent \
+            "composeApp/build/compose/binaries/main/app/GameLauncher.app" \
+            "GameLauncher-macos.zip"
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: GameLauncher-macos
+          path: |
+            GameLauncher-1.0.0.dmg
+            GameLauncher-macos.zip
+          if-no-files-found: error
+
+      - name: macOS install notes
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ### macOS artifacts
+
+          GitHub adds a quarantine flag to downloaded files. After downloading:
+
+          ```bash
+          xattr -cr GameLauncher.app   # if using the zip
+          # or, for the DMG: mount it, then run the same on the copied .app
+          ```
+
+          Then open **Game Launcher** normally. Full Developer ID signing and notarization are planned later ([#9](https://github.com/morphingcoffee/GameLauncher/issues/9)).
+          EOF
+
+  build-windows:
+    name: Windows (MSI)
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Install WiX Toolset
+        run: choco install wixtoolset --version=3.14.1 -y
+
+      - name: Package MSI
+        shell: pwsh
+        run: .\gradlew.bat :composeApp:packageMsi --no-daemon
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GameLauncher-windows
+          path: composeApp/build/compose/binaries/main/msi/*.msi
+          if-no-files-found: error
+
+      - name: Windows install notes
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ### Windows artifact
+
+          Run the MSI installer. Windows SmartScreen may warn about an unknown publisher — choose **More info** → **Run anyway**. Authenticode signing is planned for a later release.
+          EOF

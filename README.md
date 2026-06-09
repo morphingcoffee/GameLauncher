@@ -49,13 +49,30 @@ See [`.cursor/skills/secret-hygiene/SKILL.md`](.cursor/skills/secret-hygiene/SKI
 
 ### Build installers
 
+Requires a **full JDK 17+** with `jpackage` (e.g. Temurin). Android Studio’s bundled JBR does not include `jpackage`.
+
 ```bash
 # macOS
 ./gradlew :composeApp:packageDmg
 
-# Windows
+# Windows (WiX Toolset 3.11+ required)
 ./gradlew :composeApp:packageMsi
 ```
+
+### CI artifacts
+
+On every pull request and push to `main`, [`.github/workflows/desktop-installers.yml`](.github/workflows/desktop-installers.yml) builds:
+
+| Runner | Artifacts |
+|--------|-----------|
+| `macos-latest` | `GameLauncher-1.0.0.dmg`, `GameLauncher-macos.zip` (ad-hoc signed `.app`) |
+| `windows-latest` | `GameLauncher-1.0.0.msi` |
+
+Download from the workflow run → **Artifacts**.
+
+**macOS:** GitHub adds a quarantine flag. After download, run `xattr -cr GameLauncher.app` (or the app inside the mounted DMG), then open normally. Developer ID signing/notarization is tracked in [#9](https://github.com/morphingcoffee/GameLauncher/issues/9).
+
+**Windows:** SmartScreen may warn about an unknown publisher — use **More info** → **Run anyway**.
 
 ---
 
