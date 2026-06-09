@@ -1,22 +1,33 @@
 #!/usr/bin/env bash
 # Cursor beforeShellExecution hook — deny git push if secret scan fails.
+# hooks.json matcher is "git push"; always scan when this hook is invoked.
 set -euo pipefail
 
-INPUT="$(cat)"
-COMMAND="$(echo "$INPUT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('command',''))" 2>/dev/null || true)"
-
-if [[ ! "$COMMAND" =~ git[[:space:]]+push ]]; then
-  echo '{ "permission": "allow" }'
-  exit 0
-fi
-
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-if ! "$ROOT/scripts/scan-secrets.sh" all; then
+
+deny_scan_failed() {
   echo '{
     "permission": "deny",
     "user_message": "Push blocked: secret scan found issues. Fix before pushing to the public repo.",
     "agent_message": "Run scripts/scan-secrets.sh all, fix findings, then retry git push."
   }'
+}
+
+deny_scan_error() {
+  echo '{
+    "permission": "deny",
+    "user_message": "Push blocked: secret scan could not run.",
+    "agent_message": "Ensure scripts/scan-secrets.sh exists and is executable, then retry git push."
+  }'
+}
+
+if [[ ! -x "$ROOT/scripts/scan-secrets.sh" ]]; then
+  deny_scan_error
+  exit 0
+fi
+
+if ! "$ROOT/scripts/scan-secrets.sh" all; then
+  deny_scan_failed
   exit 0
 fi
 

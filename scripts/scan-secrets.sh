@@ -78,15 +78,18 @@ report() {
   FOUND=1
 }
 
-# --- Secret patterns ---
-echo "$DIFF" | grep -qE 'ghp_[A-Za-z0-9]{20,}' && report "GitHub PAT (ghp_) detected"
-echo "$DIFF" | grep -qE 'gho_[A-Za-z0-9]{20,}' && report "GitHub OAuth token (gho_) detected"
-echo "$DIFF" | grep -qE 'github_pat_[A-Za-z0-9_]{20,}' && report "GitHub fine-grained PAT detected"
-echo "$DIFF" | grep -qE 'AKIA[0-9A-Z]{16}' && report "AWS access key ID detected"
-echo "$DIFF" | grep -qE '(aws_secret_access_key|AWS_SECRET_ACCESS_KEY)\s*[=:]' && report "AWS secret key reference detected"
-echo "$DIFF" | grep -qE '"private_key"\s*:\s*"' && report "JSON private_key field detected"
-echo "$DIFF" | grep -qE 'Bearer eyJ[A-Za-z0-9_-]{10,}\.' && report "Bearer JWT detected"
-echo "$DIFF" | grep -qE '(password|passwd|secret|api[_-]?key)[[:space:]]*[=:][[:space:]]*["'"'"'][^"'"'"']{8,}' && report "Hardcoded credential assignment detected"
+# Content checks use added lines only — deletions must not block secret removal.
+ADDED="$(echo "$DIFF" | grep '^+' | grep -v '^+++' || true)"
+
+# --- Secret patterns (added lines only) ---
+echo "$ADDED" | grep -qE 'ghp_[A-Za-z0-9]{20,}' && report "GitHub PAT (ghp_) detected"
+echo "$ADDED" | grep -qE 'gho_[A-Za-z0-9]{20,}' && report "GitHub OAuth token (gho_) detected"
+echo "$ADDED" | grep -qE 'github_pat_[A-Za-z0-9_]{20,}' && report "GitHub fine-grained PAT detected"
+echo "$ADDED" | grep -qE 'AKIA[0-9A-Z]{16}' && report "AWS access key ID detected"
+echo "$ADDED" | grep -qE '(aws_secret_access_key|AWS_SECRET_ACCESS_KEY)[[:space:]]*[=:]' && report "AWS secret key reference detected"
+echo "$ADDED" | grep -qE '"private_key"[[:space:]]*:[[:space:]]*"' && report "JSON private_key field detected"
+echo "$ADDED" | grep -qE 'Bearer eyJ[A-Za-z0-9_-]{10,}\.' && report "Bearer JWT detected"
+echo "$ADDED" | grep -qE '(password|passwd|secret|api[_-]?key)[[:space:]]*[=:][[:space:]]*["'"'"'][^"'"'"']{8,}' && report "Hardcoded credential assignment detected"
 
 # --- Forbidden files in diff ---
 # Match the post-change path (b/...). New files appear as "a/dev/null b/<path>".
@@ -94,8 +97,7 @@ echo "$DIFF" | grep -qE '^diff --git .* b/\.env$' && report ".env file must not 
 echo "$DIFF" | grep -qE '^diff --git .* b/\.cursor/mcp\.json$' && report ".cursor/mcp.json must not exist in project (use ~/.cursor/mcp.json + Keychain)"
 echo "$DIFF" | grep -qE '^diff --git .* b/local\.properties$' && report "local.properties must not be committed"
 
-# --- Local path leaks (in added lines only) ---
-ADDED="$(echo "$DIFF" | grep '^+' | grep -v '^+++' || true)"
+# --- Local path leaks (added lines only) ---
 if echo "$ADDED" | grep -qE '/Users/[A-Za-z0-9._-]+/'; then
   report "macOS user home path in added lines"
 fi
