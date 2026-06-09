@@ -49,6 +49,7 @@ jobs:
             "GameLauncher-macos.zip"
 
       - name: Upload macOS artifacts
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/upload-artifact@v4
         with:
           name: GameLauncher-macos
@@ -56,6 +57,15 @@ jobs:
             GameLauncher-1.0.0.dmg
             GameLauncher-macos.zip
           if-no-files-found: error
+
+      - name: Fork PR artifact note
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ### Artifacts skipped
+
+          Pull requests from forks run with a read-only `GITHUB_TOKEN`, so installer artifacts are not uploaded. Builds still validate on macOS and Windows; download artifacts from `main` pushes or same-repo PRs.
+          EOF
 
       - name: macOS install notes
         run: |
@@ -100,11 +110,22 @@ jobs:
         run: .\gradlew.bat :composeApp:packageMsi --no-daemon
 
       - name: Upload Windows artifact
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/upload-artifact@v4
         with:
           name: GameLauncher-windows
           path: composeApp/build/compose/binaries/main/msi/*.msi
           if-no-files-found: error
+
+      - name: Fork PR artifact note
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ### Artifacts skipped
+
+          Pull requests from forks run with a read-only `GITHUB_TOKEN`, so installer artifacts are not uploaded. Builds still validate on macOS and Windows; download artifacts from `main` pushes or same-repo PRs.
+          EOF
 
       - name: Windows install notes
         shell: bash
