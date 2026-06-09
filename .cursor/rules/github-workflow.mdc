@@ -1,0 +1,13 @@
+---
+description: GitHub workflow defaults for morphingcoffee/GameLauncher
+alwaysApply: true
+---
+
+# GitHub Workflow
+
+- **Repository:** `morphingcoffee/GameLauncher` (public)
+- **Prefer GitHub MCP** for issues, PRs, project board, and Actions status before shell fallbacks
+- **Link work to issues:** branch names like `phase-N/short-desc`; PR body includes `Closes #N`
+- **Project board:** repository-level "Game Launcher Roadmap" (record project number here after creation)
+- **Before commit/push:** follow `secret-hygiene` skill; run `scripts/scan-secrets.sh`
+- **Secrets:** never commit PATs or CDN/bucket credentials; use macOS Keychain + env vars for local values
