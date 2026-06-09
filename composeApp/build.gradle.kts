@@ -14,8 +14,16 @@ kotlin {
     sourceSets {
         val desktopMain by getting {
             dependencies {
-                implementation(libs.compose.desktop)
+                // Generic :desktop lacks Skiko natives; use the host OS/arch artifact (was compose.desktop.currentOs).
+                implementation(
+                    composeDesktopHostDependency(
+                        libs.versions.compose.multiplatform
+                            .get(),
+                    ),
+                )
                 implementation(libs.compose.ui.tooling.desktop)
+                // Main dispatcher for collectAsStateWithLifecycle / lifecycle-runtime-compose on Swing.
+                implementation(libs.kotlinx.coroutines.swing)
             }
         }
         val commonMain by getting {
@@ -46,6 +54,21 @@ kotlin {
 koinCompiler {
     // Cross-module ViewModels are not visible to compileSafety yet (Koin #2404).
     compileSafety = false
+}
+
+private fun composeDesktopHostDependency(composeVersion: String): String {
+    val os = System.getProperty("os.name")
+    val arch = System.getProperty("os.arch")
+    val hostId =
+        when {
+            os.contains("Mac", ignoreCase = true) && arch == "aarch64" -> "macos-arm64"
+            os.contains("Mac", ignoreCase = true) -> "macos-x64"
+            os.contains("Win", ignoreCase = true) -> "windows-x64"
+            os.contains("Linux", ignoreCase = true) && arch == "aarch64" -> "linux-arm64"
+            os.contains("Linux", ignoreCase = true) -> "linux-x64"
+            else -> error("Unsupported OS for Compose Desktop: $os ($arch)")
+        }
+    return "org.jetbrains.compose.desktop:desktop-jvm-$hostId:$composeVersion"
 }
 
 compose.desktop {
