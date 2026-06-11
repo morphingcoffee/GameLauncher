@@ -17,19 +17,22 @@ Usage: r2-deploy.sh [--allow-deletes] <local-dir> [remote-prefix]
   local-dir       Directory to upload
   remote-prefix   Optional path inside the bucket (no leading slash)
 
-  sync makes the remote prefix match local — files on the remote that are not
+  sync makes the remote prefix match local — files/dirs on the remote that are not
   in local-dir are DELETED. A dry-run runs first; if deletes are needed, re-run
   with --allow-deletes after reviewing the list.
 
 Examples:
   ./scripts/r2-deploy.sh ./build/dist
+  ./scripts/r2-deploy.sh ./build/dist --allow-deletes
   ./scripts/r2-deploy.sh --allow-deletes ./build/dist releases/v1.0.0
 EOF
   exit 2
 }
 
 ALLOW_DELETES=false
-while [[ $# -gt 0 ]]; do
+REMOTE_PREFIX=""
+
+while [[ $# -gt 0 && "$1" == -* ]]; do
   case "$1" in
     --allow-deletes)
       ALLOW_DELETES=true
@@ -46,16 +49,34 @@ while [[ $# -gt 0 ]]; do
       echo "r2-deploy: unknown option: $1" >&2
       usage
       ;;
-    *)
-      break
-      ;;
   esac
 done
 
 [[ $# -ge 1 ]] || usage
 
 LOCAL_DIR="$1"
-REMOTE_PREFIX="${2:-}"
+shift
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --allow-deletes)
+      ALLOW_DELETES=true
+      shift
+      ;;
+    -*)
+      echo "r2-deploy: unknown option: $1" >&2
+      usage
+      ;;
+    *)
+      if [[ -n "$REMOTE_PREFIX" ]]; then
+        echo "r2-deploy: too many arguments" >&2
+        usage
+      fi
+      REMOTE_PREFIX="$1"
+      shift
+      ;;
+  esac
+done
 
 if [[ ! -d "$LOCAL_DIR" ]]; then
   echo "r2-deploy: local directory not found: $LOCAL_DIR" >&2
@@ -113,9 +134,10 @@ if ! rclone sync "$LOCAL_DIR" "$REMOTE" "${RCLONE_FLAGS[@]}" --dry-run -v --stat
   exit 1
 fi
 
-if grep -q 'Skipped delete as --dry-run is set' "$dry_log"; then
-  echo "r2-deploy: WARNING — sync would DELETE remote objects not present in $LOCAL_DIR:" >&2
-  grep 'Skipped delete as --dry-run is set' "$dry_log" \
+dry_run_destructive='Skipped (delete|remove directory) as --dry-run is set'
+if grep -qE "$dry_run_destructive" "$dry_log"; then
+  echo "r2-deploy: WARNING — sync would DELETE remote files/dirs not present in $LOCAL_DIR:" >&2
+  grep -E "$dry_run_destructive" "$dry_log" \
     | sed -E 's/^.*NOTICE: ([^:]+):.*/  \1/' >&2
   if [[ "$ALLOW_DELETES" != true ]]; then
     echo "r2-deploy: aborted — re-run with --allow-deletes to proceed" >&2
