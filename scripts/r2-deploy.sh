@@ -87,7 +87,6 @@ source "$ROOT/scripts/r2-from-keychain.sh" || {
 # shellcheck source=scripts/r2-rclone-env.sh
 source "$ROOT/scripts/r2-rclone-env.sh"
 r2_rclone_configure
-trap r2_rclone_cleanup EXIT
 
 REMOTE="${RCLONE_REMOTE}:${R2_BUCKET_NAME}"
 if [[ -n "$REMOTE_PREFIX" ]]; then
@@ -97,10 +96,22 @@ fi
 echo "r2-deploy: $LOCAL_DIR -> r2://${R2_BUCKET_NAME}/${REMOTE_PREFIX:-}" >&2
 
 dry_log="$(mktemp)"
-trap 'rm -f "$dry_log"; r2_rclone_cleanup' EXIT
+cleanup_deploy() {
+  local rc=$?
+  if (( rc != 0 )) && [[ -f "${dry_log:-}" ]]; then
+    echo "r2-deploy: dry-run output:" >&2
+    cat "$dry_log" >&2
+  fi
+  rm -f "${dry_log:-}"
+  r2_rclone_cleanup
+}
+trap cleanup_deploy EXIT
 
 echo "r2-deploy: dry-run (checking for remote deletes)..." >&2
-rclone sync "$LOCAL_DIR" "$REMOTE" --dry-run -v --stats-one-line >"$dry_log" 2>&1
+if ! rclone sync "$LOCAL_DIR" "$REMOTE" --dry-run -v --stats-one-line >"$dry_log" 2>&1; then
+  echo "r2-deploy: dry-run failed" >&2
+  exit 1
+fi
 
 if grep -q 'Skipped delete as --dry-run is set' "$dry_log"; then
   echo "r2-deploy: WARNING — sync would DELETE remote objects not present in $LOCAL_DIR:" >&2
