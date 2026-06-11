@@ -16,6 +16,9 @@ r2_rclone_configure() {
   export RCLONE_CONFIG_GAMELAUNCHER_R2_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"
   export RCLONE_CONFIG_GAMELAUNCHER_R2_ENDPOINT="$R2_ENDPOINT"
   export RCLONE_CONFIG_GAMELAUNCHER_R2_ACL="private"
+  # Object-scoped tokens lack HeadBucket — https://developers.cloudflare.com/r2/examples/rclone/
+  export RCLONE_CONFIG_GAMELAUNCHER_R2_NO_CHECK_BUCKET="true"
+  RCLONE_FLAGS=(--s3-no-check-bucket)
 }
 
 r2_rclone_cleanup() {

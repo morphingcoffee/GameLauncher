@@ -108,7 +108,7 @@ cleanup_deploy() {
 trap cleanup_deploy EXIT
 
 echo "r2-deploy: dry-run (checking for remote deletes)..." >&2
-if ! rclone sync "$LOCAL_DIR" "$REMOTE" --dry-run -v --stats-one-line >"$dry_log" 2>&1; then
+if ! rclone sync "$LOCAL_DIR" "$REMOTE" "${RCLONE_FLAGS[@]}" --dry-run -v --stats-one-line >"$dry_log" 2>&1; then
   echo "r2-deploy: dry-run failed" >&2
   exit 1
 fi
@@ -125,6 +125,7 @@ if grep -q 'Skipped delete as --dry-run is set' "$dry_log"; then
 fi
 
 rclone sync "$LOCAL_DIR" "$REMOTE" \
+  "${RCLONE_FLAGS[@]}" \
   --progress \
   --retries 5 \
   --retries-sleep 5s \

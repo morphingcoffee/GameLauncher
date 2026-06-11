@@ -41,7 +41,7 @@ cleanup_all() {
     rm -f "$PROBE_FILE"
   fi
   if [[ -n "$PROBE_KEY" ]]; then
-    rclone deletefile "${REMOTE}/${PROBE_KEY}" >/dev/null 2>&1 || true
+    rclone deletefile "${REMOTE}/${PROBE_KEY}" "${RCLONE_FLAGS[@]}" >/dev/null 2>&1 || true
   fi
   r2_rclone_cleanup
 }
@@ -61,7 +61,7 @@ fail_write() {
 }
 
 echo "r2-test-auth: read — r2://${R2_BUCKET_NAME}/" >&2
-rclone lsf "$REMOTE" --max-depth 1 | head -20
+rclone lsf "$REMOTE" "${RCLONE_FLAGS[@]}" --max-depth 1 | head -20
 lsf_status=${PIPESTATUS[0]}
 # head closes the pipe after 20 lines; rclone exits 141 (SIGPIPE) — not an auth failure
 if (( lsf_status != 0 && lsf_status != 141 )); then
@@ -73,7 +73,7 @@ PROBE_KEY=".gamelauncher-r2-probe/auth-$(date +%s).txt"
 echo "probe" >"$PROBE_FILE"
 
 echo "r2-test-auth: write — ${PROBE_KEY}" >&2
-if ! rclone copyto "$PROBE_FILE" "${REMOTE}/${PROBE_KEY}"; then
+if ! rclone copyto "$PROBE_FILE" "${REMOTE}/${PROBE_KEY}" "${RCLONE_FLAGS[@]}"; then
   fail_write
 fi
 
