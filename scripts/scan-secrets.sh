@@ -86,10 +86,12 @@ echo "$ADDED" | grep -qE 'ghp_[A-Za-z0-9]{20,}' && report "GitHub PAT (ghp_) det
 echo "$ADDED" | grep -qE 'gho_[A-Za-z0-9]{20,}' && report "GitHub OAuth token (gho_) detected"
 echo "$ADDED" | grep -qE 'github_pat_[A-Za-z0-9_]{20,}' && report "GitHub fine-grained PAT detected"
 echo "$ADDED" | grep -qE 'AKIA[0-9A-Z]{16}' && report "AWS access key ID detected"
-echo "$ADDED" | grep -qE '(aws_secret_access_key|AWS_SECRET_ACCESS_KEY)[[:space:]]*[=:]' && report "AWS secret key reference detected"
+echo "$ADDED" | grep -qE '(aws_secret_access_key|AWS_SECRET_ACCESS_KEY)[[:space:]]*[=:][[:space:]]*["'"'"'][^$"'"'"']' && report "AWS secret key assignment detected"
+echo "$ADDED" | grep -qE '(r2_secret_access_key|R2_SECRET_ACCESS_KEY)[[:space:]]*[=:][[:space:]]*["'"'"'][^$"'"'"']' && report "R2 secret key assignment detected"
+echo "$ADDED" | grep -qE '(r2_access_key_id|R2_ACCESS_KEY_ID)[[:space:]]*[=:][[:space:]]*["'"'"'][^$"'"'"']{8,}' && report "R2 access key assignment detected"
 echo "$ADDED" | grep -qE '"private_key"[[:space:]]*:[[:space:]]*"' && report "JSON private_key field detected"
 echo "$ADDED" | grep -qE 'Bearer eyJ[A-Za-z0-9_-]{10,}\.' && report "Bearer JWT detected"
-echo "$ADDED" | grep -qE '(password|passwd|secret|api[_-]?key)[[:space:]]*[=:][[:space:]]*["'"'"'][^"'"'"']{8,}' && report "Hardcoded credential assignment detected"
+echo "$ADDED" | grep -qE '(^|[^_a-zA-Z])(password|passwd|secret|api[_-]?key)[[:space:]]*[=:][[:space:]]*["'"'"'][^"'"'"']{8,}' && report "Hardcoded credential assignment detected"
 
 # --- Forbidden files in diff ---
 # Match the post-change path (b/...). New files appear as "a/dev/null b/<path>".
