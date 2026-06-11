@@ -30,7 +30,7 @@ Re-run with `-U` after rotating a token; update **both** items.
 ./scripts/r2-deploy.sh ./path/to/artifacts releases/v1.0.0   # optional prefix
 ```
 
-`r2-deploy.sh` uses `no_check_bucket` so scoped tokens work without Admin permissions.
+`r2-deploy.sh` runs a dry-run first. **Sync deletes** remote files under the target prefix that are not in your local directory — use a dedicated prefix (e.g. `releases/v1.0.0`). If the dry-run reports deletes, review the list and pass `--allow-deletes` to proceed.
 
 ## Security
 

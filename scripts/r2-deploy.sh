@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Sync a local directory to Cloudflare R2 via rclone (S3-compatible API).
 #
-#   ./scripts/r2-deploy.sh <local-dir> [remote-prefix]
+#   ./scripts/r2-deploy.sh [--allow-deletes] <local-dir> [remote-prefix]
 #
 # Requires: rclone, .env with R2_ACCOUNT_ID and R2_BUCKET_NAME, Keychain R2 keys.
 # See docs/r2-deploy.md for setup and Keychain storage.
@@ -12,23 +12,47 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 usage() {
   cat <<'EOF' >&2
-Usage: r2-deploy.sh <local-dir> [remote-prefix]
+Usage: r2-deploy.sh [--allow-deletes] <local-dir> [remote-prefix]
 
-  local-dir       Directory to upload (synced to bucket root or prefix)
+  local-dir       Directory to upload
   remote-prefix   Optional path inside the bucket (no leading slash)
+
+  sync makes the remote prefix match local — files on the remote that are not
+  in local-dir are DELETED. A dry-run runs first; if deletes are needed, re-run
+  with --allow-deletes after reviewing the list.
 
 Examples:
   ./scripts/r2-deploy.sh ./build/dist
-  ./scripts/r2-deploy.sh ./build/dist releases/v1.0.0
+  ./scripts/r2-deploy.sh --allow-deletes ./build/dist releases/v1.0.0
 EOF
   exit 2
 }
 
-case "${1:-}" in
-  -h | --help | help | "")
-    usage
-    ;;
-esac
+ALLOW_DELETES=false
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --allow-deletes)
+      ALLOW_DELETES=true
+      shift
+      ;;
+    -h | --help | help)
+      usage
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      echo "r2-deploy: unknown option: $1" >&2
+      usage
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+[[ $# -ge 1 ]] || usage
 
 LOCAL_DIR="$1"
 REMOTE_PREFIX="${2:-}"
@@ -72,8 +96,24 @@ fi
 
 echo "r2-deploy: $LOCAL_DIR -> r2://${R2_BUCKET_NAME}/${REMOTE_PREFIX:-}" >&2
 
+dry_log="$(mktemp)"
+trap 'rm -f "$dry_log"; r2_rclone_cleanup' EXIT
+
+echo "r2-deploy: dry-run (checking for remote deletes)..." >&2
+rclone sync "$LOCAL_DIR" "$REMOTE" --dry-run -v --stats-one-line >"$dry_log" 2>&1
+
+if grep -q 'Skipped delete as --dry-run is set' "$dry_log"; then
+  echo "r2-deploy: WARNING — sync would DELETE remote objects not present in $LOCAL_DIR:" >&2
+  grep 'Skipped delete as --dry-run is set' "$dry_log" \
+    | sed -E 's/^.*NOTICE: ([^:]+):.*/  \1/' >&2
+  if [[ "$ALLOW_DELETES" != true ]]; then
+    echo "r2-deploy: aborted — re-run with --allow-deletes to proceed" >&2
+    exit 1
+  fi
+  echo "r2-deploy: --allow-deletes set, continuing with sync" >&2
+fi
+
 rclone sync "$LOCAL_DIR" "$REMOTE" \
-  --s3-no-check-bucket \
   --progress \
   --retries 5 \
   --retries-sleep 5s \
