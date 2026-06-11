@@ -1,0 +1,12 @@
+---
+description: Ask before push, Bugbot/subagents, and costly network ops (issue #18)
+alwaysApply: true
+---
+
+# Cursor API usage
+
+- Follow `.cursor/skills/prompt-before-api-ops/SKILL.md`
+- **Never `git push`** without explicit user approval in the thread
+- **Never** invoke Bugbot (`Task` bugbot, `review-bugbot`) unless the user asks
+- Bugbot on PRs is manual-only — user comments `bugbot run`; do not push to "trigger review"
+- Prefer local read/grep/shell over web search or GitHub MCP when sufficient
