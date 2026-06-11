@@ -62,7 +62,10 @@ fail_write() {
 }
 
 echo "r2-test-auth: read — r2://${R2_BUCKET_NAME}/" >&2
-if ! rclone lsf "$REMOTE" "${RCLONE_FLAGS[@]}" --max-depth 1 | head -20; then
+rclone lsf "$REMOTE" "${RCLONE_FLAGS[@]}" --max-depth 1 | head -20
+lsf_status=${PIPESTATUS[0]}
+# head closes the pipe after 20 lines; rclone exits 141 (SIGPIPE) — not an auth failure
+if (( lsf_status != 0 && lsf_status != 141 )); then
   fail_read
 fi
 
