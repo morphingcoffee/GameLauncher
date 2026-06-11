@@ -11,8 +11,13 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
-if ! command -v wrangler >/dev/null 2>&1; then
-  echo "r2-wrangler: wrangler not found — install with: brew install wrangler" >&2
+if command -v wrangler >/dev/null 2>&1; then
+  WRANGLER=(wrangler)
+elif command -v npx >/dev/null 2>&1; then
+  WRANGLER=(npx wrangler)
+else
+  echo "r2-wrangler: wrangler not found — install Node.js/npm, then: npm install -g wrangler" >&2
+  echo "  Or ensure npm is available for: npx wrangler <args>" >&2
   exit 1
 fi
 
@@ -27,4 +32,4 @@ if [[ $# -eq 0 ]]; then
   exit 2
 fi
 
-exec wrangler "$@"
+exec "${WRANGLER[@]}" "$@"

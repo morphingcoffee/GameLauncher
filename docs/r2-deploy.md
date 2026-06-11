@@ -8,9 +8,23 @@ Manifest schema and `manifest.json` publishing are **out of scope** for this sli
 
 ## Install tools
 
+**rclone** (Homebrew):
+
 ```bash
-brew install rclone wrangler
+brew install rclone
 ```
+
+**Wrangler** (official Cloudflare CLI — requires [Node.js](https://nodejs.org/) and npm):
+
+```bash
+node -v && npm -v   # prerequisite check
+npm install -g wrangler
+wrangler --version
+```
+
+Homebrew’s `wrangler` formula was disabled upstream (July 2025); use npm instead.
+
+**Without a global install:** `npx wrangler <args>` works if npm is available. `scripts/r2-wrangler.sh` uses `wrangler` from `PATH` when present, otherwise falls back to `npx wrangler`.
 
 ## One-time Cloudflare setup
 
