@@ -43,9 +43,6 @@ if ! command -v rclone >/dev/null 2>&1; then
   exit 1
 fi
 
-# shellcheck source=scripts/r2-from-keychain.sh
-source "$ROOT/scripts/r2-from-keychain.sh"
-
 ENV_FILE="$ROOT/.env"
 if [[ -f "$ENV_FILE" ]]; then
   # shellcheck disable=SC1090
@@ -54,13 +51,18 @@ if [[ -f "$ENV_FILE" ]]; then
   set +a
 fi
 
+# Keychain credentials override any R2_* secret vars that may exist in .env
+# shellcheck source=scripts/r2-from-keychain.sh
+source "$ROOT/scripts/r2-from-keychain.sh"
+
 : "${R2_ACCOUNT_ID:?Set R2_ACCOUNT_ID in .env (see .env.example)}"
 : "${R2_BUCKET_NAME:?Set R2_BUCKET_NAME in .env (see .env.example)}"
 
 R2_ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+export RCLONE_S3_ENDPOINT="$R2_ENDPOINT"
 
-# Inline S3 remote — no rclone.conf on disk
-REMOTE_SPEC=":s3,provider=Cloudflare,access_key_id=${R2_ACCESS_KEY_ID},secret_access_key=${R2_SECRET_ACCESS_KEY},endpoint=${R2_ENDPOINT}:${R2_BUCKET_NAME}"
+# Inline S3 remote — credentials from RCLONE_S3_* env (Keychain), no rclone.conf on disk
+REMOTE_SPEC=":s3,provider=Cloudflare,endpoint=\"${R2_ENDPOINT}\":${R2_BUCKET_NAME}"
 if [[ -n "$REMOTE_PREFIX" ]]; then
   REMOTE_SPEC="${REMOTE_SPEC}/${REMOTE_PREFIX}"
 fi

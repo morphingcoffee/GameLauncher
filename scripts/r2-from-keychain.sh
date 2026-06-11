@@ -28,7 +28,7 @@ fi
 export R2_ACCESS_KEY_ID="$_access_key"
 export R2_SECRET_ACCESS_KEY="$_secret_key"
 
-# rclone S3 backend (optional — r2-deploy.sh uses inline remote spec)
+# rclone S3 backend — r2-deploy.sh reads these instead of inlining keys in argv
 export RCLONE_S3_ACCESS_KEY_ID="$_access_key"
 export RCLONE_S3_SECRET_ACCESS_KEY="$_secret_key"
 

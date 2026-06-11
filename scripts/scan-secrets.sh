@@ -92,6 +92,7 @@ echo "$ADDED" | grep -qE 'Bearer eyJ[A-Za-z0-9_-]{10,}\.' && report "Bearer JWT 
 echo "$ADDED" | grep -qE '(password|passwd|secret|api[_-]?key)[[:space:]]*[=:][[:space:]]*["'"'"'][^"'"'"']{8,}' && report "Hardcoded credential assignment detected"
 # R2 / Cloudflare literals (skip Keychain loaders: values start with $ not a literal)
 echo "$ADDED" | grep -qE '(R2_SECRET_ACCESS_KEY|R2_ACCESS_KEY_ID|CLOUDFLARE_API_TOKEN)[[:space:]]*=[[:space:]]*["'"'"'][^$"'"'"']{8,}' && report "R2/Cloudflare credential literal detected"
+echo "$ADDED" | grep -qE '(R2_SECRET_ACCESS_KEY|R2_ACCESS_KEY_ID|CLOUDFLARE_API_TOKEN)[[:space:]]*=[[:space:]]*[^$"'"'"'[:space:]]{8,}' && report "R2/Cloudflare credential literal detected (unquoted)"
 
 # --- Forbidden files in diff ---
 # Match the post-change path (b/...). New files appear as "a/dev/null b/<path>".
