@@ -16,9 +16,10 @@ rclone version
 ## One-time Cloudflare setup
 
 1. Create an R2 bucket in the [Cloudflare dashboard](https://dash.cloudflare.com/).
-2. Create an **R2 API token** (Object Read & Write) — note the Access Key ID and Secret Access Key.
-3. Configure public access if needed (custom domain or `r2.dev` public bucket URL) in the dashboard.
-4. Copy `.env.example` to `.env` and fill in non-secret values:
+2. Create an **R2 API token** (Object Read & Write, scoped to your bucket) — note the Access Key ID and Secret Access Key. You do **not** need Admin Read & Write; `r2-deploy.sh` sets `no_check_bucket = true` because scoped tokens cannot create or list buckets (a common rclone + R2 403 cause).
+3. Confirm the token’s **Access Key ID** and **Secret** are from **R2 → Manage R2 API tokens** (S3-compatible), not a global Cloudflare API token.
+4. Configure public access if needed (custom domain or `r2.dev` public bucket URL) in the dashboard.
+5. Copy `.env.example` to `.env` and fill in non-secret values:
 
 ```bash
 cp .env.example .env
@@ -44,10 +45,27 @@ security add-generic-password -U \
 
 To update an existing item, re-run with `-U` (upsert).
 
-Load manually in a shell (optional):
+Paste keys exactly as shown once when creating the token — the secret is only shown once. If you recreate the token, update **both** Keychain items.
+
+### `SignatureDoesNotMatch`
+
+rclone reached R2 but the access key / secret pair does not match. Usually:
+
+1. Secret in Keychain is from an old token (recreate token → update Keychain).
+2. Access key and secret were swapped or copied with extra whitespace.
+3. Keys are from a different Cloudflare account than `R2_ACCOUNT_ID` in `.env`.
+
+Check lengths without printing secrets:
 
 ```bash
-source scripts/r2-from-keychain.sh
+security find-generic-password -a "$USER" -s gamelauncher-r2-access-key-id -w | wc -c   # expect 33 (32 + newline) or 32
+security find-generic-password -a "$USER" -s gamelauncher-r2-secret-access-key -w | wc -c  # typically 65 (64 + newline)
+```
+
+Test credentials:
+
+```bash
+./scripts/r2-test-auth.sh
 ```
 
 ## Deploy

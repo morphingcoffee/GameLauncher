@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Ephemeral rclone remote for Cloudflare R2 (no rclone.conf on disk).
+# Requires R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY in the environment.
+
+r2_rclone_configure() {
+  : "${R2_ACCOUNT_ID:?R2_ACCOUNT_ID required}"
+  : "${R2_ACCESS_KEY_ID:?R2_ACCESS_KEY_ID required}"
+  : "${R2_SECRET_ACCESS_KEY:?R2_SECRET_ACCESS_KEY required}"
+
+  R2_ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+  RCLONE_REMOTE="gamelauncher_r2"
+
+  export RCLONE_CONFIG_GAMELAUNCHER_R2_TYPE="s3"
+  export RCLONE_CONFIG_GAMELAUNCHER_R2_PROVIDER="Cloudflare"
+  export RCLONE_CONFIG_GAMELAUNCHER_R2_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID"
+  export RCLONE_CONFIG_GAMELAUNCHER_R2_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"
+  export RCLONE_CONFIG_GAMELAUNCHER_R2_ENDPOINT="$R2_ENDPOINT"
+  export RCLONE_CONFIG_GAMELAUNCHER_R2_ACL="private"
+  export RCLONE_CONFIG_GAMELAUNCHER_R2_NO_CHECK_BUCKET="true"
+}
+
+r2_rclone_cleanup() {
+  unset RCLONE_CONFIG_GAMELAUNCHER_R2_SECRET_ACCESS_KEY
+  unset RCLONE_CONFIG_GAMELAUNCHER_R2_ACCESS_KEY_ID
+}
