@@ -90,9 +90,9 @@ echo "$ADDED" | grep -qE '(aws_secret_access_key|AWS_SECRET_ACCESS_KEY)[[:space:
 echo "$ADDED" | grep -qE '"private_key"[[:space:]]*:[[:space:]]*"' && report "JSON private_key field detected"
 echo "$ADDED" | grep -qE 'Bearer eyJ[A-Za-z0-9_-]{10,}\.' && report "Bearer JWT detected"
 echo "$ADDED" | grep -qE '(password|passwd|secret|api[_-]?key)[[:space:]]*[=:][[:space:]]*["'"'"'][^"'"'"']{8,}' && report "Hardcoded credential assignment detected"
-# R2 / Cloudflare literals (skip Keychain loaders: values start with $ not a literal)
-echo "$ADDED" | grep -qE '(R2_SECRET_ACCESS_KEY|R2_ACCESS_KEY_ID|CLOUDFLARE_API_TOKEN)[[:space:]]*=[[:space:]]*["'"'"'][^$"'"'"']{8,}' && report "R2/Cloudflare credential literal detected"
-echo "$ADDED" | grep -qE '(R2_SECRET_ACCESS_KEY|R2_ACCESS_KEY_ID|CLOUDFLARE_API_TOKEN)[[:space:]]*=[[:space:]]*[^$"'"'"'[:space:]]{8,}' && report "R2/Cloudflare credential literal detected (unquoted)"
+# R2 / Cloudflare / rclone S3 literals (skip Keychain loaders: values start with $ not a literal)
+echo "$ADDED" | grep -qE '(R2_SECRET_ACCESS_KEY|R2_ACCESS_KEY_ID|CLOUDFLARE_API_TOKEN|RCLONE_S3_ACCESS_KEY_ID|RCLONE_S3_SECRET_ACCESS_KEY)[[:space:]]*=[[:space:]]*["'"'"'][^$"'"'"']{8,}' && report "R2/Cloudflare/rclone credential literal detected"
+echo "$ADDED" | grep -qE '(R2_SECRET_ACCESS_KEY|R2_ACCESS_KEY_ID|CLOUDFLARE_API_TOKEN|RCLONE_S3_ACCESS_KEY_ID|RCLONE_S3_SECRET_ACCESS_KEY)[[:space:]]*=[[:space:]]*[^$"'"'"'[:space:]]{8,}' && report "R2/Cloudflare/rclone credential literal detected (unquoted)"
 
 # --- Forbidden files in diff ---
 # Match the post-change path (b/...). New files appear as "a/dev/null b/<path>".
