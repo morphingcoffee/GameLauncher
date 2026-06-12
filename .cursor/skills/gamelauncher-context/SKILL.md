@@ -46,7 +46,7 @@ Git source of truth: [`manifests/manifest.json`](../../manifests/manifest.json).
 ```json
 {
   "schema_version": 1,
-  "launcher_minimum_version": "1.0.0",
+  "launcher_minimum_version": "0.0.1",
   "games": [{
     "id": "game_id",
     "title": "...",
