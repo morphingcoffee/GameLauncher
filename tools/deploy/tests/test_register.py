@@ -124,6 +124,22 @@ class TestVersionsIndex(unittest.TestCase):
 
         self.assertEqual(actual, new_versions_index("cool_game"))
 
+    def test_fetch_versions_index_creates_new_index_when_rclone_succeeds_without_file(self) -> None:
+        """Some rclone/S3 setups exit 0 even when the remote object is missing."""
+        empty_success = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            local_path = Path(tmpdir) / "versions.json"
+            with mock.patch("register_game_version.rclone_run", return_value=empty_success):
+                actual = fetch_versions_index(
+                    "gamelauncher_r2:bucket",
+                    "games/new_game/versions.json",
+                    "new_game",
+                    local_path,
+                )
+
+        self.assertEqual(actual, new_versions_index("new_game"))
+
     def test_fetch_versions_index_exits_on_fetch_failure(self) -> None:
         auth_error = subprocess.CompletedProcess(
             args=[],
