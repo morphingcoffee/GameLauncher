@@ -31,5 +31,6 @@ dependencyResolutionManagement {
 include(":composeApp")
 include(":core:architecture")
 include(":core:designsystem")
+include(":core:model")
 include(":core:navigation")
 include(":feature:home")

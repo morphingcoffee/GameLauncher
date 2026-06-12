@@ -1,0 +1,40 @@
+name: Deploy manifest
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - manifests/**
+
+concurrency:
+  group: deploy-manifest-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Upload manifest.json to R2
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install rclone
+        run: |
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+
+      - name: Upload manifest
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+          # shellcheck source=/dev/null
+          source tools/deploy/r2-rclone-env.sh
+          r2_rclone_configure
+          trap r2_rclone_cleanup EXIT
+          REMOTE="${RCLONE_REMOTE}:${R2_BUCKET_NAME}"
+          rclone copyto manifests/manifest.json "$REMOTE/manifest.json" "${RCLONE_FLAGS[@]}" -v

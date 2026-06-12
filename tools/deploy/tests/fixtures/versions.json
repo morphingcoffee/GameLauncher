@@ -1,0 +1,17 @@
+{
+  "game_id": "cool_game",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "released_at": "2025-01-01",
+      "builds": {
+        "macos-arm64": {
+          "executable_path": "Game.app/Contents/MacOS/Game",
+          "file_size_bytes": 1000,
+          "sha256": "abc",
+          "download_url": "https://cdn.example.com/games/cool_game/v1.0.0/macos-arm64/game.zip"
+        }
+      }
+    }
+  ]
+}

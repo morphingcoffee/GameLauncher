@@ -10,6 +10,7 @@ Current stage: modular desktop shell with a Hello World home screen. Backend CDN
 GameLauncher/
 ├── launcher/          # KMP desktop app (Gradle project)
 │   └── scripts/       # Launcher-specific helpers (ktlint)
+├── manifests/       # Catalog manifest (git → CI → R2)
 ├── tools/
 │   ├── deploy/      # R2 CDN upload (rclone) — see tools/deploy/README.md
 │   └── dev/         # Secret scan, GitHub PAT helpers
@@ -19,6 +20,7 @@ GameLauncher/
 
 | Folder | What lives here |
 |--------|-----------------|
+| [`manifests/`](manifests/) | Catalog manifest JSON — deployed to R2 on push to `main` |
 | [`launcher/`](launcher/) | Compose Multiplatform app — run and package from here |
 | [`tools/deploy/`](tools/deploy/) | Terminal deploy to Cloudflare R2 |
 | [`tools/dev/`](tools/dev/) | Contributor scripts (not shipped with the app) |
@@ -121,6 +123,7 @@ flowchart TB
     nav[core:navigation]
     design[core:designsystem]
     arch[core:architecture]
+    model[core:model]
   end
 
   composeApp --> home
@@ -138,6 +141,7 @@ flowchart TB
 | `:core:navigation` | Typed `AppDestination` keys and nav serialization config |
 | `:core:designsystem` | Shared theme and Compose primitives |
 | `:core:architecture` | Lightweight `MviViewModel` base (no business logic) |
+| `:core:model` | Manifest and version-index JSON models, platform keys |
 
 **Dependency rules:** features never depend on `:composeApp`; core modules never depend on features.
 
@@ -191,7 +195,7 @@ flowchart TB
     nav[core:navigation]
     design[core:designsystem]
     arch[core:architecture]
-    model[core:model planned]
+    model[core:model]
     network[core:network planned]
     library[core:library planned]
   end
