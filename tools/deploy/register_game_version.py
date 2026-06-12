@@ -227,10 +227,10 @@ def fetch_versions_index(
         capture_output=True,
         text=True,
     )
-    if copy_result.returncode == 0:
+    if copy_result.returncode == 0 and local_path.is_file():
         return json.loads(local_path.read_text())
 
-    if is_object_not_found(copy_result):
+    if copy_result.returncode == 0 or is_object_not_found(copy_result):
         print(
             f"register-game-version: creating new versions index for {game_id}",
             file=sys.stderr,
