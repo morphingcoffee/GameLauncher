@@ -196,11 +196,10 @@ def update_catalog_manifest(
 
 NOT_FOUND_MARKERS = (
     "nosuchkey",
+    "no such key",
     "object not found",
-    "not found",
-    "doesn't exist",
-    "does not exist",
-    "404",
+    "specified key does not exist",
+    "source object does not exist",
 )
 
 
