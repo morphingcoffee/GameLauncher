@@ -74,13 +74,15 @@ python3 tools/deploy/r2_test_auth.py
 
 In CI, run **Actions → R2 env check → Run workflow** (see [`.github/workflows/r2-env-check.yml`](../.github/workflows/r2-env-check.yml)) after merge.
 
+Stage artifacts in the gitignored top-level `games/` directory, then upload:
+
 ```bash
 # Game binary — prefer --copy (append-only, no remote deletes)
-python3 tools/deploy/r2_deploy.py --copy ./build/v1.2.0/macos-arm64 games/cool_game/v1.2.0/macos-arm64
-python3 tools/deploy/r2_deploy.py --copy ./build/v1.2.0/windows-x64 games/cool_game/v1.2.0/windows-x64
+python3 tools/deploy/r2_deploy.py --copy ./games/cool_game/v1.2.0/macos-arm64 games/cool_game/v1.2.0/macos-arm64
+python3 tools/deploy/r2_deploy.py --copy ./games/cool_game/v1.2.0/windows-x64 games/cool_game/v1.2.0/windows-x64
 
 # Thumbnail / assets
-python3 tools/deploy/r2_deploy.py --copy ./art assets/cool_game
+python3 tools/deploy/r2_deploy.py --copy ./games/cool_game/assets assets/cool_game
 ```
 
 Default mode is **sync** (remote prefix mirrors local, may delete extras). Sync runs a dry-run first; pass `--allow-deletes` only after reviewing the delete list.

@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import List, Optional
 
 RCLONE_REMOTE = "gamelauncher_r2"
-RCLONE_FLAGS = ["--s3-no-check-bucket"]
+RCLONE_FLAGS = ["--s3-no-check-bucket", "--exclude", "**/.DS_Store"]
 
 ACCESS_KEY_SERVICE = os.environ.get(
     "GAME_LAUNCHER_R2_ACCESS_KEY_SERVICE", "gamelauncher-r2-access-key-id"

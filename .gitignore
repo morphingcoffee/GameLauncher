@@ -44,3 +44,6 @@ local.properties
 
 # macOS
 .DS_Store
+
+# Large Games files
+games/
