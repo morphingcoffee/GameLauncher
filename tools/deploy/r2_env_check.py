@@ -14,11 +14,11 @@ from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
 
 from r2_config import (
-    RCLONE_FLAGS,
     RCLONE_REMOTE,
     find_repo_root,
     load_env_file,
     load_keychain_credentials,
+    rclone_flags_for,
     require_rclone,
 )
 
@@ -183,7 +183,7 @@ def remote_path(remote_name: str, bucket: str, key: str = "") -> str:
 
 
 def rclone_with_remote(remote_name: str, args: Sequence[str], **kwargs) -> subprocess.CompletedProcess:
-    cmd = ["rclone", *args, *RCLONE_FLAGS]
+    cmd = ["rclone", *args, *rclone_flags_for(list(args))]
     return subprocess.run(cmd, **kwargs)
 
 

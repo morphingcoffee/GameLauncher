@@ -11,7 +11,12 @@ from pathlib import Path
 from typing import List, Optional
 
 RCLONE_REMOTE = "gamelauncher_r2"
-RCLONE_FLAGS = ["--s3-no-check-bucket", "--exclude", "**/.DS_Store"]
+RCLONE_BASE_FLAGS = ["--s3-no-check-bucket"]
+RCLONE_DIR_EXCLUDE_FLAGS = ["--exclude", "**/.DS_Store"]
+# Directory uploads only — copyto/lsf reject --exclude (see rclone_flags_for).
+RCLONE_FLAGS = [*RCLONE_BASE_FLAGS, *RCLONE_DIR_EXCLUDE_FLAGS]
+
+RCLONE_DIR_COMMANDS = frozenset({"copy", "sync"})
 
 ACCESS_KEY_SERVICE = os.environ.get(
     "GAME_LAUNCHER_R2_ACCESS_KEY_SERVICE", "gamelauncher-r2-access-key-id"
@@ -169,9 +174,17 @@ def remote_url(bucket: str, path: str = "") -> str:
     return base
 
 
+def rclone_flags_for(args: List[str]) -> List[str]:
+    """Return rclone flags appropriate for the subcommand."""
+    flags = list(RCLONE_BASE_FLAGS)
+    if args and args[0] in RCLONE_DIR_COMMANDS:
+        flags.extend(RCLONE_DIR_EXCLUDE_FLAGS)
+    return flags
+
+
 def rclone_run(args: List[str], **kwargs) -> subprocess.CompletedProcess:
     """Run rclone with standard flags."""
-    cmd = ["rclone", *args, *RCLONE_FLAGS]
+    cmd = ["rclone", *args, *rclone_flags_for(args)]
     return subprocess.run(cmd, **kwargs)
 
 
