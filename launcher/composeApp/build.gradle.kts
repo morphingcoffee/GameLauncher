@@ -90,18 +90,40 @@ koinCompiler {
     compileSafety = false
 }
 
-private fun composeDesktopHostDependency(composeVersion: String): String {
+private fun composeDesktopHostId(): String {
+    val validHosts =
+        setOf(
+            "macos-arm64",
+            "macos-x64",
+            "windows-x64",
+            "linux-arm64",
+            "linux-x64",
+        )
+    val override =
+        (findProperty("composeDesktopHost") as String?)
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+    if (override != null) {
+        require(override in validHosts) {
+            "Invalid composeDesktopHost '$override'; expected one of $validHosts"
+        }
+        return override
+    }
+
     val os = System.getProperty("os.name")
     val arch = System.getProperty("os.arch")
-    val hostId =
-        when {
-            os.contains("Mac", ignoreCase = true) && arch == "aarch64" -> "macos-arm64"
-            os.contains("Mac", ignoreCase = true) -> "macos-x64"
-            os.contains("Win", ignoreCase = true) -> "windows-x64"
-            os.contains("Linux", ignoreCase = true) && arch == "aarch64" -> "linux-arm64"
-            os.contains("Linux", ignoreCase = true) -> "linux-x64"
-            else -> error("Unsupported OS for Compose Desktop: $os ($arch)")
-        }
+    return when {
+        os.contains("Mac", ignoreCase = true) && arch == "aarch64" -> "macos-arm64"
+        os.contains("Mac", ignoreCase = true) -> "macos-x64"
+        os.contains("Win", ignoreCase = true) -> "windows-x64"
+        os.contains("Linux", ignoreCase = true) && arch == "aarch64" -> "linux-arm64"
+        os.contains("Linux", ignoreCase = true) -> "linux-x64"
+        else -> error("Unsupported OS for Compose Desktop: $os ($arch)")
+    }
+}
+
+private fun composeDesktopHostDependency(composeVersion: String): String {
+    val hostId = composeDesktopHostId()
     return "org.jetbrains.compose.desktop:desktop-jvm-$hostId:$composeVersion"
 }
 
@@ -134,5 +156,14 @@ tasks.register("printPackageVersion") {
             compose.desktop.application.nativeDistributions.packageVersion
                 ?: error("packageVersion is not set"),
         )
+    }
+}
+
+tasks.register("printComposeDesktopHost") {
+    notCompatibleWithConfigurationCache("Reads composeDesktopHost from Gradle properties or JVM os.arch")
+    group = "distribution"
+    description = "Prints the Compose Desktop Skiko host id (macos-arm64, macos-x64, …)"
+    doLast {
+        println(composeDesktopHostId())
     }
 }

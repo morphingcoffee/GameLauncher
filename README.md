@@ -75,8 +75,11 @@ Requires a **full JDK 17+** with `jpackage` (e.g. Temurin). Android Studio’s b
 ```bash
 cd launcher
 
-# macOS
+# macOS — Apple Silicon (default on M-series Macs)
 ./gradlew :composeApp:packageDmg
+
+# macOS — Intel (use an x64 JDK; on Apple Silicon, run under Rosetta)
+JAVA_HOME=/path/to/x64-jdk/Contents/Home ./gradlew :composeApp:packageDmg -PcomposeDesktopHost=macos-x64
 
 # Windows (WiX Toolset 3.11+ required)
 ./gradlew :composeApp:packageMsi
@@ -92,7 +95,8 @@ Desktop installers are built **on demand** via [`.github/workflows/desktop-insta
 
 | Runner | Artifacts |
 |--------|-----------|
-| `macos-latest` | `GameLauncher-{version}.dmg`, `GameLauncher-macos.zip` (ad-hoc signed `.app`) |
+| `macos-latest` (arm64 JDK) | `GameLauncher-{version}-macos-arm64.dmg`, `GameLauncher-macos-arm64.zip` |
+| `macos-latest` (x64 JDK) | `GameLauncher-{version}-macos-x64.dmg`, `GameLauncher-macos-x64.zip` |
 | `windows-latest` | `GameLauncher-{version}.msi` |
 
 `{version}` matches `packageVersion` in [`launcher/composeApp/build.gradle.kts`](launcher/composeApp/build.gradle.kts).

@@ -8,7 +8,7 @@ on:
         required: false
         default: main
       build_macos:
-        description: Build macOS DMG and ZIP
+        description: Build macOS DMG and ZIP (Apple Silicon + Intel)
         type: boolean
         default: true
       build_windows:
@@ -22,10 +22,20 @@ concurrency:
 
 jobs:
   build-macos:
-    name: macOS (DMG + app zip)
+    name: macOS ${{ matrix.compose_host }} (DMG + app zip)
     if: github.event.inputs.build_macos != 'false'
     runs-on: macos-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - jdk_arch: arm64
+            compose_host: macos-arm64
+            expected_arch: arm64
+          - jdk_arch: x64
+            compose_host: macos-x64
+            expected_arch: x86_64
     defaults:
       run:
         working-directory: launcher
@@ -35,19 +45,40 @@ jobs:
         with:
           ref: ${{ github.event.inputs.ref || github.ref }}
 
-      - name: Set up JDK 17
+      - name: Ensure Rosetta (Intel build on Apple Silicon)
+        if: matrix.jdk_arch == 'x64'
+        run: /usr/sbin/softwareupdate --install-rosetta --agree-to-license
+
+      - name: Set up JDK 17 (${{ matrix.jdk_arch }})
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
+          architecture: ${{ matrix.jdk_arch }}
           cache: gradle
+
+      - name: Verify JVM architecture
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME"
+          java -XshowSettings:properties -version 2>&1 | grep "os.arch"
 
       - name: Grant execute permission for Gradle wrapper
         run: chmod +x ./launcher/gradlew
         working-directory: ${{ github.workspace }}
 
       - name: Build macOS app image
-        run: ./gradlew :composeApp:createDistributable --no-daemon
+        run: ./gradlew :composeApp:createDistributable --no-daemon -PcomposeDesktopHost=${{ matrix.compose_host }}
+
+      - name: Verify app binary architecture
+        run: |
+          BIN="composeApp/build/compose/binaries/main/app/GameLauncher.app/Contents/MacOS/GameLauncher"
+          OUTPUT=$(file "$BIN")
+          echo "$OUTPUT"
+          case "${{ matrix.expected_arch }}" in
+            arm64) echo "$OUTPUT" | grep -q 'arm64' || { echo "Expected arm64 binary"; exit 1; } ;;
+            x86_64) echo "$OUTPUT" | grep -q 'x86_64' || { echo "Expected x86_64 binary"; exit 1; } ;;
+            *) echo "Unknown expected_arch: ${{ matrix.expected_arch }}"; exit 1 ;;
+          esac
 
       - name: Ad-hoc sign app bundle
         run: codesign --force --deep --sign - "composeApp/build/compose/binaries/main/app/GameLauncher.app"
@@ -61,27 +92,27 @@ jobs:
             -volname "Game Launcher" \
             -srcfolder "composeApp/build/compose/binaries/main/app/GameLauncher.app" \
             -ov -format UDZO \
-            "GameLauncher-${PACKAGE_VERSION}.dmg"
+            "GameLauncher-${PACKAGE_VERSION}-${{ matrix.compose_host }}.dmg"
 
       - name: Create portable ZIP
         run: |
           ditto -c -k --keepParent \
             "composeApp/build/compose/binaries/main/app/GameLauncher.app" \
-            "GameLauncher-macos.zip"
+            "GameLauncher-${{ matrix.compose_host }}.zip"
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: GameLauncher-macos
+          name: GameLauncher-${{ matrix.compose_host }}
           path: |
-            launcher/GameLauncher-${{ env.PACKAGE_VERSION }}.dmg
-            launcher/GameLauncher-macos.zip
+            launcher/GameLauncher-${{ env.PACKAGE_VERSION }}-${{ matrix.compose_host }}.dmg
+            launcher/GameLauncher-${{ matrix.compose_host }}.zip
           if-no-files-found: error
 
       - name: macOS install notes
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
-          ### macOS artifacts
+          ### macOS artifacts (${{ matrix.compose_host }})
 
           GitHub adds a quarantine flag to downloaded files. After downloading:
 
