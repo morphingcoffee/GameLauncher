@@ -22,7 +22,7 @@ Bugbot on GitHub PRs is **manual-only** (user triggers via `bugbot run`). Do not
 | High | `git push`, `git push --force` |
 | High | `Task` subagents, `review-bugbot` / `bugbot` subagent |
 | Medium | `WebSearch`, `WebFetch`, GitHub MCP, `gh` (writes), browser MCP |
-| Medium | Network deploy (`r2-deploy.sh`), `curl` to external APIs |
+| Medium | Network deploy (`r2_deploy.py`), `curl` to external APIs |
 
 Mention when relevant: push triggers CI; subagents multiply token usage.
 

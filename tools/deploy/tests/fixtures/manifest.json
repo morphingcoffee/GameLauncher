@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "launcher_minimum_version": "0.0.1",
+  "games": [
+    {
+      "id": "cool_game",
+      "title": "Cool Game",
+      "description": "An existing game",
+      "thumbnail_url": "https://cdn.example.com/assets/cool_game/thumbnail.webp",
+      "latest_version": "1.0.0",
+      "versions_url": "https://cdn.example.com/games/cool_game/versions.json",
+      "builds": {
+        "macos-arm64": {
+          "executable_path": "Game.app/Contents/MacOS/Game",
+          "file_size_bytes": 1000,
+          "sha256": "abc",
+          "download_url": "https://cdn.example.com/games/cool_game/v1.0.0/macos-arm64/game.zip"
+        }
+      }
+    }
+  ]
+}
