@@ -18,6 +18,7 @@ description: >-
 | Path | Purpose |
 |------|---------|
 | `launcher/` | KMP desktop app (Gradle root — `composeApp`, `core/*`, `feature/*`) |
+| `manifests/` | Catalog manifest (`manifest.json`) — git source of truth, CI deploys to R2 |
 | `tools/deploy/` | Cloudflare R2 upload scripts — see `tools/deploy/README.md` |
 | `tools/dev/` | Repo tooling (secret scan, GitHub PAT helpers) |
 | `.github/` | CI workflows |
@@ -34,42 +35,52 @@ description: >-
 | Shaders | Skia RuntimeEffect / SkSL (`iTime`, `iResolution`) |
 | Packaging | Gradle — DMG (macOS), MSI (Windows) |
 
-## Manifest contract (`manifest.json`)
+## Manifest contract
 
-Remote static JSON — single source of truth for builds.
+Remote static JSON — catalog on startup, per-game version history on demand.
+
+### Catalog (`manifest.json`)
+
+Git source of truth: [`manifests/manifest.json`](../../manifests/manifest.json). Deployed to R2 on push to `main`.
 
 ```json
 {
+  "schema_version": 1,
   "launcher_minimum_version": "1.0.0",
   "games": [{
     "id": "game_id",
     "title": "...",
     "description": "...",
-    "thumbnail_url": "https://...",
-    "version": "1.0.0",
+    "thumbnail_url": "https://cdn.../assets/game_id/thumbnail.webp",
+    "latest_version": "1.2.0",
+    "versions_url": "https://cdn.../games/game_id/versions.json",
     "builds": {
-      "windows": {
+      "windows-x64": {
         "download_url": "https://...",
         "executable_path": "GameBinary.exe",
-        "file_size_bytes": 0
+        "file_size_bytes": 0,
+        "sha256": "..."
       },
-      "macos": {
-        "download_url": "https://...",
-        "executable_path": "GameBinary.app/Contents/MacOS/GameBinary",
-        "file_size_bytes": 0
-      }
+      "macos-arm64": { "...": "..." },
+      "macos-x64": { "...": "..." }
     }
   }]
 }
 ```
 
+### Version index (`games/{game_id}/versions.json`)
+
+Lazy-loaded when user opens "Other versions". Lives in R2 only; maintained by the register-game-version workflow.
+
+Kotlin models in `:core:model` — `Manifest`, `GameCatalogEntry`, `GameVersionIndex`, `PlatformKey`.
+
 Use `@SerialName` for snake_case JSON fields in Kotlin models.
 
 ## Platform detection
 
-`System.getProperty("os.name")` → `windows` / `macos` manifest keys.
+`PlatformKey.current()` combines `os.name` + `os.arch` → `windows-x64`, `macos-arm64`, or `macos-x64`.
 
-- Build available → active Download / Play
+- Build available for current platform → active Download / Play
 - Build absent → card visible but grayed (`.alpha(0.4f)`), no interaction
 
 ## Local library paths (runtime only)
@@ -94,7 +105,7 @@ Subdirs: `downloads/`, `games/{gameId}/`
 - **MVI:** lightweight `MviViewModel` in `:core:architecture`; features expose `State` / `Event` / `Effect`
 - **DI:** Koin 4.2 + Compiler Plugin (`compileSafety = true`); `@KoinApplication` aggregator in `:composeApp`
 - **Navigation:** Navigation 3; typed `AppDestination : NavKey` in `:core:navigation`
-- **Modules:** `:composeApp`, `:core:architecture`, `:core:designsystem`, `:core:navigation`, `:feature:home`
+- **Modules:** `:composeApp`, `:core:architecture`, `:core:designsystem`, `:core:model`, `:core:navigation`, `:feature:home`
 
 ## Implementation phases
 

@@ -1,0 +1,100 @@
+package com.morphingcoffee.gamelauncher.core.model
+
+import kotlinx.serialization.json.Json
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+class ManifestModelsTest {
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+        }
+
+    @Test
+    fun catalogManifest_deserializes() {
+        val raw =
+            """
+            {
+              "schema_version": 1,
+              "launcher_minimum_version": "1.0.0",
+              "games": [
+                {
+                  "id": "cool_game",
+                  "title": "Cool Game",
+                  "description": "A short description.",
+                  "thumbnail_url": "https://cdn.example.com/assets/cool_game/thumbnail.webp",
+                  "latest_version": "1.2.0",
+                  "versions_url": "https://cdn.example.com/games/cool_game/versions.json",
+                  "builds": {
+                    "macos-arm64": {
+                      "download_url": "https://cdn.example.com/games/cool_game/v1.2.0/macos-arm64/game.zip",
+                      "executable_path": "CoolGame.app/Contents/MacOS/CoolGame",
+                      "file_size_bytes": 48234567,
+                      "sha256": "abc123"
+                    }
+                  }
+                }
+              ]
+            }
+            """.trimIndent()
+
+        val manifest = json.decodeFromString<Manifest>(raw)
+
+        assertEquals(1, manifest.schemaVersion)
+        assertEquals(1, manifest.games.size)
+        assertEquals("cool_game", manifest.games.first().id)
+        assertEquals("1.2.0", manifest.games.first().latestVersion)
+        assertNotNull(manifest.games.first().builds["macos-arm64"])
+    }
+
+    @Test
+    fun versionIndex_deserializes() {
+        val raw =
+            """
+            {
+              "game_id": "cool_game",
+              "versions": [
+                {
+                  "version": "1.0.0",
+                  "released_at": "2026-05-01",
+                  "builds": {
+                    "windows-x64": {
+                      "download_url": "https://cdn.example.com/games/cool_game/v1.0.0/windows-x64/game.zip",
+                      "executable_path": "CoolGame.exe",
+                      "file_size_bytes": 50000000,
+                      "sha256": "def456"
+                    }
+                  }
+                }
+              ]
+            }
+            """.trimIndent()
+
+        val index = json.decodeFromString<GameVersionIndex>(raw)
+
+        assertEquals("cool_game", index.gameId)
+        assertEquals("1.0.0", index.versions.single().version)
+    }
+}
+
+class PlatformKeyTest {
+    @Test
+    fun all_containsExpectedKeys() {
+        assertTrue(PlatformKey.WINDOWS_X64 in PlatformKey.all)
+        assertTrue(PlatformKey.MACOS_ARM64 in PlatformKey.all)
+        assertTrue(PlatformKey.MACOS_X64 in PlatformKey.all)
+    }
+
+    @Test
+    fun current_returnsKeyOrNull() {
+        val key = PlatformKey.current()
+        if (key != null) {
+            assertTrue(key in PlatformKey.all)
+        } else {
+            assertNull(key)
+        }
+    }
+}
