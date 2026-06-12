@@ -5,8 +5,10 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 TESTS_DIR = Path(__file__).resolve().parent
 DEPLOY_DIR = TESTS_DIR.parent
@@ -15,6 +17,7 @@ sys.path.insert(0, str(DEPLOY_DIR))
 from register_game_version import (  # noqa: E402
     append_version_entry,
     enrich_builds_with_urls,
+    fetch_versions_index,
     find_game_index,
     is_object_not_found,
     new_versions_index,
@@ -74,6 +77,70 @@ class TestVersionsIndex(unittest.TestCase):
             stderr="ERROR : Access Denied",
         )
         self.assertFalse(is_object_not_found(auth_error))
+
+        host_error = subprocess.CompletedProcess(
+            args=[],
+            returncode=1,
+            stderr="ERROR : lookup example.invalid: host not found",
+        )
+        self.assertFalse(is_object_not_found(host_error))
+
+    def test_fetch_versions_index_reads_existing_index(self) -> None:
+        expected = {"game_id": "cool_game", "versions": [{"version": "1.0.0"}]}
+
+        def fake_rclone_run(args, **_kwargs):
+            self.assertEqual(args[0], "copyto")
+            local_path.write_text(json.dumps(expected))
+            return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            local_path = Path(tmpdir) / "versions.json"
+            with mock.patch("register_game_version.rclone_run", side_effect=fake_rclone_run):
+                actual = fetch_versions_index(
+                    "gamelauncher_r2:bucket",
+                    "games/cool_game/versions.json",
+                    "cool_game",
+                    local_path,
+                )
+
+        self.assertEqual(actual, expected)
+
+    def test_fetch_versions_index_creates_new_index_for_missing_object(self) -> None:
+        missing = subprocess.CompletedProcess(
+            args=[],
+            returncode=1,
+            stderr="ERROR : Failed to copy: NoSuchKey: The specified key does not exist.",
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            local_path = Path(tmpdir) / "versions.json"
+            with mock.patch("register_game_version.rclone_run", return_value=missing):
+                actual = fetch_versions_index(
+                    "gamelauncher_r2:bucket",
+                    "games/cool_game/versions.json",
+                    "cool_game",
+                    local_path,
+                )
+
+        self.assertEqual(actual, new_versions_index("cool_game"))
+
+    def test_fetch_versions_index_exits_on_fetch_failure(self) -> None:
+        auth_error = subprocess.CompletedProcess(
+            args=[],
+            returncode=1,
+            stderr="ERROR : AccessDenied: Access Denied",
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            local_path = Path(tmpdir) / "versions.json"
+            with mock.patch("register_game_version.rclone_run", return_value=auth_error):
+                with self.assertRaises(SystemExit):
+                    fetch_versions_index(
+                        "gamelauncher_r2:bucket",
+                        "games/cool_game/versions.json",
+                        "cool_game",
+                        local_path,
+                    )
 
     def test_append_version_entry(self) -> None:
         data = new_versions_index("cool_game")
