@@ -96,8 +96,8 @@ Default mode is **sync** (remote prefix mirrors local, may delete extras). Sync 
      `{"macos-arm64":{"executable_path":"Game.app/Contents/MacOS/Game","file_size_bytes":12345,"sha256":"..."}}`
    - For a **new** game, also set `title`, `description`, `thumbnail_url`.
    - Uncheck **update_catalog_latest** when registering an older build for "Other versions" only.
-3. The workflow updates `games/{id}/versions.json` in R2, commits `manifests/manifest.json`, and pushes.
-4. Push to `main` triggers **Deploy manifest**, uploading the live `manifest.json`.
+3. The workflow updates `games/{id}/versions.json` in R2, updates `manifests/manifest.json`, uploads live `manifest.json` to R2, and commits the git manifest change.
+4. Pushes from `github-actions[bot]` do not trigger other workflows — register uploads the live manifest directly. You can also run **Actions → Deploy manifest** manually to republish from git.
 
 Catalog source of truth: git history of [`manifests/manifest.json`](../manifests/manifest.json). Roll back with `git revert` and push.
 
@@ -107,6 +107,12 @@ Deploy logic unit tests use Python stdlib only (no rclone/R2 required):
 
 ```bash
 cd tools/deploy && python3 -m unittest discover -s tests -v
+```
+
+Republish live `manifest.json` from git without re-registering:
+
+```bash
+python3 tools/deploy/r2_publish_manifest.py
 ```
 
 ## Security
