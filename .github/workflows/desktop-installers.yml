@@ -130,7 +130,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: GameLauncher-windows
-          path: composeApp/build/compose/binaries/main/msi/*.msi
+          path: launcher/composeApp/build/compose/binaries/main/msi/*.msi
           if-no-files-found: error
 
       - name: Windows install notes
