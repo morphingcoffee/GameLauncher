@@ -4,6 +4,25 @@ Cross-platform desktop game launcher for **Windows** and **macOS**, built with K
 
 Current stage: modular desktop shell with a Hello World home screen. Backend CDN, manifest fetching, downloads, and game launch are planned in later issues.
 
+## Repository layout
+
+```
+GameLauncher/
+├── launcher/          # KMP desktop app (Gradle project)
+│   └── scripts/       # Launcher-specific helpers (ktlint)
+├── tools/
+│   ├── deploy/      # R2 CDN upload (rclone) — see tools/deploy/README.md
+│   └── dev/         # Secret scan, GitHub PAT helpers
+├── .github/         # CI workflows
+└── .cursor/         # Agent skills, rules, hooks
+```
+
+| Folder | What lives here |
+|--------|-----------------|
+| [`launcher/`](launcher/) | Compose Multiplatform app — run and package from here |
+| [`tools/deploy/`](tools/deploy/) | Terminal deploy to Cloudflare R2 |
+| [`tools/dev/`](tools/dev/) | Contributor scripts (not shipped with the app) |
+
 ## Local setup
 
 ### Prerequisites
@@ -19,7 +38,7 @@ No API keys, CDN credentials, or GitHub tokens are needed to run the app locally
 
 ```bash
 git clone https://github.com/morphingcoffee/GameLauncher.git
-cd GameLauncher
+cd GameLauncher/launcher
 ./gradlew :composeApp:run
 ```
 
@@ -27,8 +46,8 @@ First run downloads Gradle dependencies and may take a few minutes.
 
 ### Run from the IDE
 
-1. Open the project root in **Android Studio** or **IntelliJ IDEA** with the **Kotlin Multiplatform** plugin.
-2. Wait for Gradle sync to finish (Android SDK via `local.properties` is required for the `androidTarget` used by Compose previews).
+1. Open the **`launcher/`** directory in **Android Studio** or **IntelliJ IDEA** with the **Kotlin Multiplatform** plugin.
+2. Wait for Gradle sync to finish (Android SDK via `launcher/local.properties` is required for the `androidTarget` used by Compose previews).
 3. Run the **`composeApp`** desktop configuration, or execute `:composeApp:run`.
 
 ### Compose previews
@@ -52,6 +71,8 @@ See [`.cursor/skills/secret-hygiene/SKILL.md`](.cursor/skills/secret-hygiene/SKI
 Requires a **full JDK 17+** with `jpackage` (e.g. Temurin). Android Studio’s bundled JBR does not include `jpackage`.
 
 ```bash
+cd launcher
+
 # macOS
 ./gradlew :composeApp:packageDmg
 
@@ -72,7 +93,7 @@ Desktop installers are built **on demand** via [`.github/workflows/desktop-insta
 | `macos-latest` | `GameLauncher-{version}.dmg`, `GameLauncher-macos.zip` (ad-hoc signed `.app`) |
 | `windows-latest` | `GameLauncher-{version}.msi` |
 
-`{version}` matches `packageVersion` in [`composeApp/build.gradle.kts`](composeApp/build.gradle.kts).
+`{version}` matches `packageVersion` in [`launcher/composeApp/build.gradle.kts`](launcher/composeApp/build.gradle.kts).
 
 **macOS:** GitHub adds a quarantine flag. After download, run `xattr -cr GameLauncher.app` (or the app inside the mounted DMG), then open normally. Developer ID signing/notarization is tracked in [#9](https://github.com/morphingcoffee/GameLauncher/issues/9).
 
@@ -204,16 +225,18 @@ Dashed edges (`-.->`) mark planned wiring. Solid edges are implemented today.
 
 ---
 
-## Project layout
+## Launcher modules (`launcher/`)
 
 ```
-composeApp/          Desktop app entry + DI bootstrap
-core/
-  architecture/      MVI primitives
-  designsystem/      Theme and shared UI
-  navigation/        Navigation 3 destinations
-feature/
-  home/              Home feature slice
+launcher/
+  composeApp/          Desktop app entry + DI bootstrap
+  core/
+    architecture/      MVI primitives
+    designsystem/      Theme and shared UI
+    navigation/        Navigation 3 destinations
+  feature/
+    home/              Home feature slice
+  scripts/             ktlint and other launcher helpers
 ```
 
 ---

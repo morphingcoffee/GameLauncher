@@ -33,7 +33,7 @@ description: >-
 | Committed | Local only |
 |-----------|------------|
 | `.env.example` (empty values) | `.env` |
-| `scripts/mcp-github.global.json.example` | `~/.cursor/mcp.json` (env ref only, no literal PAT) |
+| `tools/dev/mcp-github.global.json.example` | `~/.cursor/mcp.json` (env ref only, no literal PAT) |
 | `Config.kt` placeholders | Keychain → `security find-generic-password` |
 
 ## PR / issue hygiene
@@ -43,4 +43,4 @@ description: >-
 
 ## Scan enforcement
 
-`scripts/scan-secrets.sh` flags concrete home-directory paths in staged files. Fix before commit.
+`tools/dev/scan-secrets.sh` flags concrete home-directory paths in staged files. Fix before commit.

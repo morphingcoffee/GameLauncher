@@ -13,6 +13,16 @@ description: >-
 - **GitHub:** `morphingcoffee/GameLauncher` (public)
 - **Product:** Cross-platform desktop game launcher (Windows + macOS)
 
+### Layout
+
+| Path | Purpose |
+|------|---------|
+| `launcher/` | KMP desktop app (Gradle root — `composeApp`, `core/*`, `feature/*`) |
+| `tools/deploy/` | Cloudflare R2 upload scripts — see `tools/deploy/README.md` |
+| `tools/dev/` | Repo tooling (secret scan, GitHub PAT helpers) |
+| `.github/` | CI workflows |
+| `.cursor/` | Agent skills, rules, hooks |
+
 ## Stack
 
 | Layer | Choice |

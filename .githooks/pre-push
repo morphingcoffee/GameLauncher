@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
-exec "$ROOT/scripts/scan-secrets.sh" all
+exec "$ROOT/tools/dev/scan-secrets.sh" all

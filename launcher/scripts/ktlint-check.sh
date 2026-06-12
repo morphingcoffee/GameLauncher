@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$ROOT"
+LAUNCHER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$LAUNCHER_DIR"
 
 if [ -z "${JAVA_HOME:-}" ] && [ -d "${HOME}/Applications/Android Studio.app/Contents/jbr/Contents/Home" ]; then
   export JAVA_HOME="${HOME}/Applications/Android Studio.app/Contents/jbr/Contents/Home"

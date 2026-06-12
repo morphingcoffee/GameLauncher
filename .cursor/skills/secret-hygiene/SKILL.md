@@ -23,7 +23,7 @@ security add-generic-password -U \
 
 ### 2. Global Cursor MCP config (not in this repo)
 
-Copy [`scripts/mcp-github.global.json.example`](../../scripts/mcp-github.global.json.example) to **`~/.cursor/mcp.json`**.
+Copy [`tools/dev/mcp-github.global.json.example`](../../../tools/dev/mcp-github.global.json.example) to **`~/.cursor/mcp.json`**.
 
 That template uses `"Bearer ${env:GITHUB_PAT}"` — no literal token in any file.
 
@@ -34,13 +34,13 @@ macOS GUI apps do not read `.zshrc`. Use one of:
 **Option A — launch script (recommended):**
 
 ```bash
-./scripts/open-cursor-with-github.sh
+./tools/dev/open-cursor-with-github.sh
 ```
 
 **Option B — source in terminal, then open:**
 
 ```bash
-source scripts/github-pat-from-keychain.sh
+source tools/dev/github-pat-from-keychain.sh
 open -a Cursor .
 ```
 
@@ -59,19 +59,19 @@ Still launch Cursor via Option A if the Dock app does not see `GITHUB_PAT`.
 Either `gh auth login` (Keychain-backed) or:
 
 ```bash
-source scripts/github-pat-from-keychain.sh
+source tools/dev/github-pat-from-keychain.sh
 gh api user
 ```
 
 ## Before every commit
 
-1. Run `scripts/scan-secrets.sh` on staged files (pre-commit hook does this automatically once configured)
+1. Run `tools/dev/scan-secrets.sh` on staged files (pre-commit hook does this automatically once configured)
 2. Confirm `.env`, `.cursor/mcp.json`, `local.properties`, `*.pem` are **not** staged
 3. Use placeholders in committed code; document env var names in `.env.example`
 
 ## Before every push
 
-1. Re-run `scripts/scan-secrets.sh` (Cursor hook blocks `git push` on failure)
+1. Re-run `tools/dev/scan-secrets.sh` (Cursor hook blocks `git push` on failure)
 2. Review `git log` on the branch for accidental secret commits
 
 ## Never commit

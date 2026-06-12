@@ -2,7 +2,7 @@
 # Load Cloudflare R2 S3-compatible credentials from macOS Keychain.
 # Source this file — never commit keys to any config file.
 #
-#   source scripts/r2-from-keychain.sh   # used by r2-deploy.sh / r2-test-auth.sh
+#   source tools/deploy/r2-from-keychain.sh   # used by r2-deploy.sh / r2-test-auth.sh
 #
 # Do not enable set -e here — this file is sourced and would affect your interactive shell.
 

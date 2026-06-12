@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
-"$ROOT/scripts/scan-secrets.sh" staged
-"$ROOT/scripts/ktlint-check.sh"
+"$ROOT/tools/dev/scan-secrets.sh" staged
+"$ROOT/launcher/scripts/ktlint-check.sh"
