@@ -61,7 +61,11 @@ Requires a **full JDK 17+** with `jpackage` (e.g. Temurin). Android Studio’s b
 
 ### CI artifacts
 
-On every pull request and push to `main`, [`.github/workflows/desktop-installers.yml`](.github/workflows/desktop-installers.yml) builds:
+Desktop installers are built **on demand** via [`.github/workflows/desktop-installers.yml`](.github/workflows/desktop-installers.yml) — they do not run on every push or pull request.
+
+1. Open **Actions** → **Desktop installers** → **Run workflow**
+2. Choose branch (default `main`), optionally disable macOS or Windows
+3. Download from the run → **Artifacts**
 
 | Runner | Artifacts |
 |--------|-----------|
@@ -69,8 +73,6 @@ On every pull request and push to `main`, [`.github/workflows/desktop-installers
 | `windows-latest` | `GameLauncher-{version}.msi` |
 
 `{version}` matches `packageVersion` in [`composeApp/build.gradle.kts`](composeApp/build.gradle.kts).
-
-Download from the workflow run → **Artifacts**.
 
 **macOS:** GitHub adds a quarantine flag. After download, run `xattr -cr GameLauncher.app` (or the app inside the mounted DMG), then open normally. Developer ID signing/notarization is tracked in [#9](https://github.com/morphingcoffee/GameLauncher/issues/9).
 
