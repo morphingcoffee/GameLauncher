@@ -57,8 +57,31 @@ Re-run with `-U` after rotating a token; update **both** items.
 ## Test and upload
 
 ```bash
-python3 tools/deploy/r2_test_auth.py
+# Preflight: env vars, Keychain keys, and permission scope (read/write boundaries, no delete)
+python3 tools/deploy/r2_env_check.py
 
+# Quick auth smoke test (read + write only)
+python3 tools/deploy/r2_test_auth.py
+```
+
+`r2_env_check.py` writes UUID-suffixed probes under `.gamelauncher-r2-probe/`. Cleanup is best-effort — when tokens correctly lack delete permission, probe objects remain until removed with a delete-capable token or the R2 dashboard.
+
+For GitHub Actions secrets (both tokens), run **Actions → R2 env check → Run workflow** (see [`.github/workflows/r2-env-check.yml`](../.github/workflows/r2-env-check.yml)), or export secrets locally and run:
+
+```bash
+python3 tools/deploy/r2_env_check.py --ci
+```
+
+Checks include:
+
+| Mode | Credentials validated |
+|------|------------------------|
+| `--local` (default) | `.env` + Keychain game-upload token |
+| `--ci` | All seven `R2_*` GitHub secrets; both manifest and game tokens |
+
+Permission probes confirm each token can read/write only within its scoped prefix and cannot delete objects.
+
+```bash
 # Game binary — prefer --copy (append-only, no remote deletes)
 python3 tools/deploy/r2_deploy.py --copy ./build/v1.2.0/macos-arm64 games/cool_game/v1.2.0/macos-arm64
 python3 tools/deploy/r2_deploy.py --copy ./build/v1.2.0/windows-x64 games/cool_game/v1.2.0/windows-x64
