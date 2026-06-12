@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-"""Validate R2 env vars, credentials, and permission scoping."""
+"""Validate R2 env vars, credentials, and bucket connectivity."""
 
 from __future__ import annotations
 
-import argparse
 import os
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -24,7 +22,6 @@ from r2_config import (
     require_rclone,
 )
 
-RCLONE_REMOTE_MANIFEST = "gamelauncher_r2_manifest"
 PROBE_PREFIX = ".gamelauncher-r2-probe"
 
 ACCOUNT_ID_RE = re.compile(r"^[0-9a-f]{32}$")
@@ -141,6 +138,20 @@ def validate_cdn_url(checker: Checker, value: Optional[str]) -> bool:
     return True
 
 
+def run_format_checks(checker: Checker) -> bool:
+    ok = True
+    ok = validate_account_id(checker, os.environ.get("R2_ACCOUNT_ID")) and ok
+    ok = validate_bucket_name(checker, os.environ.get("R2_BUCKET_NAME")) and ok
+    ok = validate_cdn_url(checker, os.environ.get("R2_PUBLIC_CDN_BASE_URL")) and ok
+    ok = validate_access_key(checker, "R2_ACCESS_KEY_ID", os.environ.get("R2_ACCESS_KEY_ID")) and ok
+    ok = validate_secret_key(
+        checker,
+        "R2_SECRET_ACCESS_KEY",
+        os.environ.get("R2_SECRET_ACCESS_KEY"),
+    ) and ok
+    return ok
+
+
 def configure_ephemeral_remote(
     remote_name: str,
     access_key_id: str,
@@ -210,7 +221,6 @@ def probe_write(
     local_path: Path,
     *,
     dry_run: bool = False,
-    expect_success: bool = True,
 ) -> None:
     args = ["copyto", str(local_path), remote_path(remote_name, bucket, key)]
     if dry_run:
@@ -221,19 +231,11 @@ def probe_write(
         capture_output=True,
         text=True,
     )
-    succeeded = result.returncode == 0
-    if expect_success:
-        if succeeded:
-            checker.ok(f"{label} write", key)
-        else:
-            detail = (result.stderr or result.stdout or "write failed").strip().splitlines()
-            checker.fail(f"{label} write", detail[0] if detail else "write failed")
+    if result.returncode == 0:
+        checker.ok(f"{label} write", key)
         return
-
-    if succeeded:
-        checker.fail(f"{label} write denied", f"unexpectedly succeeded for {key}")
-        return
-    checker.ok(f"{label} write denied", key)
+    detail = (result.stderr or result.stdout or "write failed").strip().splitlines()
+    checker.fail(f"{label} write", detail[0] if detail else "write failed")
 
 
 def probe_delete_denied(
@@ -275,95 +277,25 @@ def cleanup_probe(
     )
 
 
-def run_format_checks_local(checker: Checker) -> bool:
-    ok = True
-    ok = validate_account_id(checker, os.environ.get("R2_ACCOUNT_ID")) and ok
-    ok = validate_bucket_name(checker, os.environ.get("R2_BUCKET_NAME")) and ok
-    ok = validate_cdn_url(checker, os.environ.get("R2_PUBLIC_CDN_BASE_URL")) and ok
-    ok = validate_access_key(checker, "R2_ACCESS_KEY_ID", os.environ.get("R2_ACCESS_KEY_ID")) and ok
-    ok = validate_secret_key(
-        checker,
-        "R2_SECRET_ACCESS_KEY",
-        os.environ.get("R2_SECRET_ACCESS_KEY"),
-    ) and ok
-    return ok
-
-
-def run_format_checks_ci(checker: Checker) -> bool:
-    ok = True
-    ok = validate_account_id(checker, os.environ.get("R2_ACCOUNT_ID")) and ok
-    ok = validate_bucket_name(checker, os.environ.get("R2_BUCKET_NAME")) and ok
-    ok = validate_cdn_url(checker, os.environ.get("R2_PUBLIC_CDN_BASE_URL")) and ok
-    ok = validate_access_key(
-        checker,
-        "R2_MANIFEST_ACCESS_KEY_ID",
-        os.environ.get("R2_MANIFEST_ACCESS_KEY_ID"),
-    ) and ok
-    ok = validate_secret_key(
-        checker,
-        "R2_MANIFEST_SECRET_ACCESS_KEY",
-        os.environ.get("R2_MANIFEST_SECRET_ACCESS_KEY"),
-    ) and ok
-    ok = validate_access_key(
-        checker,
-        "R2_GAME_ACCESS_KEY_ID",
-        os.environ.get("R2_GAME_ACCESS_KEY_ID"),
-    ) and ok
-    ok = validate_secret_key(
-        checker,
-        "R2_GAME_SECRET_ACCESS_KEY",
-        os.environ.get("R2_GAME_SECRET_ACCESS_KEY"),
-    ) and ok
-    return ok
-
-
-def run_game_token_probes(
+def run_r2_probes(
     checker: Checker,
     remote_name: str,
     bucket: str,
     probe_file: Path,
-    *,
-    label: str = "game-upload",
 ) -> List[str]:
+    """Connectivity probes for a single bucket-scoped token."""
     created_keys: List[str] = []
+    label = "r2"
 
     probe_read(checker, label, remote_name, bucket, "games/")
     probe_read(checker, label, remote_name, bucket, "assets/")
-
-    allowed_key = probe_key("game-write")
-    probe_write(checker, label, remote_name, bucket, allowed_key, probe_file)
-    if checker.results[-1].passed:
-        created_keys.append(allowed_key)
-
-    denied_key = probe_key("root-write")
-    probe_write(
-        checker,
-        label,
-        remote_name,
-        bucket,
-        denied_key,
-        probe_file,
-        expect_success=False,
-    )
-
-    for key in created_keys:
-        probe_delete_denied(checker, label, remote_name, bucket, key)
-
-    return created_keys
-
-
-def run_manifest_token_probes(
-    checker: Checker,
-    remote_name: str,
-    bucket: str,
-    probe_file: Path,
-) -> List[str]:
-    created_keys: List[str] = []
-    label = "manifest-deploy"
-
     probe_read(checker, label, remote_name, bucket, "manifest.json")
 
-    # manifest-deploy is scoped to manifest.json — dry-run validates PutObject without overwriting.
+    game_key = f"games/{probe_key('write')}"
+    probe_write(checker, label, remote_name, bucket, game_key, probe_file)
+    if checker.results[-1].passed:
+        created_keys.append(game_key)
+
     probe_write(
         checker,
         label,
@@ -374,38 +306,14 @@ def run_manifest_token_probes(
         dry_run=True,
     )
 
-    denied_key = probe_key("games-write")
-    probe_write(
-        checker,
-        label,
-        remote_name,
-        bucket,
-        f"games/{denied_key}",
-        probe_file,
-        expect_success=False,
-    )
-
-    # Dry-run avoids deleting the live manifest while still exercising DeleteObject auth.
-    result = rclone_with_remote(
-        remote_name,
-        [
-            "deletefile",
-            remote_path(remote_name, bucket, "manifest.json"),
-            "--dry-run",
-        ],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode == 0:
-        checker.fail(f"{label} delete denied", "dry-run delete succeeded for manifest.json")
-    else:
-        checker.ok(f"{label} delete denied", "manifest.json (dry-run)")
+    for key in created_keys:
+        probe_delete_denied(checker, label, remote_name, bucket, key)
 
     return created_keys
 
 
-def print_report(mode: str, checker: Checker) -> None:
-    print(f"\nr2-env-check ({mode})", file=sys.stderr)
+def print_report(checker: Checker) -> None:
+    print("\nr2-env-check", file=sys.stderr)
     print("-" * 72, file=sys.stderr)
     for result in checker.results:
         line = f"{_status(result.passed)}  {result.name}"
@@ -419,24 +327,28 @@ def print_report(mode: str, checker: Checker) -> None:
         print(_color("r2-env-check: FAILED", "\033[31m"), file=sys.stderr)
 
 
-def load_local_credentials(repo_root: Path, checker: Checker) -> bool:
+def load_credentials(repo_root: Path, checker: Checker) -> bool:
     load_env_file(repo_root / ".env")
     if not os.environ.get("R2_ACCESS_KEY_ID"):
         if not load_keychain_credentials():
             checker.fail("Keychain credentials", "see tools/deploy/README.md")
             return False
-    checker.ok("Keychain credentials")
+        checker.ok("Keychain credentials")
+    elif not os.environ.get("GITHUB_ACTIONS"):
+        checker.ok("R2 credentials from environment")
     return True
 
 
-def run_local(repo_root: Path) -> int:
+def main() -> int:
+    repo_root = find_repo_root()
     checker = Checker()
-    if not load_local_credentials(repo_root, checker):
-        print_report("local", checker)
+
+    if not load_credentials(repo_root, checker):
+        print_report(checker)
         return 1
 
-    if not run_format_checks_local(checker):
-        print_report("local", checker)
+    if not run_format_checks(checker):
+        print_report(checker)
         return 1
 
     require_rclone()
@@ -455,7 +367,7 @@ def run_local(repo_root: Path) -> int:
 
     created_keys: List[Tuple[str, str]] = []
     try:
-        keys = run_game_token_probes(checker, RCLONE_REMOTE, bucket, probe_file)
+        keys = run_r2_probes(checker, RCLONE_REMOTE, bucket, probe_file)
         created_keys.extend((RCLONE_REMOTE, key) for key in keys)
     finally:
         cleanup_ephemeral_remote(RCLONE_REMOTE)
@@ -465,92 +377,9 @@ def run_local(repo_root: Path) -> int:
     for remote_name, key in created_keys:
         cleanup_probe(remote_name, bucket, key)
 
-    print_report("local", checker)
+    print_report(checker)
     return 0 if checker.passed else 1
-
-
-def run_ci() -> int:
-    checker = Checker()
-    if not run_format_checks_ci(checker):
-        print_report("ci", checker)
-        return 1
-
-    require_rclone()
-
-    account_id = os.environ["R2_ACCOUNT_ID"]
-    bucket = os.environ["R2_BUCKET_NAME"]
-
-    manifest_access = os.environ["R2_MANIFEST_ACCESS_KEY_ID"]
-    manifest_secret = os.environ["R2_MANIFEST_SECRET_ACCESS_KEY"]
-    game_access = os.environ["R2_GAME_ACCESS_KEY_ID"]
-    game_secret = os.environ["R2_GAME_SECRET_ACCESS_KEY"]
-
-    configure_ephemeral_remote(
-        RCLONE_REMOTE_MANIFEST,
-        manifest_access,
-        manifest_secret,
-        account_id,
-    )
-    configure_ephemeral_remote(RCLONE_REMOTE, game_access, game_secret, account_id)
-
-    probe_fd, probe_path = tempfile.mkstemp(suffix=".txt")
-    os.close(probe_fd)
-    probe_file = Path(probe_path)
-    probe_file.write_text("r2-env-check probe")
-
-    created_keys: List[Tuple[str, str]] = []
-    try:
-        created_keys.extend(
-            (RCLONE_REMOTE, key)
-            for key in run_game_token_probes(checker, RCLONE_REMOTE, bucket, probe_file)
-        )
-        created_keys.extend(
-            (RCLONE_REMOTE_MANIFEST, key)
-            for key in run_manifest_token_probes(
-                checker,
-                RCLONE_REMOTE_MANIFEST,
-                bucket,
-                probe_file,
-            )
-        )
-    finally:
-        cleanup_ephemeral_remote(RCLONE_REMOTE)
-        cleanup_ephemeral_remote(RCLONE_REMOTE_MANIFEST)
-        if probe_file.exists():
-            probe_file.unlink()
-
-    for remote_name, key in created_keys:
-        cleanup_probe(remote_name, bucket, key)
-
-    print_report("ci", checker)
-    return 0 if checker.passed else 1
-
-
-def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Validate R2 env vars, credentials, and permission scoping.",
-    )
-    mode = parser.add_mutually_exclusive_group()
-    mode.add_argument(
-        "--local",
-        action="store_true",
-        help="Validate local Keychain game-upload credentials and .env (default)",
-    )
-    mode.add_argument(
-        "--ci",
-        action="store_true",
-        help="Validate GitHub Actions secrets for both manifest and game tokens",
-    )
-    return parser.parse_args(argv)
-
-
-def main(argv: Optional[Sequence[str]] = None) -> None:
-    args = parse_args(argv)
-    if args.ci:
-        sys.exit(run_ci())
-    repo_root = find_repo_root()
-    sys.exit(run_local(repo_root))
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

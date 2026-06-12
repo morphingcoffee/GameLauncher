@@ -15,26 +15,32 @@ games/{game_id}/v{version}/{platform}/game.zip   # immutable builds
 
 Platform keys: `windows-x64`, `macos-arm64`, `macos-x64`.
 
-## R2 API tokens (scoped, no delete)
+## R2 API token
 
-Create **two** tokens in **Cloudflare → R2 → Manage R2 API Tokens**. Use **Object Read & Write** only — do **not** grant delete permission.
+Create **one** token in **Cloudflare → R2 → Manage R2 API Tokens**:
 
-| Token | Prefix scope | Used by |
-|-------|--------------|---------|
-| `manifest-deploy` | `manifest.json` | GitHub Actions [`deploy-manifest.yml`](../.github/workflows/deploy-manifest.yml) |
-| `game-upload` | `games/**`, `assets/**` | Local `r2_deploy.py`, [Register game version](../../.github/workflows/register-game-version.yml) |
+| Setting | Value |
+|---------|--------|
+| Permission | **Object Read & Write** (not Admin) |
+| Bucket | Your bucket only (not all buckets) |
 
-Even a mistaken `rclone sync` against a version prefix cannot delete older builds when the token lacks delete permission.
+Cloudflare static tokens are scoped to the **bucket**, not individual object prefixes. All deploy workflows and local tools share this token.
+
+Object Read & Write does not grant delete — a mistaken `rclone sync` cannot remove remote objects when delete is denied at the token level.
+
+Prefix-level scoping (e.g. `manifest.json` only vs `games/**`) requires [Cloudflare Temporary Credentials](https://developers.cloudflare.com/r2/api/s3/temporary-credentials/) and is not implemented yet.
 
 ### GitHub Secrets (repository settings)
 
-| Secret | Token |
-|--------|-------|
+| Secret | Value |
+|--------|--------|
 | `R2_ACCOUNT_ID` | Cloudflare account ID |
 | `R2_BUCKET_NAME` | Bucket name |
 | `R2_PUBLIC_CDN_BASE_URL` | Public CDN origin, no trailing slash |
-| `R2_MANIFEST_ACCESS_KEY_ID` / `R2_MANIFEST_SECRET_ACCESS_KEY` | `manifest-deploy` |
-| `R2_GAME_ACCESS_KEY_ID` / `R2_GAME_SECRET_ACCESS_KEY` | `game-upload` |
+| `R2_ACCESS_KEY_ID` | Token access key |
+| `R2_SECRET_ACCESS_KEY` | Token secret |
+
+Remove legacy secrets if present: `R2_MANIFEST_*`, `R2_GAME_*`.
 
 ## Local setup
 
@@ -44,8 +50,8 @@ cp .env.example .env   # R2_ACCOUNT_ID, R2_BUCKET_NAME, R2_PUBLIC_CDN_BASE_URL
 ```
 
 1. Create an R2 bucket and enable public access (`r2.dev` or custom domain).
-2. Create the **game-upload** token (scoped to `games/**` and `assets/**`).
-3. Store keys in Keychain (local uploads):
+2. Create the **Object Read & Write** token scoped to that bucket.
+3. Store keys in Keychain (local uploads and env-check):
 
 ```bash
 security add-generic-password -U -a "$USER" -s "gamelauncher-r2-access-key-id" -w "ACCESS_KEY_ID"
@@ -57,29 +63,16 @@ Re-run with `-U` after rotating a token; update **both** items.
 ## Test and upload
 
 ```bash
-# Preflight: env vars, Keychain keys, and permission scope (read/write boundaries, no delete)
+# Preflight: env vars, credentials, bucket connectivity, no-delete check
 python3 tools/deploy/r2_env_check.py
 
 # Quick auth smoke test (read + write only)
 python3 tools/deploy/r2_test_auth.py
 ```
 
-`r2_env_check.py` writes UUID-suffixed probes under `.gamelauncher-r2-probe/`. Cleanup is best-effort — when tokens correctly lack delete permission, probe objects remain until removed with a delete-capable token or the R2 dashboard.
+`r2_env_check.py` writes UUID-suffixed probes under `games/.gamelauncher-r2-probe/`. Cleanup is best-effort — when the token correctly lacks delete permission, probe objects remain until removed via the R2 dashboard.
 
-For GitHub Actions secrets (both tokens), run **Actions → R2 env check → Run workflow** (see [`.github/workflows/r2-env-check.yml`](../.github/workflows/r2-env-check.yml)), or export secrets locally and run:
-
-```bash
-python3 tools/deploy/r2_env_check.py --ci
-```
-
-Checks include:
-
-| Mode | Credentials validated |
-|------|------------------------|
-| `--local` (default) | `.env` + Keychain game-upload token |
-| `--ci` | All seven `R2_*` GitHub secrets; both manifest and game tokens |
-
-Permission probes confirm each token can read/write only within its scoped prefix and cannot delete objects.
+In CI, run **Actions → R2 env check → Run workflow** (see [`.github/workflows/r2-env-check.yml`](../.github/workflows/r2-env-check.yml)) after merge.
 
 ```bash
 # Game binary — prefer --copy (append-only, no remote deletes)
