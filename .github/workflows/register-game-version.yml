@@ -65,6 +65,11 @@ jobs:
         run: |
           curl -fsSL https://rclone.org/install.sh | sudo bash
 
+      - name: Configure git author
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
       - name: Register version
         env:
           GAME_ID: ${{ github.event.inputs.game_id }}

@@ -194,6 +194,75 @@ def update_catalog_manifest(
     )
 
 
+NOT_FOUND_MARKERS = (
+    "nosuchkey",
+    "object not found",
+    "not found",
+    "doesn't exist",
+    "does not exist",
+    "404",
+)
+
+
+def is_object_not_found(copy_result: subprocess.CompletedProcess) -> bool:
+    """Return True when rclone failed because the remote object is missing."""
+    stderr = copy_result.stderr
+    stdout = copy_result.stdout
+    if isinstance(stderr, bytes):
+        stderr = stderr.decode(errors="replace")
+    if isinstance(stdout, bytes):
+        stdout = stdout.decode(errors="replace")
+    output = f"{stderr or ''}{stdout or ''}".lower()
+    return any(marker in output for marker in NOT_FOUND_MARKERS)
+
+
+def fetch_versions_index(
+    remote: str,
+    versions_remote_path: str,
+    game_id: str,
+    local_path: Path,
+) -> Dict[str, Any]:
+    """Download versions.json or return a fresh index when the object does not exist yet."""
+    copy_result = rclone_run(
+        ["copyto", f"{remote}/{versions_remote_path}", str(local_path)],
+        capture_output=True,
+        text=True,
+    )
+    if copy_result.returncode == 0:
+        return json.loads(local_path.read_text())
+
+    if is_object_not_found(copy_result):
+        print(
+            f"register-game-version: creating new versions index for {game_id}",
+            file=sys.stderr,
+        )
+        return new_versions_index(game_id)
+
+    detail = (copy_result.stderr or copy_result.stdout or "unknown error").strip()
+    die(f"failed to download {versions_remote_path}: {detail}")
+    raise AssertionError("unreachable")
+
+
+def ensure_git_author(repo_root: Path) -> None:
+    """Set commit author in GitHub Actions where checkout has no global git identity."""
+    if os.environ.get("GITHUB_ACTIONS") != "true":
+        return
+
+    author_name = os.environ.get("GIT_AUTHOR_NAME", "github-actions[bot]")
+    author_email = os.environ.get(
+        "GIT_AUTHOR_EMAIL",
+        "41898282+github-actions[bot]@users.noreply.github.com",
+    )
+    subprocess.run(
+        ["git", "-C", str(repo_root), "config", "user.name", author_name],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(repo_root), "config", "user.email", author_email],
+        check=True,
+    )
+
+
 def commit_manifest_if_changed(repo_root: Path, manifest_path: Path) -> None:
     rel = manifest_path.relative_to(repo_root)
     result = subprocess.run(
@@ -203,6 +272,7 @@ def commit_manifest_if_changed(repo_root: Path, manifest_path: Path) -> None:
     if result.returncode == 0:
         return
 
+    ensure_git_author(repo_root)
     subprocess.run(
         ["git", "-C", str(repo_root), "add", str(rel)],
         check=True,
@@ -283,18 +353,12 @@ def main() -> None:
             tmp = Path(tmpdir)
             versions_local = tmp / "versions.json"
 
-            copy_result = rclone_run(
-                ["copyto", f"{remote}/{versions_remote_path}", str(versions_local)],
-                capture_output=True,
+            versions_data = fetch_versions_index(
+                remote,
+                versions_remote_path,
+                game_id,
+                versions_local,
             )
-            if copy_result.returncode != 0:
-                print(
-                    f"register-game-version: creating new versions index for {game_id}",
-                    file=sys.stderr,
-                )
-                versions_data = new_versions_index(game_id)
-            else:
-                versions_data = json.loads(versions_local.read_text())
 
             existing_game_id = versions_data.get("game_id")
             if existing_game_id != game_id:

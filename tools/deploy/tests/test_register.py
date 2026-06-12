@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -15,6 +16,7 @@ from register_game_version import (  # noqa: E402
     append_version_entry,
     enrich_builds_with_urls,
     find_game_index,
+    is_object_not_found,
     new_versions_index,
     parse_platform_list,
     update_catalog_manifest,
@@ -58,6 +60,21 @@ class TestPlatformValidation(unittest.TestCase):
 
 
 class TestVersionsIndex(unittest.TestCase):
+    def test_is_object_not_found(self) -> None:
+        missing = subprocess.CompletedProcess(
+            args=[],
+            returncode=1,
+            stderr="ERROR : Object not found",
+        )
+        self.assertTrue(is_object_not_found(missing))
+
+        auth_error = subprocess.CompletedProcess(
+            args=[],
+            returncode=1,
+            stderr="ERROR : Access Denied",
+        )
+        self.assertFalse(is_object_not_found(auth_error))
+
     def test_append_version_entry(self) -> None:
         data = new_versions_index("cool_game")
         builds = {"macos-arm64": {"sha256": "x", "download_url": "https://cdn.example.com/x"}}
