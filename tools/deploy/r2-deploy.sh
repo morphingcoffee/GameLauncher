@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
 # Sync a local directory to Cloudflare R2 via rclone (S3-compatible API).
 #
-#   ./scripts/r2-deploy.sh [--allow-deletes] <local-dir> [remote-prefix]
+#   ./tools/deploy/r2-deploy.sh [--allow-deletes] <local-dir> [remote-prefix]
 #
 # Requires: rclone, .env with R2_ACCOUNT_ID and R2_BUCKET_NAME, Keychain R2 keys.
-# See docs/r2-deploy.md for setup and Keychain storage.
+# See tools/deploy/README.md for setup and Keychain storage.
 #
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [[ -z "$ROOT" ]]; then
+  ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
 
 usage() {
   cat <<'EOF' >&2
@@ -22,9 +26,9 @@ Usage: r2-deploy.sh [--allow-deletes] <local-dir> [remote-prefix]
   with --allow-deletes after reviewing the list.
 
 Examples:
-  ./scripts/r2-deploy.sh ./build/dist
-  ./scripts/r2-deploy.sh ./build/dist --allow-deletes
-  ./scripts/r2-deploy.sh --allow-deletes ./build/dist releases/v1.0.0
+  ./tools/deploy/r2-deploy.sh ./build/dist
+  ./tools/deploy/r2-deploy.sh ./build/dist --allow-deletes
+  ./tools/deploy/r2-deploy.sh --allow-deletes ./build/dist releases/v1.0.0
 EOF
   exit 2
 }
@@ -97,16 +101,16 @@ if [[ -f "$ENV_FILE" ]]; then
 fi
 
 # Keychain credentials override any R2_* secret vars that may exist in .env
-# shellcheck source=scripts/r2-from-keychain.sh
-source "$ROOT/scripts/r2-from-keychain.sh" || {
+# shellcheck source=r2-from-keychain.sh
+source "$SCRIPT_DIR/r2-from-keychain.sh" || {
   echo "r2-deploy: failed to load Keychain credentials" >&2
   exit 1
 }
 
 : "${R2_BUCKET_NAME:?Set R2_BUCKET_NAME in .env (see .env.example)}"
 
-# shellcheck source=scripts/r2-rclone-env.sh
-source "$ROOT/scripts/r2-rclone-env.sh"
+# shellcheck source=r2-rclone-env.sh
+source "$SCRIPT_DIR/r2-rclone-env.sh"
 r2_rclone_configure
 
 REMOTE="${RCLONE_REMOTE}:${R2_BUCKET_NAME}"

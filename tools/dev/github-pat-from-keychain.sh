@@ -2,7 +2,7 @@
 # Load GitHub PAT from macOS Keychain into the environment.
 # Source this file — never commit tokens to any config file.
 #
-#   source scripts/github-pat-from-keychain.sh
+#   source tools/dev/github-pat-from-keychain.sh
 #
 set -euo pipefail
 

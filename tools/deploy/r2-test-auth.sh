@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 # Verify R2 Keychain credentials (read + write) without affecting your shell.
 #
-#   ./scripts/r2-test-auth.sh
+#   ./tools/deploy/r2-test-auth.sh
 #
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [[ -z "$ROOT" ]]; then
+  ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
 
 if ! command -v rclone >/dev/null 2>&1; then
   echo "r2-test-auth: rclone not found — brew install rclone" >&2
@@ -20,16 +24,16 @@ if [[ -f "$ENV_FILE" ]]; then
   set +a
 fi
 
-# shellcheck source=scripts/r2-from-keychain.sh
-source "$ROOT/scripts/r2-from-keychain.sh" || {
-  echo "r2-test-auth: Keychain load failed — see docs/r2-deploy.md" >&2
+# shellcheck source=r2-from-keychain.sh
+source "$SCRIPT_DIR/r2-from-keychain.sh" || {
+  echo "r2-test-auth: Keychain load failed — see tools/deploy/README.md" >&2
   exit 1
 }
 
 : "${R2_BUCKET_NAME:?Set R2_BUCKET_NAME in .env (see .env.example)}"
 
-# shellcheck source=scripts/r2-rclone-env.sh
-source "$ROOT/scripts/r2-rclone-env.sh"
+# shellcheck source=r2-rclone-env.sh
+source "$SCRIPT_DIR/r2-rclone-env.sh"
 r2_rclone_configure
 
 REMOTE="${RCLONE_REMOTE}:${R2_BUCKET_NAME}"

@@ -25,14 +25,14 @@ Re-run with `-U` after rotating a token; update **both** items.
 ## Test and deploy
 
 ```bash
-./scripts/r2-test-auth.sh
-./scripts/r2-deploy.sh ./path/to/artifacts
-./scripts/r2-deploy.sh ./path/to/artifacts releases/v1.0.0   # optional prefix
+./tools/deploy/r2-test-auth.sh
+./tools/deploy/r2-deploy.sh ./path/to/artifacts
+./tools/deploy/r2-deploy.sh ./path/to/artifacts releases/v1.0.0   # optional prefix
 ```
 
 `r2-deploy.sh` runs a dry-run first. **Sync deletes** remote files under the target prefix that are not in your local directory — use a dedicated prefix (e.g. `releases/v1.0.0`). If the dry-run reports deletes, review the list and pass `--allow-deletes` to proceed.
 
 ## Security
 
-- Run `scripts/scan-secrets.sh` before commit.
+- Run `tools/dev/scan-secrets.sh` before commit.
 - See `.cursor/skills/secret-hygiene/SKILL.md`.

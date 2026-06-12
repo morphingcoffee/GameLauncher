@@ -46,7 +46,7 @@ This applies whenever more than one reasonable option exists — even if one opt
 
 ## Example (R2 deploy)
 
-**Wrong:** Add `scripts/r2-deploy.sh` using `aws s3 sync` without asking.
+**Wrong:** Add `tools/deploy/r2-deploy.sh` using `aws s3 sync` without asking.
 
 **Right:**
 
