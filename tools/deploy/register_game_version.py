@@ -262,6 +262,16 @@ def ensure_git_author(repo_root: Path) -> None:
     )
 
 
+def publish_manifest_to_r2(remote: str, manifest_path: Path) -> None:
+    """Upload live catalog manifest.json to R2 (launcher fetches this URL)."""
+    remote_manifest = f"{remote}/manifest.json"
+    print("register-game-version: uploading manifest.json to R2", file=sys.stderr)
+    rclone_run(
+        ["copyto", str(manifest_path), remote_manifest],
+        check=True,
+    )
+
+
 def commit_manifest_if_changed(repo_root: Path, manifest_path: Path) -> None:
     rel = manifest_path.relative_to(repo_root)
     result = subprocess.run(
@@ -315,7 +325,7 @@ def main() -> None:
     manifest_path = Path(
         os.environ.get("MANIFEST_PATH", repo_root / "manifests" / "manifest.json")
     )
-    released_at = os.environ.get("RELEASED_AT", date.today().isoformat())
+    released_at = os.environ.get("RELEASED_AT") or date.today().isoformat()
     skip_git = os.environ.get("SKIP_GIT", "0").lower() in ("1", "true")
     update_catalog_latest = os.environ.get("UPDATE_CATALOG_LATEST", "true").lower() not in (
         "0",
@@ -405,6 +415,7 @@ def main() -> None:
             )
             manifest_path.write_text(json.dumps(updated_manifest, indent=2) + "\n")
             print(f"register-game-version: updated {manifest_path}", file=sys.stderr)
+            publish_manifest_to_r2(remote, manifest_path)
 
     if skip_git:
         print("register-game-version: SKIP_GIT=1 — not committing", file=sys.stderr)
