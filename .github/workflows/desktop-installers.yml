@@ -32,8 +32,10 @@ jobs:
         include:
           - jdk_arch: arm64
             compose_host: macos-arm64
+            expected_arch: arm64
           - jdk_arch: x64
             compose_host: macos-x64
+            expected_arch: x86_64
     defaults:
       run:
         working-directory: launcher
@@ -70,7 +72,13 @@ jobs:
       - name: Verify app binary architecture
         run: |
           BIN="composeApp/build/compose/binaries/main/app/GameLauncher.app/Contents/MacOS/GameLauncher"
-          file "$BIN"
+          OUTPUT=$(file "$BIN")
+          echo "$OUTPUT"
+          case "${{ matrix.expected_arch }}" in
+            arm64) echo "$OUTPUT" | grep -q 'arm64' || { echo "Expected arm64 binary"; exit 1; } ;;
+            x86_64) echo "$OUTPUT" | grep -q 'x86_64' || { echo "Expected x86_64 binary"; exit 1; } ;;
+            *) echo "Unknown expected_arch: ${{ matrix.expected_arch }}"; exit 1 ;;
+          esac
 
       - name: Ad-hoc sign app bundle
         run: codesign --force --deep --sign - "composeApp/build/compose/binaries/main/app/GameLauncher.app"
