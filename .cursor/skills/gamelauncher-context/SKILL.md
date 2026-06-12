@@ -74,7 +74,7 @@ Lazy-loaded when user opens "Other versions". Lives in R2 only; maintained by th
 
 Kotlin models in `:core:model` — `Manifest`, `GameCatalogEntry`, `GameVersionIndex`, `PlatformKey`.
 
-Use `@SerialName` for snake_case JSON fields in Kotlin models.
+Follow `kotlin-serialization` skill: **every** wire-model property uses `@SerialName` (explicit JSON keys, refactor-safe).
 
 ## Platform detection
 
