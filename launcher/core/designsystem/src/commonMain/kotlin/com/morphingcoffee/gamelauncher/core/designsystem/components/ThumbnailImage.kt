@@ -27,7 +27,6 @@ import coil3.compose.SubcomposeAsyncImageContent
 import coil3.toBitmap
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherColors
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherSpacing
-import com.morphingcoffee.gamelauncher.core.designsystem.LauncherTypography
 import com.morphingcoffee.gamelauncher.core.designsystem.extractAmbientColor
 
 @Composable
@@ -35,7 +34,6 @@ fun ThumbnailImage(
     imageUrl: String?,
     contentDescription: String?,
     modifier: Modifier = Modifier,
-    title: String? = null,
     ambientColor: Color = Color.Transparent,
     onColorExtracted: ((Color) -> Unit)? = null,
 ) {
@@ -47,7 +45,6 @@ fun ThumbnailImage(
     ) {
         if (imageUrl == null) {
             ThumbnailAbsent(
-                title = title ?: contentDescription.orEmpty(),
                 ambientColor = ambientColor,
                 modifier = Modifier.fillMaxSize(),
             )
@@ -90,7 +87,6 @@ fun ThumbnailImage(
 
 @Composable
 private fun ThumbnailAbsent(
-    title: String,
     ambientColor: Color,
     modifier: Modifier = Modifier,
 ) {
@@ -111,14 +107,7 @@ private fun ThumbnailAbsent(
                             ),
                     ),
             ),
-        contentAlignment = Alignment.Center,
-    ) {
-        MonoLabel(
-            text = title.uppercase(),
-            accent = true,
-            style = LauncherTypography.titleMedium,
-        )
-    }
+    )
 }
 
 @Composable

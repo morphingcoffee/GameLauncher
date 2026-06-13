@@ -100,7 +100,6 @@ private fun GameDetailContent(
         ThumbnailImage(
             imageUrl = game.thumbnailUrl,
             contentDescription = game.title,
-            title = game.title,
             ambientColor = ambientColor,
             onColorExtracted = { color ->
                 onAmbientColorExtracted(color, game.thumbnailUrl)
