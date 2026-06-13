@@ -110,6 +110,7 @@ fun CatalogScreenContent(
                     game = state.selectedGame,
                     isLoading = state.isLoading,
                     errorMessage = state.errorMessage,
+                    launchErrorMessage = state.launchErrorMessage,
                     isChargingLaunch = state.isChargingLaunch,
                     ambientColor = state.ambientColor,
                     onLaunchClicked = onLaunchClicked,

@@ -31,6 +31,7 @@ internal fun GameDetailPane(
     game: GameCatalogEntry?,
     isLoading: Boolean,
     errorMessage: String?,
+    launchErrorMessage: String?,
     isChargingLaunch: Boolean,
     ambientColor: Color,
     onLaunchClicked: () -> Unit,
@@ -60,7 +61,7 @@ internal fun GameDetailPane(
                     DetailMessage(text = "LOADING CATALOG...")
                 }
 
-                errorMessage != null -> {
+                errorMessage != null && game == null -> {
                     DetailMessage(text = errorMessage.uppercase())
                 }
 
@@ -72,6 +73,7 @@ internal fun GameDetailPane(
                     GameDetailContent(
                         game = game,
                         isChargingLaunch = isChargingLaunch,
+                        launchErrorMessage = launchErrorMessage,
                         ambientColor = ambientColor,
                         onLaunchClicked = onLaunchClicked,
                         onLaunchChargeComplete = onLaunchChargeComplete,
@@ -87,6 +89,7 @@ internal fun GameDetailPane(
 private fun GameDetailContent(
     game: GameCatalogEntry,
     isChargingLaunch: Boolean,
+    launchErrorMessage: String?,
     ambientColor: Color,
     onLaunchClicked: () -> Unit,
     onLaunchChargeComplete: () -> Unit,
@@ -133,6 +136,14 @@ private fun GameDetailContent(
                 )
             } else {
                 PlatformUnavailableBadge(modifier = Modifier.padding(top = LauncherSpacing.Lg))
+            }
+
+            if (launchErrorMessage != null) {
+                MonoLabel(
+                    text = launchErrorMessage.uppercase(),
+                    accent = true,
+                    modifier = Modifier.padding(top = LauncherSpacing.Sm),
+                )
             }
         }
     }

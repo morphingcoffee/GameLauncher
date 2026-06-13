@@ -1,5 +1,6 @@
 package com.morphingcoffee.gamelauncher.feature.home
 
+import androidx.compose.ui.graphics.Color
 import com.morphingcoffee.gamelauncher.core.network.GameCatalogRepository
 import com.morphingcoffee.gamelauncher.core.network.ManifestRepository
 import com.morphingcoffee.gamelauncher.core.network.createGameLauncher
@@ -78,6 +79,40 @@ class CatalogViewModelTest {
             assertFalse(state.isLoading)
             assertEquals("ERROR", state.statusLabel)
             assertEquals(null, state.selectedGameId)
+        }
+
+    @Test
+    fun gameSelection_clearsLaunchErrorAndAmbientColor() =
+        runBlocking {
+            val repository =
+                GameCatalogRepository(
+                    createManifestRepository(sampleManifestJson()),
+                    createGameLauncher(),
+                )
+            val viewModel = CatalogViewModel(repository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+            viewModel.onEvent(
+                CatalogEvent.AmbientColorExtracted(
+                    color = Color.Red,
+                    imageUrl = "https://example.com/alpha.webp",
+                ),
+            )
+            viewModel.onEvent(CatalogEvent.LaunchClicked)
+            viewModel.onEvent(CatalogEvent.LaunchChargeComplete)
+            delay(200)
+
+            assertEquals("ERROR", viewModel.state.value.statusLabel)
+            assertEquals("alpha", viewModel.state.value.selectedGameId)
+
+            viewModel.onEvent(CatalogEvent.MoveSelection(1))
+            delay(50)
+
+            val state = viewModel.state.value
+            assertEquals("beta", state.selectedGameId)
+            assertNull(state.launchErrorMessage)
+            assertEquals(Color.Transparent, state.ambientColor)
         }
 
     private suspend fun waitForLoadingToFinish(viewModel: CatalogViewModel) {

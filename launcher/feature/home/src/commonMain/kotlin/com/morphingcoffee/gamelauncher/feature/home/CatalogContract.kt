@@ -38,6 +38,8 @@ data class CatalogState(
     val clockText: String = "",
     val platformKey: String? = null,
     val isChargingLaunch: Boolean = false,
+    val isLaunching: Boolean = false,
+    val launchErrorMessage: String? = null,
     val contentAlpha: Float = 1f,
     val appVersion: String = "0.0.1",
     val ambientColor: Color = Color.Transparent,

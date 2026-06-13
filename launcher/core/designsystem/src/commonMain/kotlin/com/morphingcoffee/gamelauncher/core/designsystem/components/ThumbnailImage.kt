@@ -136,14 +136,17 @@ private fun HeroViewportScrim(ambientColor: Color) {
     )
 }
 
-private fun extractColorFromImage(image: coil3.Image): Color {
-    val bitmap =
-        when (image) {
-            is BitmapImage -> image.bitmap
-            else -> image.toBitmap(width = 96, height = 96)
-        }
-    return extractAmbientColor(bitmap)
-}
+private fun extractColorFromImage(image: coil3.Image): Color =
+    try {
+        val bitmap =
+            when (image) {
+                is BitmapImage -> image.bitmap
+                else -> image.toBitmap(width = 96, height = 96)
+            }
+        extractAmbientColor(bitmap)
+    } catch (_: Exception) {
+        Color.Transparent
+    }
 
 @Composable
 private fun ThumbnailShimmer(modifier: Modifier = Modifier) {

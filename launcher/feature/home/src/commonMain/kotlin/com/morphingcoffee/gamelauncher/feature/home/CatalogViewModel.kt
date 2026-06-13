@@ -1,5 +1,6 @@
 package com.morphingcoffee.gamelauncher.feature.home
 
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.viewModelScope
 import com.morphingcoffee.gamelauncher.core.architecture.MviViewModel
 import com.morphingcoffee.gamelauncher.core.model.PlatformKey
@@ -23,7 +24,12 @@ class CatalogViewModel(
                 updateState {
                     if (progress == null) {
                         copy(
-                            statusLabel = if (isChargingLaunch) statusLabel else "READY",
+                            statusLabel =
+                                if (isChargingLaunch || isLaunching) {
+                                    statusLabel
+                                } else {
+                                    "READY"
+                                },
                             downloadProgressFraction = null,
                         )
                     } else {
@@ -52,7 +58,7 @@ class CatalogViewModel(
 
             is CatalogEvent.GameSelected -> {
                 if (event.gameId == state.value.selectedGameId) return
-                updateState { copy(selectedGameId = event.gameId) }
+                selectGame(event.gameId)
             }
 
             is CatalogEvent.MoveSelection -> moveSelection(event.delta)
@@ -66,7 +72,7 @@ class CatalogViewModel(
             CatalogEvent.LaunchClicked -> {
                 val game = state.value.selectedGame ?: return
                 if (!game.isAvailableOnCurrentPlatform()) return
-                updateState { copy(isChargingLaunch = true) }
+                updateState { copy(isChargingLaunch = true, launchErrorMessage = null) }
             }
 
             CatalogEvent.LaunchChargeComplete -> launchSelectedGame()
@@ -107,6 +113,16 @@ class CatalogViewModel(
         }
     }
 
+    private fun selectGame(gameId: String) {
+        updateState {
+            copy(
+                selectedGameId = gameId,
+                ambientColor = Color.Transparent,
+                launchErrorMessage = null,
+            )
+        }
+    }
+
     private fun moveSelection(delta: Int) {
         val games = state.value.games
         if (games.isEmpty()) return
@@ -114,9 +130,7 @@ class CatalogViewModel(
         val currentIndex =
             games.indexOfFirst { it.id == state.value.selectedGameId }.takeIf { it >= 0 } ?: 0
         val nextIndex = (currentIndex + delta).coerceIn(0, games.lastIndex)
-        updateState {
-            copy(selectedGameId = games[nextIndex].id)
-        }
+        selectGame(games[nextIndex].id)
     }
 
     private fun launchSelectedGame() {
@@ -126,20 +140,23 @@ class CatalogViewModel(
                 copy(
                     statusLabel = "LAUNCHING",
                     isChargingLaunch = false,
+                    isLaunching = true,
+                    launchErrorMessage = null,
                 )
             }
 
             gameCatalogRepository
                 .launchGame(game)
                 .onSuccess {
-                    updateState { copy(contentAlpha = 0f) }
+                    updateState { copy(contentAlpha = 0f, isLaunching = false) }
                 }.onFailure { error ->
                     if (error is SimulatedLaunchException) {
                         updateState {
                             copy(
                                 statusLabel = "LAUNCHED (DEV)",
-                                errorMessage = null,
+                                launchErrorMessage = null,
                                 isChargingLaunch = false,
+                                isLaunching = false,
                                 contentAlpha = 1f,
                             )
                         }
@@ -149,8 +166,9 @@ class CatalogViewModel(
                     updateState {
                         copy(
                             statusLabel = "ERROR",
-                            errorMessage = error.message,
+                            launchErrorMessage = error.message,
                             isChargingLaunch = false,
+                            isLaunching = false,
                             contentAlpha = 1f,
                         )
                     }
