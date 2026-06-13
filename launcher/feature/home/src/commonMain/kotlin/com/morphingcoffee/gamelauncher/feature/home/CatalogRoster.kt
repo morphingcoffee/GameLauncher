@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -30,13 +31,15 @@ internal fun CatalogRoster(
     onGameSelected: (String) -> Unit,
     onMoveSelection: (Int) -> Unit,
     requestFocus: Boolean,
+    onFocusHandled: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val focusRequester = FocusRequester()
+    val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(requestFocus) {
         if (requestFocus) {
             focusRequester.requestFocus()
+            onFocusHandled()
         }
     }
 

@@ -102,6 +102,7 @@ fun CatalogScreenContent(
                     onGameSelected = onGameSelected,
                     onMoveSelection = onMoveSelection,
                     requestFocus = requestRosterFocus,
+                    onFocusHandled = onRosterFocusHandled,
                 )
 
                 VerticalTerminalRule()
