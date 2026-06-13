@@ -51,6 +51,31 @@ class ManifestModelsTest {
     }
 
     @Test
+    fun catalogManifest_deserializesWithMissingThumbnail() {
+        val raw =
+            """
+            {
+              "schema_version": 1,
+              "launcher_minimum_version": "0.0.1",
+              "games": [
+                {
+                  "id": "text_only",
+                  "title": "Text Only",
+                  "description": "No artwork.",
+                  "latest_version": "1.0.0",
+                  "versions_url": "https://cdn.example.com/games/text_only/versions.json",
+                  "builds": {}
+                }
+              ]
+            }
+            """.trimIndent()
+
+        val manifest = json.decodeFromString<Manifest>(raw)
+
+        assertNull(manifest.games.single().thumbnailUrl)
+    }
+
+    @Test
     fun versionIndex_deserializes() {
         val raw =
             """

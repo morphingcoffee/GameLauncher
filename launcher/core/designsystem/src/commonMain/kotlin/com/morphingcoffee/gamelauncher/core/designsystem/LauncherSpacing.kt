@@ -16,5 +16,5 @@ object LauncherSpacing {
     val StatusBarHeight = 32.dp
     val RosterItemHeight = 56.dp
     val PlatformChipHeight = 18.dp
-    val DetailPaneMaxThumbnailHeight = 320.dp
+    val DetailPaneHeroHeight = 200.dp
 }

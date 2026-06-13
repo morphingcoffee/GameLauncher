@@ -24,7 +24,7 @@ sealed interface CatalogEvent {
 
     data class AmbientColorExtracted(
         val color: Color,
-        val imageUrl: String,
+        val imageUrl: String?,
     ) : CatalogEvent
 }
 

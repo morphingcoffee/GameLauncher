@@ -72,7 +72,7 @@ fun CatalogScreenContent(
     onMoveSelection: (Int) -> Unit,
     onLaunchClicked: () -> Unit,
     onLaunchChargeComplete: () -> Unit,
-    onAmbientColorExtracted: (Color, String) -> Unit,
+    onAmbientColorExtracted: (Color, String?) -> Unit,
     onRetryLoad: () -> Unit,
 ) {
     val contentAlpha by animateFloatAsState(

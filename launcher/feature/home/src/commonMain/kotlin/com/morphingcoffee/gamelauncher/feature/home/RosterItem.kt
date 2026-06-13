@@ -30,6 +30,7 @@ import com.morphingcoffee.gamelauncher.core.designsystem.LauncherColors
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherSpacing
 import com.morphingcoffee.gamelauncher.core.designsystem.components.MonoLabel
 import com.morphingcoffee.gamelauncher.core.designsystem.components.PlatformChips
+import com.morphingcoffee.gamelauncher.core.designsystem.components.PlatformChipsMode
 
 @Composable
 internal fun RosterItem(
@@ -130,6 +131,7 @@ internal fun RosterItem(
             PlatformChips(
                 availablePlatformKeys = availablePlatformKeys,
                 currentPlatformKey = currentPlatformKey,
+                mode = PlatformChipsMode.Roster,
                 modifier = Modifier.padding(top = LauncherSpacing.Xxs),
             )
         }

@@ -10,14 +10,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -29,51 +27,124 @@ import coil3.compose.SubcomposeAsyncImageContent
 import coil3.toBitmap
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherColors
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherSpacing
+import com.morphingcoffee.gamelauncher.core.designsystem.LauncherTypography
 import com.morphingcoffee.gamelauncher.core.designsystem.extractAmbientColor
 
 @Composable
 fun ThumbnailImage(
-    imageUrl: String,
+    imageUrl: String?,
     contentDescription: String?,
     modifier: Modifier = Modifier,
+    title: String? = null,
     ambientColor: Color = Color.Transparent,
     onColorExtracted: ((Color) -> Unit)? = null,
 ) {
-    val letterboxColor =
-        ambientColor.copy(alpha = 0.12f).takeIf { ambientColor != Color.Transparent }
-            ?: LauncherColors.ShimmerBase
-
     Box(
         modifier =
             modifier
-                .clip(RoundedCornerShape(4.dp))
-                .background(letterboxColor),
+                .fillMaxWidth()
+                .height(LauncherSpacing.DetailPaneHeroHeight),
     ) {
-        SubcomposeAsyncImage(
-            model = imageUrl,
-            contentDescription = contentDescription,
+        if (imageUrl == null) {
+            ThumbnailAbsent(
+                title = title ?: contentDescription.orEmpty(),
+                ambientColor = ambientColor,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            SubcomposeAsyncImage(
+                model = imageUrl,
+                contentDescription = contentDescription,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                success = { state ->
+                    LaunchedEffect(imageUrl) {
+                        val color = extractColorFromImage(state.result.image)
+                        if (color != Color.Transparent) {
+                            onColorExtracted?.invoke(color)
+                        }
+                    }
+                    SubcomposeAsyncImageContent()
+                },
+                loading = {
+                    ThumbnailShimmer(modifier = Modifier.fillMaxSize())
+                },
+                error = {
+                    ThumbnailError(modifier = Modifier.fillMaxSize())
+                },
+            )
+        }
+
+        HeroViewportScrim(ambientColor = ambientColor)
+
+        Box(
             modifier =
                 Modifier
+                    .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .heightIn(max = LauncherSpacing.DetailPaneMaxThumbnailHeight),
-            contentScale = ContentScale.Fit,
-            success = { state ->
-                LaunchedEffect(imageUrl) {
-                    val color = extractColorFromImage(state.result.image)
-                    if (color != Color.Transparent) {
-                        onColorExtracted?.invoke(color)
-                    }
-                }
-                SubcomposeAsyncImageContent()
-            },
-            loading = {
-                ThumbnailShimmer(modifier = Modifier.fillMaxSize())
-            },
-            error = {
-                ThumbnailError(modifier = Modifier.fillMaxSize())
-            },
+                    .height(1.dp)
+                    .background(LauncherColors.Rule.copy(alpha = LauncherColors.RuleAlpha)),
         )
     }
+}
+
+@Composable
+private fun ThumbnailAbsent(
+    title: String,
+    ambientColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    val backdropColor =
+        ambientColor.copy(alpha = 0.14f).takeIf { ambientColor != Color.Transparent }
+            ?: LauncherColors.Surface
+
+    Box(
+        modifier =
+            modifier.background(
+                brush =
+                    Brush.verticalGradient(
+                        colorStops =
+                            arrayOf(
+                                0f to backdropColor,
+                                0.55f to LauncherColors.Background.copy(alpha = 0.92f),
+                                1f to LauncherColors.Background,
+                            ),
+                    ),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        MonoLabel(
+            text = title.uppercase(),
+            accent = true,
+            style = LauncherTypography.titleMedium,
+        )
+    }
+}
+
+@Composable
+private fun HeroViewportScrim(ambientColor: Color) {
+    val topTint =
+        ambientColor.copy(alpha = 0.06f).takeIf { ambientColor != Color.Transparent }
+            ?: Color.Transparent
+
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(
+                    brush =
+                        Brush.verticalGradient(
+                            colorStops =
+                                arrayOf(
+                                    0f to topTint,
+                                    0.35f to Color.Transparent,
+                                    0.62f to Color.Transparent,
+                                    0.88f to LauncherColors.Background.copy(alpha = 0.72f),
+                                    1f to LauncherColors.Background,
+                                ),
+                        ),
+                ),
+    )
 }
 
 private fun extractColorFromImage(image: coil3.Image): Color {
@@ -122,7 +193,7 @@ private fun ThumbnailError(modifier: Modifier = Modifier) {
     Box(
         modifier =
             modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .background(LauncherColors.Surface),
         contentAlignment = Alignment.Center,
     ) {

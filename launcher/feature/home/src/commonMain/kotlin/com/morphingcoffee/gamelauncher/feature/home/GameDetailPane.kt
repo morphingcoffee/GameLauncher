@@ -11,8 +11,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -37,7 +35,7 @@ internal fun GameDetailPane(
     ambientColor: Color,
     onLaunchClicked: () -> Unit,
     onLaunchChargeComplete: () -> Unit,
-    onAmbientColorExtracted: (Color, String) -> Unit,
+    onAmbientColorExtracted: (Color, String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
@@ -92,55 +90,51 @@ private fun GameDetailContent(
     ambientColor: Color,
     onLaunchClicked: () -> Unit,
     onLaunchChargeComplete: () -> Unit,
-    onAmbientColorExtracted: (Color, String) -> Unit,
+    onAmbientColorExtracted: (Color, String?) -> Unit,
 ) {
     val build = game.buildForCurrentPlatform()
     val isAvailable = build != null
     val currentPlatformKey = PlatformKey.current()
 
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(LauncherSpacing.Lg),
-    ) {
+    Column(modifier = Modifier.fillMaxSize()) {
         ThumbnailImage(
             imageUrl = game.thumbnailUrl,
             contentDescription = game.title,
+            title = game.title,
             ambientColor = ambientColor,
             onColorExtracted = { color ->
                 onAmbientColorExtracted(color, game.thumbnailUrl)
             },
+        )
+
+        Column(
             modifier =
                 Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = LauncherSpacing.DetailPaneMaxThumbnailHeight),
-        )
+                    .weight(1f)
+                    .padding(LauncherSpacing.Lg),
+        ) {
+            DisplayTitle(text = game.title)
 
-        DisplayTitle(
-            text = game.title,
-            modifier = Modifier.padding(top = LauncherSpacing.Lg),
-        )
+            TerminalRule(modifier = Modifier.padding(vertical = LauncherSpacing.Md))
 
-        TerminalRule(modifier = Modifier.padding(vertical = LauncherSpacing.Md))
-
-        MetadataTable(
-            version = game.latestVersion,
-            currentPlatformKey = currentPlatformKey,
-            currentPlatformBuild = build,
-            availableBuilds = game.builds,
-        )
-
-        if (isAvailable) {
-            TerminalButton(
-                label = "LAUNCH",
-                onClick = onLaunchClicked,
-                charging = isChargingLaunch,
-                onChargeComplete = onLaunchChargeComplete,
-                modifier = Modifier.padding(top = LauncherSpacing.Lg),
+            MetadataTable(
+                version = game.latestVersion,
+                currentPlatformKey = currentPlatformKey,
+                currentPlatformBuild = build,
+                availableBuilds = game.builds,
             )
-        } else {
-            PlatformUnavailableBadge(modifier = Modifier.padding(top = LauncherSpacing.Lg))
+
+            if (isAvailable) {
+                TerminalButton(
+                    label = "LAUNCH",
+                    onClick = onLaunchClicked,
+                    charging = isChargingLaunch,
+                    onChargeComplete = onLaunchChargeComplete,
+                    modifier = Modifier.padding(top = LauncherSpacing.Lg),
+                )
+            } else {
+                PlatformUnavailableBadge(modifier = Modifier.padding(top = LauncherSpacing.Lg))
+            }
         }
     }
 }

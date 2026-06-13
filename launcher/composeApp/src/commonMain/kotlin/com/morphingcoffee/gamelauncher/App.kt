@@ -5,9 +5,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
-import coil3.ImageLoader
-import coil3.compose.setSingletonImageLoaderFactory
-import coil3.network.ktor3.KtorNetworkFetcherFactory
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherTheme
 import com.morphingcoffee.gamelauncher.core.navigation.AppDestination
 import com.morphingcoffee.gamelauncher.core.navigation.appNavigationConfig
@@ -17,14 +14,6 @@ import com.morphingcoffee.gamelauncher.feature.home.catalogPreviewState
 
 @Composable
 fun App() {
-    setSingletonImageLoaderFactory { context ->
-        ImageLoader
-            .Builder(context)
-            .components {
-                add(KtorNetworkFetcherFactory())
-            }.build()
-    }
-
     AppNavigation()
 }
 

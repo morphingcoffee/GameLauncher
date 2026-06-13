@@ -17,6 +17,14 @@ import com.morphingcoffee.gamelauncher.core.designsystem.LauncherSpacing
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherTypography
 import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 
+enum class PlatformChipsMode {
+    /** Detail/metadata: accent only the current platform when a build exists. */
+    Detail,
+
+    /** Roster: show every available build clearly; accent only if playable on this machine. */
+    Roster,
+}
+
 private val chipShape = RoundedCornerShape(2.dp)
 
 @Composable
@@ -24,6 +32,7 @@ fun PlatformChips(
     availablePlatformKeys: Set<String>,
     currentPlatformKey: String?,
     modifier: Modifier = Modifier,
+    mode: PlatformChipsMode = PlatformChipsMode.Detail,
 ) {
     Row(
         modifier = modifier,
@@ -37,6 +46,7 @@ fun PlatformChips(
                 label = platformAbbreviation(platformKey),
                 isAvailable = isAvailable,
                 isCurrent = isCurrent && isAvailable,
+                mode = mode,
             )
         }
     }
@@ -47,13 +57,32 @@ private fun PlatformChip(
     label: String,
     isAvailable: Boolean,
     isCurrent: Boolean,
+    mode: PlatformChipsMode,
 ) {
     val alpha = if (isAvailable) 1f else 0.2f
     val borderColor =
+        when (mode) {
+            PlatformChipsMode.Detail ->
+                when {
+                    isCurrent -> LauncherColors.Accent
+                    isAvailable -> LauncherColors.Rule.copy(alpha = 0.25f)
+                    else -> LauncherColors.Rule.copy(alpha = 0.1f)
+                }
+
+            PlatformChipsMode.Roster ->
+                when {
+                    isCurrent -> LauncherColors.Accent
+                    isAvailable -> LauncherColors.OnBackground.copy(alpha = 0.45f)
+                    else -> LauncherColors.Rule.copy(alpha = 0.1f)
+                }
+        }
+    val accentText = isCurrent
+    val mutedText =
         when {
-            isCurrent -> LauncherColors.Accent
-            isAvailable -> LauncherColors.Rule.copy(alpha = 0.25f)
-            else -> LauncherColors.Rule.copy(alpha = 0.1f)
+            !isAvailable -> true
+            isCurrent -> false
+            mode == PlatformChipsMode.Roster -> false
+            else -> true
         }
 
     Box(
@@ -67,8 +96,8 @@ private fun PlatformChip(
     ) {
         MonoLabel(
             text = label,
-            accent = isCurrent,
-            muted = !isCurrent,
+            accent = accentText,
+            muted = mutedText,
             style = LauncherTypography.labelSmall,
         )
     }

@@ -2,6 +2,7 @@ package com.morphingcoffee.gamelauncher.core.model
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 @Serializable
 data class Manifest(
@@ -22,13 +23,15 @@ data class GameCatalogEntry(
     @SerialName("description")
     val description: String,
     @SerialName("thumbnail_url")
-    val thumbnailUrl: String,
+    val thumbnailUrl: String? = null,
     @SerialName("latest_version")
     val latestVersion: String,
     @SerialName("versions_url")
     val versionsUrl: String,
     @SerialName("builds")
     val builds: Map<String, GameBuild>,
+    @Transient
+    val versionHistory: List<GameVersionEntry> = emptyList(),
 ) {
     fun buildForPlatform(platformKey: String): GameBuild? = builds[platformKey]
 

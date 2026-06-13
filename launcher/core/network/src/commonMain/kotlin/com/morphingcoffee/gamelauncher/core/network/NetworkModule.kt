@@ -7,5 +7,5 @@ val networkModule =
         single { createHttpClient() }
         single { ManifestRepository(get()) }
         single { createGameLauncher() }
-        single { GameCatalogRepository(get(), get()) }
+        single<GameCatalogDataSource> { GameCatalogRepository(get(), get()) }
     }

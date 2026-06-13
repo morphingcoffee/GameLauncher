@@ -3,13 +3,14 @@ package com.morphingcoffee.gamelauncher.feature.home
 import androidx.lifecycle.viewModelScope
 import com.morphingcoffee.gamelauncher.core.architecture.MviViewModel
 import com.morphingcoffee.gamelauncher.core.model.PlatformKey
-import com.morphingcoffee.gamelauncher.core.network.GameCatalogRepository
+import com.morphingcoffee.gamelauncher.core.network.GameCatalogDataSource
+import com.morphingcoffee.gamelauncher.core.network.SimulatedLaunchException
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
 class CatalogViewModel(
-    private val gameCatalogRepository: GameCatalogRepository,
+    private val gameCatalogRepository: GameCatalogDataSource,
 ) : MviViewModel<CatalogState, CatalogEvent, CatalogEffect>(
         initialState =
             CatalogState(
@@ -133,6 +134,18 @@ class CatalogViewModel(
                 .onSuccess {
                     updateState { copy(contentAlpha = 0f) }
                 }.onFailure { error ->
+                    if (error is SimulatedLaunchException) {
+                        updateState {
+                            copy(
+                                statusLabel = "LAUNCHED (DEV)",
+                                errorMessage = null,
+                                isChargingLaunch = false,
+                                contentAlpha = 1f,
+                            )
+                        }
+                        return@launch
+                    }
+
                     updateState {
                         copy(
                             statusLabel = "ERROR",
