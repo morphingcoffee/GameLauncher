@@ -30,7 +30,7 @@ fun AppHeader(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(LauncherSpacing.Sm)) {
-                MonoLabel(text = "GAME.LAUNCHER")
+                MonoLabel(text = "MC.GAME.LAUNCHER")
                 MonoLabel(text = "·", muted = true)
                 MonoLabel(text = "v$appVersion", muted = true)
             }
