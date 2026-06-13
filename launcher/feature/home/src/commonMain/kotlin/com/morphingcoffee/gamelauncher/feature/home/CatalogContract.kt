@@ -2,6 +2,7 @@ package com.morphingcoffee.gamelauncher.feature.home
 
 import androidx.compose.ui.graphics.Color
 import com.morphingcoffee.gamelauncher.core.model.GameCatalogEntry
+import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
 
 sealed interface CatalogEvent {
     data object Started : CatalogEvent
@@ -41,7 +42,7 @@ data class CatalogState(
     val isLaunching: Boolean = false,
     val launchErrorMessage: String? = null,
     val contentAlpha: Float = 1f,
-    val appVersion: String = "0.0.1",
+    val appVersion: String = LauncherMetadata.VERSION,
     val ambientColor: Color = Color.Transparent,
 ) {
     val selectedGame: GameCatalogEntry?

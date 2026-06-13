@@ -14,6 +14,9 @@ import kotlinx.serialization.modules.subclassesOfSealed
 sealed interface AppDestination : NavKey {
     @Serializable
     data object Home : AppDestination
+
+    @Serializable
+    data object Settings : AppDestination
 }
 
 val appNavigationConfig: SavedStateConfiguration =
