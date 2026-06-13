@@ -5,30 +5,32 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.morphingcoffee.gamelauncher.core.designsystem.components.MonoLabel
 
 private val LauncherColorScheme =
     darkColorScheme(
-        primary = Color(0xFF6C9EFF),
-        onPrimary = Color(0xFF001B3D),
-        secondary = Color(0xFFB8C8FF),
-        background = Color(0xFF0D1117),
-        surface = Color(0xFF161B22),
-        onBackground = Color(0xFFE6EDF3),
-        onSurface = Color(0xFFE6EDF3),
+        primary = LauncherColors.Primary,
+        onPrimary = LauncherColors.OnAccent,
+        secondary = LauncherColors.Secondary,
+        background = LauncherColors.Background,
+        surface = LauncherColors.Surface,
+        onBackground = LauncherColors.OnBackground,
+        onSurface = LauncherColors.OnSurface,
     )
 
 @Composable
 fun LauncherTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = LauncherColorScheme) {
-        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    MaterialTheme(
+        colorScheme = LauncherColorScheme,
+        typography = LauncherTypography,
+    ) {
+        Surface(modifier = Modifier.fillMaxSize(), color = LauncherColors.Background) {
             content()
         }
     }
@@ -47,10 +49,8 @@ private fun LauncherThemePreview() {
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
+            MonoLabel(
                 text = "LauncherTheme preview",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(16.dp),
             )
         }

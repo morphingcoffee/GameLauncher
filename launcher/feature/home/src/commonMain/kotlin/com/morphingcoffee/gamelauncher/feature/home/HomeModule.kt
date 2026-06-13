@@ -5,5 +5,5 @@ import org.koin.dsl.module
 
 val featureHomeModule =
     module {
-        viewModelOf(::HomeViewModel)
+        viewModelOf(::CatalogViewModel)
     }

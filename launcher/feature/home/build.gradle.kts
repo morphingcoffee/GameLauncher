@@ -31,7 +31,9 @@ kotlin {
             dependencies {
                 implementation(project(":core:architecture"))
                 implementation(project(":core:designsystem"))
+                implementation(project(":core:model"))
                 implementation(project(":core:navigation"))
+                implementation(project(":core:network"))
                 implementation(libs.compose.runtime)
                 implementation(libs.compose.foundation)
                 implementation(libs.compose.material3)
@@ -46,6 +48,24 @@ kotlin {
                 implementation(libs.koin.annotations)
                 implementation(libs.koin.compose)
                 implementation(libs.koin.compose.viewmodel)
+            }
+        }
+        val desktopTest by getting {
+            dependencies {
+                implementation(libs.kotlinx.coroutines.swing)
+            }
+        }
+        val commonTest by getting {
+            dependencies {
+                implementation(libs.kotlin.test)
+                implementation(libs.kotlinx.coroutines.core)
+                implementation(libs.kotlinx.coroutines.test)
+                implementation(project(":core:model"))
+                implementation(project(":core:network"))
+                implementation(libs.ktor.client.core)
+                implementation(libs.ktor.client.content.negotiation)
+                implementation(libs.ktor.serialization.kotlinx.json)
+                implementation(libs.ktor.client.mock)
             }
         }
     }

@@ -1,0 +1,35 @@
+---
+description: Enforce GameLauncher design system usage in feature UI code
+globs: launcher/feature/**/*.kt
+alwaysApply: false
+---
+
+# Design System Enforcement
+
+Feature screens (`launcher/feature/**`) must not use Material3 or Compose UI primitives directly for product UI.
+
+## Do not import in feature modules
+
+- `androidx.compose.material3.Text`, `Button`, `Divider`, `MaterialTheme.typography.*`
+- Raw `androidx.compose.foundation.text.BasicText` for product copy
+- Direct `MaterialTheme.colorScheme` access for styling
+
+## Use instead
+
+- Typography: `MonoLabel`, `DisplayTitle`, `RuleText` from `:core:designsystem`
+- Structure: `TerminalRule`, `AppHeader`, `StatusBar`
+- Actions: `TerminalButton`
+- Media: `ThumbnailImage`
+- Tokens: `LauncherColors`, `LauncherSpacing`, `LauncherTheme`
+
+## When a primitive is missing
+
+1. Add a new composable under `launcher/core/designsystem/src/commonMain/.../components/`
+2. Use design tokens (`LauncherColors`, `LauncherSpacing`, `LauncherTypography`)
+3. Consume the new component from the feature screen
+
+## Allowed in feature modules
+
+- Layout primitives: `Box`, `Column`, `Row`, `LazyColumn`, `Modifier`
+- Animation APIs: `animateFloatAsState`, `AnimatedContent`, `spring`, `tween`
+- Feature-specific composition: `CatalogScreen`, `CatalogRoster`, `GameDetailPane`
