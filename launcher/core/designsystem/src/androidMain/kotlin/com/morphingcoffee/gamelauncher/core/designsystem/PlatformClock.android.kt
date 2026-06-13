@@ -1,4 +1,4 @@
-package com.morphingcoffee.gamelauncher.feature.home
+package com.morphingcoffee.gamelauncher.core.designsystem
 
 import java.time.LocalTime
 

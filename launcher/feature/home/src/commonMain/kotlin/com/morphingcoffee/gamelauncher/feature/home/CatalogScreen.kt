@@ -25,7 +25,10 @@ import kotlinx.coroutines.delay
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
-fun CatalogScreen(viewModel: CatalogViewModel = koinViewModel()) {
+fun CatalogScreen(
+    viewModel: CatalogViewModel = koinViewModel(),
+    onOpenSettings: () -> Unit = {},
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var requestRosterFocus by remember { mutableStateOf(false) }
 
@@ -60,6 +63,7 @@ fun CatalogScreen(viewModel: CatalogViewModel = koinViewModel()) {
             viewModel.onEvent(CatalogEvent.AmbientColorExtracted(color, imageUrl))
         },
         onRetryLoad = { viewModel.onEvent(CatalogEvent.RetryLoad) },
+        onOpenSettings = onOpenSettings,
     )
 }
 
@@ -74,6 +78,7 @@ fun CatalogScreenContent(
     onLaunchChargeComplete: () -> Unit,
     onAmbientColorExtracted: (Color, String?) -> Unit,
     onRetryLoad: () -> Unit,
+    onOpenSettings: () -> Unit = {},
 ) {
     val contentAlpha by animateFloatAsState(
         targetValue = state.contentAlpha,
@@ -125,6 +130,7 @@ fun CatalogScreenContent(
                 statusText = state.statusLabel,
                 clockText = state.clockText,
                 downloadProgress = state.downloadProgressFraction,
+                onSettingsClick = onOpenSettings,
             )
         }
     }

@@ -3,6 +3,7 @@ package com.morphingcoffee.gamelauncher.feature.home
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.viewModelScope
 import com.morphingcoffee.gamelauncher.core.architecture.MviViewModel
+import com.morphingcoffee.gamelauncher.core.designsystem.platformClockText
 import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 import com.morphingcoffee.gamelauncher.core.network.GameCatalogDataSource
 import com.morphingcoffee.gamelauncher.core.network.SimulatedLaunchException

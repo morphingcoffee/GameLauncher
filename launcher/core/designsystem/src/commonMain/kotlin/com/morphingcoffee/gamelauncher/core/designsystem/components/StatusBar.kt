@@ -1,6 +1,7 @@
 package com.morphingcoffee.gamelauncher.core.designsystem.components
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -22,6 +23,7 @@ fun StatusBar(
     statusText: String,
     clockText: String,
     downloadProgress: Float? = null,
+    onSettingsClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     ColumnWithRule(modifier = modifier) {
@@ -47,7 +49,19 @@ fun StatusBar(
                     )
                 }
             }
-            MonoLabel(text = clockText, muted = true)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(LauncherSpacing.Md),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (onSettingsClick != null) {
+                    MonoLabel(
+                        text = "SETTINGS",
+                        accent = true,
+                        modifier = Modifier.clickable(onClick = onSettingsClick),
+                    )
+                }
+                MonoLabel(text = clockText, muted = true)
+            }
         }
     }
 }

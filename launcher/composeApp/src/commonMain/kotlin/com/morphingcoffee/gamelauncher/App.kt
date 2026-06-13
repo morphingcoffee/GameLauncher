@@ -11,6 +11,9 @@ import com.morphingcoffee.gamelauncher.core.navigation.appNavigationConfig
 import com.morphingcoffee.gamelauncher.feature.home.CatalogScreen
 import com.morphingcoffee.gamelauncher.feature.home.CatalogScreenContent
 import com.morphingcoffee.gamelauncher.feature.home.catalogPreviewState
+import com.morphingcoffee.gamelauncher.feature.settings.SettingsScreen
+import com.morphingcoffee.gamelauncher.feature.settings.SettingsScreenContent
+import com.morphingcoffee.gamelauncher.feature.settings.SettingsState
 
 @Composable
 fun App() {
@@ -18,7 +21,11 @@ fun App() {
 }
 
 @Composable
-internal fun AppNavigation(catalogContent: @Composable () -> Unit = { CatalogScreen() }) {
+internal fun AppNavigation(
+    catalogContent: @Composable (onOpenSettings: () -> Unit) -> Unit = { onOpenSettings ->
+        CatalogScreen(onOpenSettings = onOpenSettings)
+    },
+) {
     LauncherTheme {
         val backStack = rememberNavBackStack(appNavigationConfig, AppDestination.Home)
 
@@ -31,7 +38,17 @@ internal fun AppNavigation(catalogContent: @Composable () -> Unit = { CatalogScr
                 when (key) {
                     AppDestination.Home ->
                         NavEntry(key) {
-                            catalogContent()
+                            catalogContent {
+                                backStack.add(AppDestination.Settings)
+                            }
+                        }
+                    AppDestination.Settings ->
+                        NavEntry(key) {
+                            SettingsScreen(
+                                onBack = {
+                                    if (backStack.size > 1) backStack.removeLastOrNull()
+                                },
+                            )
                         }
                     else -> error("Unknown destination: $key")
                 }
@@ -49,7 +66,7 @@ internal fun AppNavigation(catalogContent: @Composable () -> Unit = { CatalogScr
 @Composable
 private fun AppCatalogPreview() {
     AppNavigation(
-        catalogContent = {
+        catalogContent = { _ ->
             CatalogScreenContent(
                 state = catalogPreviewState(),
                 requestRosterFocus = false,
@@ -63,4 +80,24 @@ private fun AppCatalogPreview() {
             )
         },
     )
+}
+
+@Preview(
+    name = "App — settings",
+    widthDp = 1280,
+    heightDp = 720,
+    showBackground = true,
+)
+@Composable
+private fun AppSettingsPreview() {
+    LauncherTheme {
+        SettingsScreenContent(
+            state =
+                SettingsState(
+                    platformLabel = "macos-arm64",
+                    clockText = "12:34:56",
+                ),
+            onBack = {},
+        )
+    }
 }
