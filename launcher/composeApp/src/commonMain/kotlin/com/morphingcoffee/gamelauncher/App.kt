@@ -8,9 +8,9 @@ import androidx.navigation3.ui.NavDisplay
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherTheme
 import com.morphingcoffee.gamelauncher.core.navigation.AppDestination
 import com.morphingcoffee.gamelauncher.core.navigation.appNavigationConfig
-import com.morphingcoffee.gamelauncher.feature.home.HomeScreen
-import com.morphingcoffee.gamelauncher.feature.home.HomeScreenContent
-import com.morphingcoffee.gamelauncher.feature.home.HomeState
+import com.morphingcoffee.gamelauncher.feature.home.CatalogScreen
+import com.morphingcoffee.gamelauncher.feature.home.CatalogScreenContent
+import com.morphingcoffee.gamelauncher.feature.home.catalogPreviewState
 
 @Composable
 fun App() {
@@ -18,7 +18,7 @@ fun App() {
 }
 
 @Composable
-internal fun AppNavigation(homeContent: @Composable () -> Unit = { HomeScreen() }) {
+internal fun AppNavigation(catalogContent: @Composable () -> Unit = { CatalogScreen() }) {
     LauncherTheme {
         val backStack = rememberNavBackStack(appNavigationConfig, AppDestination.Home)
 
@@ -31,7 +31,7 @@ internal fun AppNavigation(homeContent: @Composable () -> Unit = { HomeScreen() 
                 when (key) {
                     AppDestination.Home ->
                         NavEntry(key) {
-                            homeContent()
+                            catalogContent()
                         }
                     else -> error("Unknown destination: $key")
                 }
@@ -41,14 +41,26 @@ internal fun AppNavigation(homeContent: @Composable () -> Unit = { HomeScreen() 
 }
 
 @Preview(
-    name = "App — home",
+    name = "App — catalog",
     widthDp = 1280,
     heightDp = 720,
     showBackground = true,
 )
 @Composable
-private fun AppHomePreview() {
+private fun AppCatalogPreview() {
     AppNavigation(
-        homeContent = { HomeScreenContent(state = HomeState()) },
+        catalogContent = {
+            CatalogScreenContent(
+                state = catalogPreviewState(),
+                requestRosterFocus = false,
+                onRosterFocusHandled = {},
+                onGameSelected = {},
+                onMoveSelection = {},
+                onLaunchClicked = {},
+                onLaunchChargeComplete = {},
+                onAmbientColorExtracted = { _, _ -> },
+                onRetryLoad = {},
+            )
+        },
     )
 }

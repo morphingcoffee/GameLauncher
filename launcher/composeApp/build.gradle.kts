@@ -26,6 +26,7 @@ kotlin {
         }
         val desktopMain by getting {
             dependencies {
+                implementation(project(":core:model"))
                 // Generic :desktop lacks Skiko natives; use the host OS/arch artifact (was compose.desktop.currentOs).
                 implementation(
                     composeDesktopHostDependency(
@@ -43,6 +44,7 @@ kotlin {
                 implementation(project(":core:architecture"))
                 implementation(project(":core:designsystem"))
                 implementation(project(":core:navigation"))
+                implementation(project(":core:network"))
                 implementation(project(":feature:home"))
                 implementation(libs.compose.runtime)
                 implementation(libs.compose.foundation)
@@ -53,6 +55,8 @@ kotlin {
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.androidx.lifecycle.runtime.compose)
                 implementation(libs.navigation3.ui)
+                implementation(libs.coil.compose)
+                implementation(libs.coil.network.ktor3)
                 implementation(project.dependencies.platform(libs.koin.bom))
                 implementation(libs.koin.core)
                 implementation(libs.koin.annotations)
@@ -143,6 +147,20 @@ compose.desktop {
                 // JDK 17 jpackage rejects app-version with major 0; keep global 0.0.1 for artifact names.
                 packageVersion = "1.0.0"
             }
+        }
+    }
+}
+
+tasks.register("runDevDesktop") {
+    group = "compose desktop"
+    description = "Run desktop app with fake catalog data and simulated network delays"
+    dependsOn("run")
+}
+
+gradle.taskGraph.whenReady {
+    if (gradle.taskGraph.hasTask(":composeApp:runDevDesktop")) {
+        tasks.named<org.gradle.api.tasks.JavaExec>("run").configure {
+            jvmArgs("-Dgame.launcher.dev=true")
         }
     }
 }
