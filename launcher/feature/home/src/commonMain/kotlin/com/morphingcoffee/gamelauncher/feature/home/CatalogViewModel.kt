@@ -59,6 +59,8 @@ class CatalogViewModel(
                 sendEffect(CatalogEffect.RequestFocusRoster)
             }
 
+            CatalogEvent.OpenClicked -> openWebGame()
+
             CatalogEvent.RetryLoad -> loadCatalog()
 
             CatalogEvent.ClockTick -> {
@@ -359,6 +361,39 @@ class CatalogViewModel(
                         )
                     }
                     AppLog.e("Catalog", "Launch failed for ${game.id}", error)
+                }
+        }
+    }
+
+    private fun openWebGame() {
+        val game = state.value.selectedGame ?: return
+        val build = state.value.displayBuild ?: return
+        if (!state.value.isWebGame) return
+
+        viewModelScope.launch {
+            AppLog.i("Catalog", "Opening web game ${game.id}")
+            updateState {
+                copy(
+                    statusLabel = "OPENING",
+                    launchErrorMessage = null,
+                )
+            }
+
+            gameCatalogRepository
+                .openWebGame(build.downloadUrl)
+                .onSuccess {
+                    AppLog.i("Catalog", "Browser opened for ${game.id}")
+                    updateState {
+                        copy(statusLabel = "READY")
+                    }
+                }.onFailure { error ->
+                    AppLog.e("Catalog", "Failed to open web game ${game.id}", error)
+                    updateState {
+                        copy(
+                            statusLabel = "ERROR",
+                            launchErrorMessage = error.message,
+                        )
+                    }
                 }
         }
     }

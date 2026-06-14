@@ -5,6 +5,7 @@ import com.morphingcoffee.gamelauncher.core.model.GameBuild
 import com.morphingcoffee.gamelauncher.core.model.GameCatalogEntry
 import com.morphingcoffee.gamelauncher.core.model.GameVersionEntry
 import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
+import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 import com.morphingcoffee.gamelauncher.core.network.InstallState
 
 sealed interface CatalogEvent {
@@ -33,6 +34,8 @@ sealed interface CatalogEvent {
     data object UninstallClicked : CatalogEvent
 
     data object UninstallChargeComplete : CatalogEvent
+
+    data object OpenClicked : CatalogEvent
 
     data object RetryLoad : CatalogEvent
 
@@ -98,11 +101,24 @@ data class CatalogState(
         }
 
     val isInstallStatePending: Boolean
-        get() = installState is InstallState.Unknown
+        get() = installState is InstallState.Unknown && !isWebGame
+
+    val isWebGame: Boolean
+        get() {
+            val game = selectedGame ?: return false
+            val version = displayVersion
+            val builds =
+                versionHistory
+                    .firstOrNull { it.version == version }
+                    ?.builds
+                    ?: game.builds
+            return PlatformKey.WEB in builds
+        }
 
     val canUninstall: Boolean
         get() =
-            isInstalledForDisplay &&
+            !isWebGame &&
+                isInstalledForDisplay &&
                 !isInstallStatePending &&
                 !isDownloading &&
                 !isLaunching &&

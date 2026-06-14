@@ -43,6 +43,7 @@ internal fun GameDetailPane(
     isVersionPickerVisible: Boolean,
     isVersionHistoryLoading: Boolean,
     isInstalledForDisplay: Boolean,
+    isWebGame: Boolean,
     isInstallStatePending: Boolean,
     isDownloading: Boolean,
     isChargingLaunch: Boolean,
@@ -55,6 +56,7 @@ internal fun GameDetailPane(
     onVersionSelected: (String) -> Unit,
     onDownloadClicked: () -> Unit,
     onLaunchClicked: () -> Unit,
+    onOpenClicked: () -> Unit,
     onLaunchChargeComplete: () -> Unit,
     onUninstallClicked: () -> Unit,
     onUninstallChargeComplete: () -> Unit,
@@ -100,6 +102,7 @@ internal fun GameDetailPane(
                         isVersionPickerVisible = isVersionPickerVisible,
                         isVersionHistoryLoading = isVersionHistoryLoading,
                         isInstalledForDisplay = isInstalledForDisplay,
+                        isWebGame = isWebGame,
                         isInstallStatePending = isInstallStatePending,
                         isDownloading = isDownloading,
                         isChargingLaunch = isChargingLaunch,
@@ -113,6 +116,7 @@ internal fun GameDetailPane(
                         onVersionSelected = onVersionSelected,
                         onDownloadClicked = onDownloadClicked,
                         onLaunchClicked = onLaunchClicked,
+                        onOpenClicked = onOpenClicked,
                         onLaunchChargeComplete = onLaunchChargeComplete,
                         onUninstallClicked = onUninstallClicked,
                         onUninstallChargeComplete = onUninstallChargeComplete,
@@ -133,6 +137,7 @@ private fun GameDetailContent(
     isVersionPickerVisible: Boolean,
     isVersionHistoryLoading: Boolean,
     isInstalledForDisplay: Boolean,
+    isWebGame: Boolean,
     isInstallStatePending: Boolean,
     isDownloading: Boolean,
     isChargingLaunch: Boolean,
@@ -146,12 +151,19 @@ private fun GameDetailContent(
     onVersionSelected: (String) -> Unit,
     onDownloadClicked: () -> Unit,
     onLaunchClicked: () -> Unit,
+    onOpenClicked: () -> Unit,
     onLaunchChargeComplete: () -> Unit,
     onUninstallClicked: () -> Unit,
     onUninstallChargeComplete: () -> Unit,
     onAmbientColorExtracted: (Color, String?) -> Unit,
 ) {
     val currentPlatformKey = PlatformKey.current()
+    val highlightedPlatformKey =
+        if (isWebGame) {
+            PlatformKey.WEB
+        } else {
+            currentPlatformKey
+        }
     val availableBuilds =
         versionHistory
             .firstOrNull { it.version == displayVersion }
@@ -184,7 +196,7 @@ private fun GameDetailContent(
                 versions = versionHistory,
                 isLoading = isVersionHistoryLoading,
                 isExpanded = isVersionPickerVisible,
-                currentPlatformKey = currentPlatformKey,
+                currentPlatformKey = highlightedPlatformKey,
                 onToggle = onVersionPickerToggled,
                 onVersionSelected = onVersionSelected,
             )
@@ -193,6 +205,7 @@ private fun GameDetailContent(
                 currentPlatformKey = currentPlatformKey,
                 currentPlatformBuild = displayBuild,
                 availableBuilds = availableBuilds,
+                isWebGame = isWebGame,
                 onDiskSizeBytes = if (isInstalledForDisplay) onDiskSizeBytes else null,
                 modifier = Modifier.padding(top = LauncherSpacing.Md),
             )
@@ -200,6 +213,14 @@ private fun GameDetailContent(
             when {
                 displayBuild == null -> {
                     PlatformUnavailableBadge(modifier = Modifier.padding(top = LauncherSpacing.Lg))
+                }
+
+                isWebGame -> {
+                    TerminalButton(
+                        label = "OPEN",
+                        onClick = onOpenClicked,
+                        modifier = Modifier.padding(top = LauncherSpacing.Lg),
+                    )
                 }
 
                 isInstallStatePending -> Unit

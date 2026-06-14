@@ -132,6 +132,7 @@ private fun AppCatalogPreview() {
                 onVersionSelected = {},
                 onDownloadClicked = {},
                 onLaunchClicked = {},
+                onOpenClicked = {},
                 onLaunchChargeComplete = {},
                 onUninstallClicked = {},
                 onUninstallChargeComplete = {},

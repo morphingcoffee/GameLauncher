@@ -4,7 +4,9 @@ import com.morphingcoffee.gamelauncher.core.logging.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import java.awt.Desktop
 import java.io.File
+import java.net.URI
 
 actual class GameLauncher {
     actual suspend fun launch(gameId: String): Result<Unit> =
@@ -34,6 +36,24 @@ actual class GameLauncher {
             AppLog.i("GameLauncher", "Launch finished for $gameId with exit code $exitCode")
         }.onFailure { error ->
             AppLog.e("GameLauncher", "Launch failed for $gameId", error)
+        }
+
+    actual suspend fun openUrl(url: String): Result<Unit> =
+        runCatching {
+            AppLog.i("GameLauncher", "Opening URL in browser: $url")
+            withContext(Dispatchers.IO) {
+                if (!Desktop.isDesktopSupported()) {
+                    error("Desktop API is not supported on this platform")
+                }
+                val desktop = Desktop.getDesktop()
+                if (!desktop.isSupported(Desktop.Action.BROWSE)) {
+                    error("Opening URLs in a browser is not supported on this platform")
+                }
+                desktop.browse(URI(url))
+            }
+            AppLog.i("GameLauncher", "Browser opened for $url")
+        }.onFailure { error ->
+            AppLog.e("GameLauncher", "Failed to open URL: $url", error)
         }
 }
 

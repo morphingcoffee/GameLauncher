@@ -51,4 +51,6 @@ class GameCatalogRepository(
         }
 
     override suspend fun launchGame(gameId: String): Result<Unit> = gameLauncher.launch(gameId)
+
+    override suspend fun openWebGame(url: String): Result<Unit> = gameLauncher.openUrl(url)
 }
