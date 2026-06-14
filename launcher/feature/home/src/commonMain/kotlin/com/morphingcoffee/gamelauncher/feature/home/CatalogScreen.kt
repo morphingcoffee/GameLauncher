@@ -129,6 +129,8 @@ fun CatalogScreenContent(
                     isVersionPickerVisible = state.isVersionPickerVisible,
                     isVersionHistoryLoading = state.isVersionHistoryLoading,
                     isInstalledForDisplay = state.isInstalledForDisplay,
+                    isInstallStatePending = state.isInstallStatePending,
+                    isDownloading = state.isDownloading,
                     isChargingLaunch = state.isChargingLaunch,
                     ambientColor = state.ambientColor,
                     onVersionPickerToggled = onVersionPickerToggled,

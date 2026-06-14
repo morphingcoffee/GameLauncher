@@ -167,6 +167,88 @@ class CatalogViewModelTest {
         }
 
     @Test
+    fun fastGameSwitch_ignoresStaleVersionHistoryFetch() =
+        runBlocking {
+            val alphaHistory =
+                listOf(
+                    GameVersionEntry(
+                        version = "0.0.1",
+                        releasedAt = "2024-01-01",
+                        builds = emptyMap(),
+                    ),
+                )
+            val repository =
+                DelayedVersionHistoryDataSource(
+                    historiesByUrl =
+                        mapOf(
+                            "https://example.com/alpha/versions.json" to alphaHistory,
+                        ),
+                    delaysMs =
+                        mapOf(
+                            "https://example.com/alpha/versions.json" to 200,
+                        ),
+                )
+            val viewModel = CatalogViewModel(repository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+            viewModel.onEvent(CatalogEvent.VersionPickerToggled)
+            viewModel.onEvent(CatalogEvent.MoveSelection(1))
+            delay(300)
+
+            assertEquals("beta", viewModel.state.value.selectedGameId)
+            assertTrue(
+                viewModel.state.value.versionHistory
+                    .isEmpty(),
+            )
+        }
+
+    @Test
+    fun repeatedDownloadClick_startsOnlyOneInstallJob() =
+        runBlocking {
+            val platformKey = PlatformKey.current() ?: return@runBlocking
+            val repository = CountingDownloadDataSource(platformKey)
+            val viewModel = CatalogViewModel(repository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+            viewModel.onEvent(CatalogEvent.DownloadClicked)
+            viewModel.onEvent(CatalogEvent.DownloadClicked)
+            delay(300)
+
+            assertEquals(1, repository.downloadInvocationCount)
+            assertFalse(viewModel.state.value.isDownloading)
+        }
+
+    @Test
+    fun gameSelection_hidesDownloadWhileInstallStatePending() =
+        runBlocking {
+            val repository =
+                DelayedInstallStateDataSource(
+                    installStates =
+                        mapOf(
+                            "alpha" to
+                                InstallState.Installed(
+                                    version = "0.0.1",
+                                    executablePath = "Game.app/Contents/MacOS/Game",
+                                ),
+                        ),
+                    delaysMs = mapOf("alpha" to 200),
+                )
+            val viewModel = CatalogViewModel(repository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+
+            assertTrue(viewModel.state.value.isInstallStatePending)
+
+            delay(250)
+
+            assertFalse(viewModel.state.value.isInstallStatePending)
+            assertTrue(viewModel.state.value.isInstalledForDisplay)
+        }
+
+    @Test
     fun fastGameSwitch_ignoresStaleInstallStateProbe() =
         runBlocking {
             val repository =
@@ -260,6 +342,99 @@ class CatalogViewModelTest {
                 }
             }
         return ManifestRepository(client, manifestUrl = "https://example.com/manifest.json")
+    }
+
+    private class CountingDownloadDataSource(
+        private val platformKey: String,
+    ) : GameCatalogDataSource {
+        var downloadInvocationCount = 0
+        private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
+        override val downloadProgress: StateFlow<DownloadProgress?> = _downloadProgress
+
+        override suspend fun loadCatalog(): Result<List<GameCatalogEntry>> =
+            Result.success(
+                listOf(
+                    GameCatalogEntry(
+                        id = "alpha",
+                        title = "Alpha Build",
+                        description = "Preview",
+                        latestVersion = "0.0.1",
+                        versionsUrl = "https://example.com/alpha/versions.json",
+                        builds =
+                            mapOf(
+                                platformKey to
+                                    GameBuild(
+                                        downloadUrl = "https://example.com/alpha.zip",
+                                        executablePath = "Game.app/Contents/MacOS/Game",
+                                        fileSizeBytes = 1024,
+                                        sha256 = "abc",
+                                    ),
+                            ),
+                    ),
+                ),
+            )
+
+        override suspend fun fetchVersionHistory(versionsUrl: String): Result<List<GameVersionEntry>> =
+            Result.success(emptyList())
+
+        override suspend fun downloadAndInstall(
+            gameId: String,
+            version: String,
+            build: GameBuild,
+        ): Result<Unit> {
+            downloadInvocationCount++
+            delay(200)
+            return Result.success(Unit)
+        }
+
+        override suspend fun getInstallState(gameId: String): InstallState = InstallState.NotInstalled
+
+        override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
+    }
+
+    private class DelayedVersionHistoryDataSource(
+        private val historiesByUrl: Map<String, List<GameVersionEntry>>,
+        private val delaysMs: Map<String, Long> = emptyMap(),
+    ) : GameCatalogDataSource {
+        private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
+        override val downloadProgress: StateFlow<DownloadProgress?> = _downloadProgress
+
+        override suspend fun loadCatalog(): Result<List<GameCatalogEntry>> =
+            Result.success(
+                listOf(
+                    GameCatalogEntry(
+                        id = "alpha",
+                        title = "Alpha Build",
+                        description = "Preview",
+                        latestVersion = "0.0.1",
+                        versionsUrl = "https://example.com/alpha/versions.json",
+                        builds = emptyMap(),
+                    ),
+                    GameCatalogEntry(
+                        id = "beta",
+                        title = "Beta Showcase",
+                        description = "Preview",
+                        latestVersion = "0.0.1",
+                        versionsUrl = "https://example.com/beta/versions.json",
+                        builds = emptyMap(),
+                    ),
+                ),
+            )
+
+        override suspend fun fetchVersionHistory(versionsUrl: String): Result<List<GameVersionEntry>> {
+            delaysMs[versionsUrl]?.let { delay(it) }
+            return Result.success(historiesByUrl[versionsUrl] ?: emptyList())
+        }
+
+        override suspend fun downloadAndInstall(
+            gameId: String,
+            version: String,
+            build: GameBuild,
+        ): Result<Unit> = Result.success(Unit)
+
+        override suspend fun getInstallState(gameId: String): InstallState = InstallState.Unknown
+
+        override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
     }
 
     private class DelayedInstallStateDataSource(

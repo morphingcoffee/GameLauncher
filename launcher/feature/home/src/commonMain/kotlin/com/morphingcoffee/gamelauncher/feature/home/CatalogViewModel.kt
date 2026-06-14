@@ -79,6 +79,7 @@ class CatalogViewModel(
 
             CatalogEvent.LaunchClicked -> {
                 if (state.value.displayBuild == null) return
+                if (state.value.isInstallStatePending) return
                 if (!state.value.isInstalledForDisplay) return
                 updateState { copy(isChargingLaunch = true, launchErrorMessage = null) }
             }
@@ -132,6 +133,7 @@ class CatalogViewModel(
                 isVersionPickerVisible = false,
                 isVersionHistoryLoading = false,
                 installState = InstallState.Unknown,
+                isDownloading = false,
                 ambientColor = Color.Transparent,
                 launchErrorMessage = null,
             )
@@ -167,7 +169,9 @@ class CatalogViewModel(
         embeddedHistory: List<com.morphingcoffee.gamelauncher.core.model.GameVersionEntry>,
     ) {
         if (embeddedHistory.isNotEmpty()) {
-            updateState { copy(versionHistory = embeddedHistory) }
+            if (state.value.selectedGame?.versionsUrl == versionsUrl) {
+                updateState { copy(versionHistory = embeddedHistory) }
+            }
             return
         }
 
@@ -177,6 +181,7 @@ class CatalogViewModel(
             gameCatalogRepository
                 .fetchVersionHistory(versionsUrl)
                 .onSuccess { versions ->
+                    if (state.value.selectedGame?.versionsUrl != versionsUrl) return@launch
                     updateState {
                         copy(
                             versionHistory = versions,
@@ -184,6 +189,7 @@ class CatalogViewModel(
                         )
                     }
                 }.onFailure { error ->
+                    if (state.value.selectedGame?.versionsUrl != versionsUrl) return@launch
                     updateState {
                         copy(
                             isVersionHistoryLoading = false,
@@ -218,36 +224,51 @@ class CatalogViewModel(
         val build = state.value.displayBuild ?: return
         val version = state.value.displayVersion
         if (version.isBlank()) return
+        if (state.value.isDownloading) return
+
+        val gameId = game.id
+        val versionAtStart = version
+        updateState {
+            copy(
+                isDownloading = true,
+                launchErrorMessage = null,
+                statusLabel = "DOWNLOADING",
+            )
+        }
 
         viewModelScope.launch {
-            updateState {
-                copy(
-                    launchErrorMessage = null,
-                    statusLabel = "DOWNLOADING",
-                )
-            }
-
-            gameCatalogRepository
-                .downloadAndInstall(
-                    gameId = game.id,
-                    version = version,
-                    build = build,
-                ).onSuccess {
-                    probeInstallState(game.id)
-                    updateState {
-                        copy(
-                            statusLabel = "READY",
-                            launchErrorMessage = null,
-                        )
-                    }
-                }.onFailure { error ->
-                    updateState {
-                        copy(
-                            statusLabel = "ERROR",
-                            launchErrorMessage = error.message,
-                        )
-                    }
+            try {
+                val result =
+                    gameCatalogRepository.downloadAndInstall(
+                        gameId = gameId,
+                        version = versionAtStart,
+                        build = build,
+                    )
+                if (state.value.selectedGameId != gameId || state.value.displayVersion != versionAtStart) {
+                    return@launch
                 }
+                result
+                    .onSuccess {
+                        probeInstallState(gameId)
+                        updateState {
+                            copy(
+                                statusLabel = "READY",
+                                launchErrorMessage = null,
+                            )
+                        }
+                    }.onFailure { error ->
+                        updateState {
+                            copy(
+                                statusLabel = "ERROR",
+                                launchErrorMessage = error.message,
+                            )
+                        }
+                    }
+            } finally {
+                if (state.value.selectedGameId == gameId) {
+                    updateState { copy(isDownloading = false) }
+                }
+            }
         }
     }
 

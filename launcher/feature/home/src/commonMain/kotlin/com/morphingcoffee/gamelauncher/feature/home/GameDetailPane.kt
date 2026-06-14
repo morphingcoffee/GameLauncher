@@ -43,6 +43,8 @@ internal fun GameDetailPane(
     isVersionPickerVisible: Boolean,
     isVersionHistoryLoading: Boolean,
     isInstalledForDisplay: Boolean,
+    isInstallStatePending: Boolean,
+    isDownloading: Boolean,
     isChargingLaunch: Boolean,
     ambientColor: Color,
     onVersionPickerToggled: () -> Unit,
@@ -92,6 +94,8 @@ internal fun GameDetailPane(
                         isVersionPickerVisible = isVersionPickerVisible,
                         isVersionHistoryLoading = isVersionHistoryLoading,
                         isInstalledForDisplay = isInstalledForDisplay,
+                        isInstallStatePending = isInstallStatePending,
+                        isDownloading = isDownloading,
                         isChargingLaunch = isChargingLaunch,
                         launchErrorMessage = launchErrorMessage,
                         ambientColor = ambientColor,
@@ -117,6 +121,8 @@ private fun GameDetailContent(
     isVersionPickerVisible: Boolean,
     isVersionHistoryLoading: Boolean,
     isInstalledForDisplay: Boolean,
+    isInstallStatePending: Boolean,
+    isDownloading: Boolean,
     isChargingLaunch: Boolean,
     launchErrorMessage: String?,
     ambientColor: Color,
@@ -177,6 +183,8 @@ private fun GameDetailContent(
                     PlatformUnavailableBadge(modifier = Modifier.padding(top = LauncherSpacing.Lg))
                 }
 
+                isInstallStatePending -> Unit
+
                 isInstalledForDisplay -> {
                     TerminalButton(
                         label = "LAUNCH",
@@ -191,6 +199,7 @@ private fun GameDetailContent(
                     TerminalButton(
                         label = "DOWNLOAD",
                         onClick = onDownloadClicked,
+                        enabled = !isDownloading,
                         modifier = Modifier.padding(top = LauncherSpacing.Lg),
                     )
                 }

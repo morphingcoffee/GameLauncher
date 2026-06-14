@@ -50,6 +50,7 @@ data class CatalogState(
     val isVersionPickerVisible: Boolean = false,
     val isVersionHistoryLoading: Boolean = false,
     val installState: InstallState = InstallState.Unknown,
+    val isDownloading: Boolean = false,
     val statusLabel: String = "READY",
     val downloadProgressFraction: Float? = null,
     val clockText: String = "",
@@ -88,6 +89,9 @@ data class CatalogState(
             val installed = installState as? InstallState.Installed ?: return false
             return installed.version == displayVersion
         }
+
+    val isInstallStatePending: Boolean
+        get() = installState is InstallState.Unknown
 }
 
 sealed interface CatalogEffect {
