@@ -21,6 +21,7 @@ import com.morphingcoffee.gamelauncher.core.designsystem.LauncherTheme
 import com.morphingcoffee.gamelauncher.core.designsystem.components.AppHeader
 import com.morphingcoffee.gamelauncher.core.designsystem.components.StatusBar
 import com.morphingcoffee.gamelauncher.core.designsystem.components.VerticalTerminalRule
+import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
 import kotlinx.coroutines.delay
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -62,6 +63,8 @@ fun CatalogScreen(
         onDownloadClicked = { viewModel.onEvent(CatalogEvent.DownloadClicked) },
         onLaunchClicked = { viewModel.onEvent(CatalogEvent.LaunchClicked) },
         onLaunchChargeComplete = { viewModel.onEvent(CatalogEvent.LaunchChargeComplete) },
+        onUninstallClicked = { viewModel.onEvent(CatalogEvent.UninstallClicked) },
+        onUninstallChargeComplete = { viewModel.onEvent(CatalogEvent.UninstallChargeComplete) },
         onAmbientColorExtracted = { color, imageUrl ->
             viewModel.onEvent(CatalogEvent.AmbientColorExtracted(color, imageUrl))
         },
@@ -82,6 +85,8 @@ fun CatalogScreenContent(
     onDownloadClicked: () -> Unit,
     onLaunchClicked: () -> Unit,
     onLaunchChargeComplete: () -> Unit,
+    onUninstallClicked: () -> Unit,
+    onUninstallChargeComplete: () -> Unit,
     onAmbientColorExtracted: (Color, String?) -> Unit,
     onRetryLoad: () -> Unit,
     onOpenSettings: () -> Unit = {},
@@ -132,12 +137,18 @@ fun CatalogScreenContent(
                     isInstallStatePending = state.isInstallStatePending,
                     isDownloading = state.isDownloading,
                     isChargingLaunch = state.isChargingLaunch,
+                    canUninstall = state.canUninstall,
+                    isChargingUninstall = state.isChargingUninstall,
+                    isUninstalling = state.isUninstalling,
+                    onDiskSizeBytes = state.onDiskSizeBytes,
                     ambientColor = state.ambientColor,
                     onVersionPickerToggled = onVersionPickerToggled,
                     onVersionSelected = onVersionSelected,
                     onDownloadClicked = onDownloadClicked,
                     onLaunchClicked = onLaunchClicked,
                     onLaunchChargeComplete = onLaunchChargeComplete,
+                    onUninstallClicked = onUninstallClicked,
+                    onUninstallChargeComplete = onUninstallChargeComplete,
                     onAmbientColorExtracted = onAmbientColorExtracted,
                     modifier = Modifier.weight(1f),
                 )
@@ -147,6 +158,7 @@ fun CatalogScreenContent(
                 statusText = state.statusLabel,
                 clockText = state.clockText,
                 downloadProgress = state.downloadProgressFraction,
+                debugHint = if (LauncherMetadata.DEBUG_TOOLS_ENABLED) "F12 LOGS" else null,
                 onSettingsClick = onOpenSettings,
             )
         }
@@ -173,6 +185,8 @@ private fun CatalogScreenPreview() {
             onDownloadClicked = {},
             onLaunchClicked = {},
             onLaunchChargeComplete = {},
+            onUninstallClicked = {},
+            onUninstallChargeComplete = {},
             onAmbientColorExtracted = { _, _ -> },
             onRetryLoad = {},
         )

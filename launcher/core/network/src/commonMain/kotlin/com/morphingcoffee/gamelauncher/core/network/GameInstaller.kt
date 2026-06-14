@@ -12,6 +12,10 @@ expect class GameInstaller {
     ): Result<Unit>
 
     fun getInstallState(gameId: String): InstallState
+
+    suspend fun uninstall(gameId: String): Result<Unit>
+
+    fun getOnDiskSizeBytes(gameId: String): Long?
 }
 
 expect fun createGameInstaller(downloadHttpClient: HttpClient): GameInstaller

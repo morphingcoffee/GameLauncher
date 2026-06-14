@@ -1,5 +1,6 @@
 package com.morphingcoffee.gamelauncher.core.network
 
+import com.morphingcoffee.gamelauncher.core.logging.AppLog
 import com.morphingcoffee.gamelauncher.core.model.GameBuild
 import io.ktor.client.HttpClient
 import io.ktor.client.request.header
@@ -8,6 +9,8 @@ import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.utils.io.readAvailable
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -40,39 +43,56 @@ actual class GameInstaller(
             }
 
             try {
-                downloadToStaging(
-                    build = build,
-                    gameId = gameId,
-                    stagingFile = stagingFile,
-                    resumeOffset = resumeOffset,
-                    onProgress = onProgress,
-                )
+                withContext(Dispatchers.IO) {
+                    downloadToStaging(
+                        build = build,
+                        gameId = gameId,
+                        stagingFile = stagingFile,
+                        resumeOffset = resumeOffset,
+                        onProgress = onProgress,
+                    )
+                }
 
-                verifySha256(stagingFile, build.sha256)
+                withContext(Dispatchers.Default) {
+                    AppLog.i("GameInstaller", "Verifying download for $gameId version $version")
+                    verifySha256(stagingFile, build.sha256)
+                }
 
                 val gameDir = File(LibraryPaths.gameDirectory(gameId))
-                if (gameDir.exists()) {
-                    gameDir.deleteRecursively()
+                withContext(Dispatchers.IO) {
+                    if (gameDir.exists()) {
+                        gameDir.deleteRecursively()
+                    }
+                    gameDir.mkdirs()
                 }
-                gameDir.mkdirs()
 
-                extractZip(stagingFile, gameDir)
+                withContext(Dispatchers.Default) {
+                    AppLog.i("GameInstaller", "Extracting $gameId version $version")
+                    extractZip(stagingFile, gameDir)
+                }
 
                 val executable = File(gameDir, build.executablePath)
                 if (!executable.exists()) {
-                    gameDir.deleteRecursively()
+                    withContext(Dispatchers.IO) {
+                        gameDir.deleteRecursively()
+                    }
                     error("Executable not found after extract: ${build.executablePath}")
                 }
 
-                writeInstallRecord(
-                    gameId = gameId,
-                    version = version,
-                    executablePath = build.executablePath,
-                    sha256 = build.sha256,
-                )
+                withContext(Dispatchers.IO) {
+                    writeInstallRecord(
+                        gameId = gameId,
+                        version = version,
+                        executablePath = build.executablePath,
+                        sha256 = build.sha256,
+                    )
+                }
+                AppLog.i("GameInstaller", "Install complete for $gameId version $version")
             } finally {
-                if (stagingFile.exists()) {
-                    stagingFile.delete()
+                withContext(Dispatchers.IO) {
+                    if (stagingFile.exists()) {
+                        stagingFile.delete()
+                    }
                 }
             }
         }
@@ -97,6 +117,62 @@ actual class GameInstaller(
         }.getOrElse {
             InstallState.NotInstalled
         }
+    }
+
+    actual suspend fun uninstall(gameId: String): Result<Unit> =
+        runCatching {
+            withContext(Dispatchers.IO) {
+                deleteGameInstall(gameId)
+            }
+        }
+
+    actual fun getOnDiskSizeBytes(gameId: String): Long? {
+        val gameDir = File(LibraryPaths.gameDirectory(gameId))
+        if (!gameDir.exists()) {
+            return null
+        }
+
+        val recordFile = File(LibraryPaths.installRecordFile(gameId))
+        if (!recordFile.exists()) {
+            return null
+        }
+
+        return runCatching {
+            gameDir
+                .walkTopDown()
+                .filter { it.isFile }
+                .sumOf { it.length() }
+        }.onFailure { error ->
+            AppLog.w("GameInstaller", "On-disk size probe failed for $gameId", error)
+        }.getOrNull()
+    }
+
+    private fun deleteGameInstall(gameId: String) {
+        val gameDir = File(LibraryPaths.gameDirectory(gameId))
+        if (!gameDir.exists()) {
+            AppLog.i("GameInstaller", "Uninstall skipped; no install directory for $gameId")
+            return
+        }
+
+        AppLog.i("GameInstaller", "Uninstalling $gameId")
+        val failures = mutableListOf<String>()
+        gameDir
+            .walkBottomUp()
+            .forEach { file ->
+                if (!file.delete() && file.exists()) {
+                    failures += file.name
+                }
+            }
+
+        if (failures.isNotEmpty() || gameDir.exists()) {
+            AppLog.e(
+                "GameInstaller",
+                "Uninstall incomplete for $gameId; failed entries=${failures.size}",
+            )
+            error("Could not remove all game files. Close the game if it is running and try again.")
+        }
+
+        AppLog.i("GameInstaller", "Uninstall complete for $gameId")
     }
 
     private suspend fun downloadToStaging(

@@ -77,6 +77,33 @@ class FakeGameCatalogDataSource(
         )
     }
 
+    override suspend fun uninstallGame(gameId: String): Result<Unit> {
+        if (gameId !in installedGames) {
+            return Result.failure(IllegalStateException("Game is not installed: $gameId"))
+        }
+        installedGames.remove(gameId)
+        return Result.success(Unit)
+    }
+
+    override suspend fun getOnDiskSizeBytes(gameId: String): Long? {
+        val version = installedGames[gameId] ?: return null
+        val entry =
+            FAKE_CATALOG.firstOrNull { it.id == gameId }
+                ?: return null
+
+        val build =
+            entry.versionHistory.firstOrNull { it.version == version }?.buildForCurrentPlatform()
+                ?: if (version == entry.latestVersion) {
+                    entry.buildForCurrentPlatform()
+                } else {
+                    null
+                }
+                ?: return null
+
+        // Simulated extracted size is ~8% larger than the download archive for dev previews.
+        return (build.fileSizeBytes * 108L) / 100L
+    }
+
     override suspend fun launchGame(gameId: String): Result<Unit> {
         val version =
             installedGames[gameId]

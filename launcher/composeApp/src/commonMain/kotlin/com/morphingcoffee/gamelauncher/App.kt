@@ -1,23 +1,45 @@
 package com.morphingcoffee.gamelauncher
 
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherTheme
+import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
 import com.morphingcoffee.gamelauncher.core.navigation.AppDestination
+import com.morphingcoffee.gamelauncher.core.navigation.DebugNavigation
 import com.morphingcoffee.gamelauncher.core.navigation.appNavigationConfig
 import com.morphingcoffee.gamelauncher.feature.home.CatalogScreen
 import com.morphingcoffee.gamelauncher.feature.home.CatalogScreenContent
 import com.morphingcoffee.gamelauncher.feature.home.catalogPreviewState
+import com.morphingcoffee.gamelauncher.feature.logs.LogsScreen
 import com.morphingcoffee.gamelauncher.feature.settings.SettingsScreen
 import com.morphingcoffee.gamelauncher.feature.settings.SettingsScreenContent
 import com.morphingcoffee.gamelauncher.feature.settings.SettingsState
+import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun App() {
     AppNavigation()
+}
+
+private fun openLogsDestination(backStack: androidx.navigation3.runtime.NavBackStack<NavKey>) {
+    if (backStack.lastOrNull() != AppDestination.Logs) {
+        backStack.add(AppDestination.Logs)
+    }
 }
 
 @Composable
@@ -28,32 +50,65 @@ internal fun AppNavigation(
 ) {
     LauncherTheme {
         val backStack = rememberNavBackStack(appNavigationConfig, AppDestination.Home)
+        val focusRequester = androidx.compose.runtime.remember { FocusRequester() }
 
-        NavDisplay(
-            backStack = backStack,
-            onBack = {
-                if (backStack.size > 1) backStack.removeLastOrNull()
-            },
-            entryProvider = { key ->
-                when (key) {
-                    AppDestination.Home ->
-                        NavEntry(key) {
-                            catalogContent {
-                                backStack.add(AppDestination.Settings)
+        androidx.compose.runtime.LaunchedEffect(Unit) {
+            focusRequester.requestFocus()
+        }
+
+        androidx.compose.runtime.LaunchedEffect(backStack) {
+            DebugNavigation.openLogsRequests.collectLatest {
+                openLogsDestination(backStack)
+            }
+        }
+
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .focusRequester(focusRequester)
+                    .focusable()
+                    .onPreviewKeyEvent { event ->
+                        if (!LauncherMetadata.DEBUG_TOOLS_ENABLED) return@onPreviewKeyEvent false
+                        if (event.type != KeyEventType.KeyDown || event.key != Key.F12) return@onPreviewKeyEvent false
+                        DebugNavigation.requestOpenLogs()
+                        true
+                    },
+        ) {
+            NavDisplay(
+                backStack = backStack,
+                onBack = {
+                    if (backStack.size > 1) backStack.removeLastOrNull()
+                },
+                entryProvider = { key ->
+                    when (key) {
+                        AppDestination.Home ->
+                            NavEntry(key) {
+                                catalogContent {
+                                    backStack.add(AppDestination.Settings)
+                                }
                             }
-                        }
-                    AppDestination.Settings ->
-                        NavEntry(key) {
-                            SettingsScreen(
-                                onBack = {
-                                    if (backStack.size > 1) backStack.removeLastOrNull()
-                                },
-                            )
-                        }
-                    else -> error("Unknown destination: $key")
-                }
-            },
-        )
+                        AppDestination.Settings ->
+                            NavEntry(key) {
+                                SettingsScreen(
+                                    onBack = {
+                                        if (backStack.size > 1) backStack.removeLastOrNull()
+                                    },
+                                )
+                            }
+                        AppDestination.Logs ->
+                            NavEntry(key) {
+                                LogsScreen(
+                                    onBack = {
+                                        if (backStack.size > 1) backStack.removeLastOrNull()
+                                    },
+                                )
+                            }
+                        else -> error("Unknown destination: $key")
+                    }
+                },
+            )
+        }
     }
 }
 
@@ -78,6 +133,8 @@ private fun AppCatalogPreview() {
                 onDownloadClicked = {},
                 onLaunchClicked = {},
                 onLaunchChargeComplete = {},
+                onUninstallClicked = {},
+                onUninstallChargeComplete = {},
                 onAmbientColorExtracted = { _, _ -> },
                 onRetryLoad = {},
             )

@@ -17,6 +17,9 @@ sealed interface AppDestination : NavKey {
 
     @Serializable
     data object Settings : AppDestination
+
+    @Serializable
+    data object Logs : AppDestination
 }
 
 val appNavigationConfig: SavedStateConfiguration =

@@ -30,6 +30,10 @@ sealed interface CatalogEvent {
 
     data object LaunchChargeComplete : CatalogEvent
 
+    data object UninstallClicked : CatalogEvent
+
+    data object UninstallChargeComplete : CatalogEvent
+
     data object RetryLoad : CatalogEvent
 
     data object ClockTick : CatalogEvent
@@ -57,6 +61,9 @@ data class CatalogState(
     val platformKey: String? = null,
     val isChargingLaunch: Boolean = false,
     val isLaunching: Boolean = false,
+    val isChargingUninstall: Boolean = false,
+    val isUninstalling: Boolean = false,
+    val onDiskSizeBytes: Long? = null,
     val launchErrorMessage: String? = null,
     val contentAlpha: Float = 1f,
     val appVersion: String = LauncherMetadata.VERSION,
@@ -92,6 +99,16 @@ data class CatalogState(
 
     val isInstallStatePending: Boolean
         get() = installState is InstallState.Unknown
+
+    val canUninstall: Boolean
+        get() =
+            isInstalledForDisplay &&
+                !isInstallStatePending &&
+                !isDownloading &&
+                !isLaunching &&
+                !isChargingLaunch &&
+                !isUninstalling &&
+                !isChargingUninstall
 }
 
 sealed interface CatalogEffect {

@@ -20,5 +20,9 @@ interface GameCatalogDataSource {
 
     suspend fun getInstallState(gameId: String): InstallState
 
+    suspend fun uninstallGame(gameId: String): Result<Unit>
+
+    suspend fun getOnDiskSizeBytes(gameId: String): Long?
+
     suspend fun launchGame(gameId: String): Result<Unit>
 }

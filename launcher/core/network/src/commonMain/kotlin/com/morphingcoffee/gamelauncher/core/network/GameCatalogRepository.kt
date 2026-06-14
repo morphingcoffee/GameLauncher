@@ -3,9 +3,11 @@ package com.morphingcoffee.gamelauncher.core.network
 import com.morphingcoffee.gamelauncher.core.model.GameBuild
 import com.morphingcoffee.gamelauncher.core.model.GameCatalogEntry
 import com.morphingcoffee.gamelauncher.core.model.GameVersionEntry
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 
 class GameCatalogRepository(
     private val manifestRepository: ManifestRepository,
@@ -40,6 +42,13 @@ class GameCatalogRepository(
     }
 
     override suspend fun getInstallState(gameId: String): InstallState = gameInstaller.getInstallState(gameId)
+
+    override suspend fun uninstallGame(gameId: String): Result<Unit> = gameInstaller.uninstall(gameId)
+
+    override suspend fun getOnDiskSizeBytes(gameId: String): Long? =
+        withContext(Dispatchers.IO) {
+            gameInstaller.getOnDiskSizeBytes(gameId)
+        }
 
     override suspend fun launchGame(gameId: String): Result<Unit> = gameLauncher.launch(gameId)
 }

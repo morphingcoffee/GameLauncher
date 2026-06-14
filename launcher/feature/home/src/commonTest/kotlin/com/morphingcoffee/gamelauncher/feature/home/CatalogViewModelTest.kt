@@ -345,6 +345,217 @@ class CatalogViewModelTest {
             assertEquals(Color.Transparent, state.ambientColor)
         }
 
+    @Test
+    fun uninstallClicked_startsChargeWhenInstalled() =
+        runBlocking {
+            val platformKey = PlatformKey.current() ?: return@runBlocking
+            val build =
+                GameBuild(
+                    downloadUrl = "https://example.com/alpha.zip",
+                    executablePath = "Game.app/Contents/MacOS/Game",
+                    fileSizeBytes = 1024,
+                    sha256 = "abc",
+                )
+            val repository =
+                StubGameCatalogDataSource(
+                    games =
+                        listOf(
+                            GameCatalogEntry(
+                                id = "alpha",
+                                title = "Alpha Build",
+                                description = "Preview",
+                                latestVersion = "0.0.1",
+                                versionsUrl = "https://example.com/alpha/versions.json",
+                                builds = mapOf(platformKey to build),
+                            ),
+                        ),
+                    installState =
+                        InstallState.Installed(
+                            version = "0.0.1",
+                            executablePath = build.executablePath,
+                        ),
+                )
+            val viewModel = CatalogViewModel(repository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+            delay(50)
+
+            viewModel.onEvent(CatalogEvent.UninstallClicked)
+
+            assertTrue(viewModel.state.value.isChargingUninstall)
+        }
+
+    @Test
+    fun uninstallComplete_setsNotInstalled() =
+        runBlocking {
+            val platformKey = PlatformKey.current() ?: return@runBlocking
+            val build =
+                GameBuild(
+                    downloadUrl = "https://example.com/alpha.zip",
+                    executablePath = "Game.app/Contents/MacOS/Game",
+                    fileSizeBytes = 1024,
+                    sha256 = "abc",
+                )
+            val repository = UninstallTrackingDataSource(platformKey, build)
+            val viewModel = CatalogViewModel(repository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+            delay(50)
+            viewModel.onEvent(CatalogEvent.UninstallClicked)
+            viewModel.onEvent(CatalogEvent.UninstallChargeComplete)
+            delay(50)
+
+            assertEquals(InstallState.NotInstalled, viewModel.state.value.installState)
+            assertFalse(viewModel.state.value.isInstalledForDisplay)
+            assertFalse(viewModel.state.value.isChargingUninstall)
+            assertNull(viewModel.state.value.onDiskSizeBytes)
+            assertTrue(repository.uninstallInvoked)
+        }
+
+    @Test
+    fun uninstallChargeComplete_afterUninstallClicked_invokesUninstall() =
+        runBlocking {
+            val platformKey = PlatformKey.current() ?: return@runBlocking
+            val build =
+                GameBuild(
+                    downloadUrl = "https://example.com/alpha.zip",
+                    executablePath = "Game.app/Contents/MacOS/Game",
+                    fileSizeBytes = 1024,
+                    sha256 = "abc",
+                )
+            val repository = UninstallTrackingDataSource(platformKey, build)
+            val viewModel = CatalogViewModel(repository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+            delay(50)
+
+            assertTrue(viewModel.state.value.canUninstall)
+            viewModel.onEvent(CatalogEvent.UninstallClicked)
+            assertTrue(viewModel.state.value.isChargingUninstall)
+            assertFalse(viewModel.state.value.canUninstall)
+
+            viewModel.onEvent(CatalogEvent.UninstallChargeComplete)
+            delay(50)
+
+            assertFalse(viewModel.state.value.isChargingUninstall)
+            assertTrue(repository.uninstallInvoked)
+            assertEquals(InstallState.NotInstalled, viewModel.state.value.installState)
+        }
+
+    @Test
+    fun repeatedUninstallChargeComplete_startsOnlyOneUninstallJob() =
+        runBlocking {
+            val platformKey = PlatformKey.current() ?: return@runBlocking
+            val build =
+                GameBuild(
+                    downloadUrl = "https://example.com/alpha.zip",
+                    executablePath = "Game.app/Contents/MacOS/Game",
+                    fileSizeBytes = 1024,
+                    sha256 = "abc",
+                )
+            val repository =
+                DelayedUninstallDataSource(
+                    platformKey = platformKey,
+                    build = build,
+                    uninstallDelayMs = 200,
+                )
+            val viewModel = CatalogViewModel(repository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+            delay(50)
+            viewModel.onEvent(CatalogEvent.UninstallClicked)
+            viewModel.onEvent(CatalogEvent.UninstallChargeComplete)
+            viewModel.onEvent(CatalogEvent.UninstallChargeComplete)
+            delay(300)
+
+            assertEquals(1, repository.uninstallInvocationCount)
+        }
+
+    @Test
+    fun uninstallBlockedWhileLaunching() =
+        runBlocking {
+            val platformKey = PlatformKey.current() ?: return@runBlocking
+            val build =
+                GameBuild(
+                    downloadUrl = "https://example.com/alpha.zip",
+                    executablePath = "Game.app/Contents/MacOS/Game",
+                    fileSizeBytes = 1024,
+                    sha256 = "abc",
+                )
+            val repository =
+                BlockingLaunchDataSource(
+                    platformKey = platformKey,
+                    build = build,
+                    launchDelayMs = 500,
+                )
+            val viewModel = CatalogViewModel(repository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+            viewModel.onEvent(CatalogEvent.LaunchChargeComplete)
+            delay(20)
+
+            assertTrue(viewModel.state.value.isLaunching)
+            assertFalse(viewModel.state.value.canUninstall)
+
+            viewModel.onEvent(CatalogEvent.UninstallClicked)
+
+            assertFalse(viewModel.state.value.isChargingUninstall)
+        }
+
+    @Test
+    fun uninstallBlockedWhileDownloading() =
+        runBlocking {
+            val platformKey = PlatformKey.current() ?: return@runBlocking
+            val repository = CountingDownloadDataSource(platformKey)
+            val viewModel = CatalogViewModel(repository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+            viewModel.onEvent(CatalogEvent.DownloadClicked)
+            delay(20)
+
+            assertTrue(viewModel.state.value.isDownloading)
+            assertFalse(viewModel.state.value.canUninstall)
+
+            viewModel.onEvent(CatalogEvent.UninstallClicked)
+
+            assertFalse(viewModel.state.value.isChargingUninstall)
+        }
+
+    @Test
+    fun fastGameSwitch_ignoresStaleUninstallResult() =
+        runBlocking {
+            val platformKey = PlatformKey.current() ?: return@runBlocking
+            val build =
+                GameBuild(
+                    downloadUrl = "https://example.com/alpha.zip",
+                    executablePath = "Game.app/Contents/MacOS/Game",
+                    fileSizeBytes = 1024,
+                    sha256 = "abc",
+                )
+            val repository =
+                DelayedUninstallDataSource(
+                    platformKey = platformKey,
+                    build = build,
+                    uninstallDelayMs = 200,
+                )
+            val viewModel = CatalogViewModel(repository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+            viewModel.onEvent(CatalogEvent.UninstallChargeComplete)
+            viewModel.onEvent(CatalogEvent.MoveSelection(1))
+            delay(300)
+
+            assertEquals("beta", viewModel.state.value.selectedGameId)
+            assertEquals(InstallState.NotInstalled, viewModel.state.value.installState)
+        }
+
     private fun createRepository(manifestRepository: ManifestRepository): GameCatalogRepository =
         GameCatalogRepository(
             manifestRepository = manifestRepository,
@@ -415,6 +626,10 @@ class CatalogViewModelTest {
                 executablePath = build.executablePath,
             )
 
+        override suspend fun uninstallGame(gameId: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun getOnDiskSizeBytes(gameId: String): Long? = null
+
         override suspend fun launchGame(gameId: String): Result<Unit> {
             delay(launchDelayMs)
             return Result.success(Unit)
@@ -466,6 +681,10 @@ class CatalogViewModelTest {
 
         override suspend fun getInstallState(gameId: String): InstallState = InstallState.NotInstalled
 
+        override suspend fun uninstallGame(gameId: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun getOnDiskSizeBytes(gameId: String): Long? = null
+
         override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
     }
 
@@ -510,6 +729,10 @@ class CatalogViewModelTest {
         ): Result<Unit> = Result.success(Unit)
 
         override suspend fun getInstallState(gameId: String): InstallState = InstallState.Unknown
+
+        override suspend fun uninstallGame(gameId: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun getOnDiskSizeBytes(gameId: String): Long? = null
 
         override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
     }
@@ -557,6 +780,120 @@ class CatalogViewModelTest {
             return installStates[gameId] ?: InstallState.Unknown
         }
 
+        override suspend fun uninstallGame(gameId: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun getOnDiskSizeBytes(gameId: String): Long? = null
+
+        override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
+    }
+
+    private class UninstallTrackingDataSource(
+        private val platformKey: String,
+        private val build: GameBuild,
+    ) : GameCatalogDataSource {
+        var uninstallInvoked = false
+        private var installState: InstallState =
+            InstallState.Installed(
+                version = "0.0.1",
+                executablePath = build.executablePath,
+            )
+        private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
+        override val downloadProgress: StateFlow<DownloadProgress?> = _downloadProgress
+
+        override suspend fun loadCatalog(): Result<List<GameCatalogEntry>> =
+            Result.success(
+                listOf(
+                    GameCatalogEntry(
+                        id = "alpha",
+                        title = "Alpha Build",
+                        description = "Preview",
+                        latestVersion = "0.0.1",
+                        versionsUrl = "https://example.com/alpha/versions.json",
+                        builds = mapOf(platformKey to build),
+                    ),
+                ),
+            )
+
+        override suspend fun fetchVersionHistory(versionsUrl: String): Result<List<GameVersionEntry>> =
+            Result.success(emptyList())
+
+        override suspend fun downloadAndInstall(
+            gameId: String,
+            version: String,
+            build: GameBuild,
+        ): Result<Unit> = Result.success(Unit)
+
+        override suspend fun getInstallState(gameId: String): InstallState = installState
+
+        override suspend fun uninstallGame(gameId: String): Result<Unit> {
+            uninstallInvoked = true
+            installState = InstallState.NotInstalled
+            return Result.success(Unit)
+        }
+
+        override suspend fun getOnDiskSizeBytes(gameId: String): Long? = 2048L
+
+        override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
+    }
+
+    private class DelayedUninstallDataSource(
+        private val platformKey: String,
+        private val build: GameBuild,
+        private val uninstallDelayMs: Long,
+    ) : GameCatalogDataSource {
+        var uninstallInvocationCount = 0
+        private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
+        override val downloadProgress: StateFlow<DownloadProgress?> = _downloadProgress
+
+        override suspend fun loadCatalog(): Result<List<GameCatalogEntry>> =
+            Result.success(
+                listOf(
+                    GameCatalogEntry(
+                        id = "alpha",
+                        title = "Alpha Build",
+                        description = "Preview",
+                        latestVersion = "0.0.1",
+                        versionsUrl = "https://example.com/alpha/versions.json",
+                        builds = mapOf(platformKey to build),
+                    ),
+                    GameCatalogEntry(
+                        id = "beta",
+                        title = "Beta Showcase",
+                        description = "Preview",
+                        latestVersion = "0.0.1",
+                        versionsUrl = "https://example.com/beta/versions.json",
+                        builds = mapOf(platformKey to build),
+                    ),
+                ),
+            )
+
+        override suspend fun fetchVersionHistory(versionsUrl: String): Result<List<GameVersionEntry>> =
+            Result.success(emptyList())
+
+        override suspend fun downloadAndInstall(
+            gameId: String,
+            version: String,
+            build: GameBuild,
+        ): Result<Unit> = Result.success(Unit)
+
+        override suspend fun getInstallState(gameId: String): InstallState =
+            if (gameId == "alpha") {
+                InstallState.Installed(
+                    version = "0.0.1",
+                    executablePath = build.executablePath,
+                )
+            } else {
+                InstallState.NotInstalled
+            }
+
+        override suspend fun uninstallGame(gameId: String): Result<Unit> {
+            uninstallInvocationCount++
+            delay(uninstallDelayMs)
+            return Result.success(Unit)
+        }
+
+        override suspend fun getOnDiskSizeBytes(gameId: String): Long? = null
+
         override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
     }
 
@@ -584,6 +921,10 @@ class CatalogViewModelTest {
         ): Result<Unit> = Result.success(Unit)
 
         override suspend fun getInstallState(gameId: String): InstallState = installState
+
+        override suspend fun uninstallGame(gameId: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun getOnDiskSizeBytes(gameId: String): Long? = null
 
         override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
     }

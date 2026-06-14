@@ -22,7 +22,9 @@ import com.morphingcoffee.gamelauncher.core.designsystem.LauncherSpacing
 import com.morphingcoffee.gamelauncher.core.designsystem.TerminalRule
 import com.morphingcoffee.gamelauncher.core.designsystem.components.RuleText
 import com.morphingcoffee.gamelauncher.core.model.GameCatalogEntry
+import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
 import com.morphingcoffee.gamelauncher.core.model.PlatformKey
+import com.morphingcoffee.gamelauncher.core.navigation.DebugNavigation
 
 @Composable
 internal fun CatalogRoster(
@@ -60,6 +62,14 @@ internal fun CatalogRoster(
                         Key.DirectionDown, Key.S -> {
                             onMoveSelection(1)
                             true
+                        }
+                        Key.F12 -> {
+                            if (LauncherMetadata.DEBUG_TOOLS_ENABLED) {
+                                DebugNavigation.requestOpenLogs()
+                                true
+                            } else {
+                                false
+                            }
                         }
                         else -> false
                     }

@@ -2,6 +2,20 @@ package com.morphingcoffee.gamelauncher.feature.home
 
 import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 
+internal fun formatSizeDisplay(
+    downloadSizeBytes: Long?,
+    onDiskSizeBytes: Long?,
+): String {
+    if (downloadSizeBytes == null) return "NOT AVAILABLE"
+    if (onDiskSizeBytes != null && onDiskSizeBytes != downloadSizeBytes) {
+        return "${formatFileSize(downloadSizeBytes)} DL / ${formatFileSize(onDiskSizeBytes)} ON DISK"
+    }
+    if (onDiskSizeBytes != null) {
+        return formatFileSize(onDiskSizeBytes)
+    }
+    return formatFileSize(downloadSizeBytes)
+}
+
 internal fun formatFileSize(bytes: Long): String {
     if (bytes < 1_024L) return "$bytes B"
     val kb = bytes / 1_024.0

@@ -12,6 +12,11 @@ actual class GameInstaller {
     ): Result<Unit> = Result.failure(UnsupportedOperationException("Game install is only supported on desktop"))
 
     actual fun getInstallState(gameId: String): InstallState = InstallState.NotInstalled
+
+    actual suspend fun uninstall(gameId: String): Result<Unit> =
+        Result.failure(UnsupportedOperationException("Game uninstall is only supported on desktop"))
+
+    actual fun getOnDiskSizeBytes(gameId: String): Long? = null
 }
 
 actual fun createGameInstaller(downloadHttpClient: HttpClient): GameInstaller = GameInstaller()

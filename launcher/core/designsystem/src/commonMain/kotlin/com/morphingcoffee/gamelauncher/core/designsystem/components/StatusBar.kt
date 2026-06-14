@@ -23,6 +23,7 @@ fun StatusBar(
     statusText: String,
     clockText: String,
     downloadProgress: Float? = null,
+    debugHint: String? = null,
     onSettingsClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -53,6 +54,9 @@ fun StatusBar(
                 horizontalArrangement = Arrangement.spacedBy(LauncherSpacing.Md),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                if (debugHint != null) {
+                    MonoLabel(text = debugHint, muted = true)
+                }
                 if (onSettingsClick != null) {
                     MonoLabel(
                         text = "SETTINGS",
