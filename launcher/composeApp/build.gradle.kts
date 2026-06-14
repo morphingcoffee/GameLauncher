@@ -134,6 +134,27 @@ private fun composeDesktopHostDependency(composeVersion: String): String {
     return "org.jetbrains.compose.desktop:desktop-jvm-$hostId:$composeVersion"
 }
 
+/** Optional `-PbuildNumber=…` from CI (`github.run_number`) — shared across macOS and Windows packaging. */
+private fun ciBuildNumberProperty(): String? =
+    (findProperty("buildNumber") as String?)
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+
+/** Marketing version plus CI build suffix for artifact filenames (e.g. `0.0.1-build42`). */
+private fun artifactVersionLabel(): String {
+    val marketing =
+        compose.desktop.application.nativeDistributions.packageVersion
+            ?: error("packageVersion is not set")
+    val build = ciBuildNumberProperty()
+    return if (build != null) "$marketing-build$build" else marketing
+}
+
+/** jpackage MSI product version — must increase monotonically for in-place upgrades. */
+private fun jpackageWindowsMsiVersion(): String {
+    val build = ciBuildNumberProperty()
+    return if (build != null) "1.0.$build" else "1.0.0"
+}
+
 compose.desktop {
     application {
         mainClass = "com.morphingcoffee.gamelauncher.MainKt"
@@ -142,13 +163,31 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi)
             packageName = "GameLauncher"
             packageVersion = "0.0.1"
-            description = "Cross-platform desktop game launcher"
-            vendor = "GameLauncher"
+            description = "Desktop launcher for curated game builds and prototypes"
+            vendor = "Game Launcher"
+            copyright = "Game Launcher"
+            licenseFile.set(layout.projectDirectory.file("installer-license.rtf"))
+
+            val iconsDir = layout.projectDirectory.dir("icons")
 
             macOS {
                 bundleID = "com.morphingcoffee.gamelauncher.desktop"
                 // JDK 17 jpackage rejects app-version with major 0; keep global 0.0.1 for artifact names.
                 packageVersion = "1.0.0"
+                iconFile.set(iconsDir.file("icon.icns"))
+                ciBuildNumberProperty()?.let { packageBuildVersion = it }
+            }
+
+            windows {
+                menu = true
+                shortcut = true
+                menuGroup = "Game Launcher"
+                // Stable upgrade code — never change after first public MSI release.
+                upgradeUuid = "8f2a1b3c-4d5e-6f70-8a9b-0c1d2e3f4a5b"
+                iconFile.set(iconsDir.file("icon.ico"))
+                // jpackage MSI product version (distinct from marketing packageVersion 0.0.1).
+                packageVersion = "1.0.0"
+                msiPackageVersion = jpackageWindowsMsiVersion()
             }
         }
     }
@@ -171,12 +210,30 @@ gradle.taskGraph.whenReady {
 tasks.register("printPackageVersion") {
     notCompatibleWithConfigurationCache("Reads packageVersion from Compose Desktop DSL")
     group = "distribution"
-    description = "Prints packageVersion for CI artifact naming"
+    description = "Prints marketing packageVersion (no CI build suffix)"
     doLast {
         println(
             compose.desktop.application.nativeDistributions.packageVersion
                 ?: error("packageVersion is not set"),
         )
+    }
+}
+
+tasks.register("printArtifactVersion") {
+    notCompatibleWithConfigurationCache("Reads packageVersion and optional -PbuildNumber")
+    group = "distribution"
+    description = "Prints artifact version label for CI filenames (e.g. 0.0.1-build42)"
+    doLast {
+        println(artifactVersionLabel())
+    }
+}
+
+tasks.register("printWindowsMsiProductVersion") {
+    notCompatibleWithConfigurationCache("Reads MSI product version for jpackage")
+    group = "distribution"
+    description = "Prints Windows MSI product version (e.g. 1.0.42)"
+    doLast {
+        println(jpackageWindowsMsiVersion())
     }
 }
 
