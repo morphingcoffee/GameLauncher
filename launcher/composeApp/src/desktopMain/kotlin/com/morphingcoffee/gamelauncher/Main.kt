@@ -8,6 +8,7 @@ import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.network.ktor3.KtorNetworkFetcherFactory
+import com.morphingcoffee.gamelauncher.core.logging.AppLog
 import com.morphingcoffee.gamelauncher.di.appModule
 import org.koin.core.context.startKoin
 
@@ -15,6 +16,7 @@ fun main() {
     val isDev = System.getProperty("game.launcher.dev") == "true"
 
     configureSingletonImageLoader(includeSlowNetwork = isDev)
+    installUncaughtExceptionLogger()
 
     startKoin {
         allowOverride(true)
@@ -50,3 +52,11 @@ private fun createImageLoader(
             }
             add(KtorNetworkFetcherFactory())
         }.build()
+
+private fun installUncaughtExceptionLogger() {
+    val previous = Thread.getDefaultUncaughtExceptionHandler()
+    Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+        AppLog.e("Uncaught", "Thread ${thread.name} crashed", throwable)
+        previous?.uncaughtException(thread, throwable)
+    }
+}

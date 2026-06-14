@@ -1,6 +1,8 @@
 package com.morphingcoffee.gamelauncher.core.model
 
 object LauncherMetadata {
+    const val DEBUG_TOOLS_ENABLED = true
+
     const val VERSION = "0.0.1"
     const val AUTHOR_NAME = "morphingcoffee"
     const val AUTHOR_GITHUB_URL = "https://github.com/morphingcoffee"

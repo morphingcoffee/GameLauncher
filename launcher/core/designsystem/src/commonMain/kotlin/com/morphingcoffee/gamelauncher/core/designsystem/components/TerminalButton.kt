@@ -14,8 +14,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -24,6 +27,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherColors
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherSpacing
+import kotlinx.coroutines.delay
 
 @Composable
 fun TerminalButton(
@@ -36,11 +40,26 @@ fun TerminalButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
+    var chargeGeneration by remember { mutableIntStateOf(0) }
+    var chargeCompletedGeneration by remember { mutableIntStateOf(-1) }
+
+    LaunchedEffect(charging) {
+        if (!charging) return@LaunchedEffect
+        val generation = chargeGeneration + 1
+        chargeGeneration = generation
+        delay(450)
+        if (charging && chargeGeneration == generation && chargeCompletedGeneration != generation) {
+            chargeCompletedGeneration = generation
+            onChargeComplete?.invoke()
+        }
+    }
+
     val chargeProgress by animateFloatAsState(
         targetValue = if (charging) 1f else 0f,
         animationSpec = tween(durationMillis = 400),
         finishedListener = {
-            if (charging && it >= 1f) {
+            if (charging && it >= 1f && chargeCompletedGeneration != chargeGeneration) {
+                chargeCompletedGeneration = chargeGeneration
                 onChargeComplete?.invoke()
             }
         },

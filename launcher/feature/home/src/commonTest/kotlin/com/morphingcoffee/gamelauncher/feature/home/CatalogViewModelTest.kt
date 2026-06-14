@@ -403,13 +403,46 @@ class CatalogViewModelTest {
             viewModel.onEvent(CatalogEvent.Started)
             waitForLoadingToFinish(viewModel)
             delay(50)
+            viewModel.onEvent(CatalogEvent.UninstallClicked)
             viewModel.onEvent(CatalogEvent.UninstallChargeComplete)
             delay(50)
 
             assertEquals(InstallState.NotInstalled, viewModel.state.value.installState)
             assertFalse(viewModel.state.value.isInstalledForDisplay)
+            assertFalse(viewModel.state.value.isChargingUninstall)
             assertNull(viewModel.state.value.onDiskSizeBytes)
             assertTrue(repository.uninstallInvoked)
+        }
+
+    @Test
+    fun uninstallChargeComplete_afterUninstallClicked_invokesUninstall() =
+        runBlocking {
+            val platformKey = PlatformKey.current() ?: return@runBlocking
+            val build =
+                GameBuild(
+                    downloadUrl = "https://example.com/alpha.zip",
+                    executablePath = "Game.app/Contents/MacOS/Game",
+                    fileSizeBytes = 1024,
+                    sha256 = "abc",
+                )
+            val repository = UninstallTrackingDataSource(platformKey, build)
+            val viewModel = CatalogViewModel(repository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+            delay(50)
+
+            assertTrue(viewModel.state.value.canUninstall)
+            viewModel.onEvent(CatalogEvent.UninstallClicked)
+            assertTrue(viewModel.state.value.isChargingUninstall)
+            assertFalse(viewModel.state.value.canUninstall)
+
+            viewModel.onEvent(CatalogEvent.UninstallChargeComplete)
+            delay(50)
+
+            assertFalse(viewModel.state.value.isChargingUninstall)
+            assertTrue(repository.uninstallInvoked)
+            assertEquals(InstallState.NotInstalled, viewModel.state.value.installState)
         }
 
     @Test

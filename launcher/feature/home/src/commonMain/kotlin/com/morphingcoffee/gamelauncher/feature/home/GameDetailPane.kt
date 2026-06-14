@@ -48,6 +48,7 @@ internal fun GameDetailPane(
     isChargingLaunch: Boolean,
     canUninstall: Boolean,
     isChargingUninstall: Boolean,
+    isUninstalling: Boolean,
     onDiskSizeBytes: Long?,
     ambientColor: Color,
     onVersionPickerToggled: () -> Unit,
@@ -104,6 +105,7 @@ internal fun GameDetailPane(
                         isChargingLaunch = isChargingLaunch,
                         canUninstall = canUninstall,
                         isChargingUninstall = isChargingUninstall,
+                        isUninstalling = isUninstalling,
                         onDiskSizeBytes = onDiskSizeBytes,
                         launchErrorMessage = launchErrorMessage,
                         ambientColor = ambientColor,
@@ -136,6 +138,7 @@ private fun GameDetailContent(
     isChargingLaunch: Boolean,
     canUninstall: Boolean,
     isChargingUninstall: Boolean,
+    isUninstalling: Boolean,
     onDiskSizeBytes: Long?,
     launchErrorMessage: String?,
     ambientColor: Color,
@@ -207,7 +210,7 @@ private fun GameDetailContent(
                         onClick = onLaunchClicked,
                         charging = isChargingLaunch,
                         onChargeComplete = onLaunchChargeComplete,
-                        enabled = !isChargingUninstall,
+                        enabled = !isChargingUninstall && !isUninstalling,
                         modifier = Modifier.padding(top = LauncherSpacing.Lg),
                     )
                     TerminalButton(
@@ -218,6 +221,22 @@ private fun GameDetailContent(
                         onChargeComplete = onUninstallChargeComplete,
                         modifier = Modifier.padding(top = LauncherSpacing.Sm),
                     )
+                    when {
+                        isChargingUninstall -> {
+                            MonoLabel(
+                                text = "CONFIRM UNINSTALL…",
+                                muted = true,
+                                modifier = Modifier.padding(top = LauncherSpacing.Sm),
+                            )
+                        }
+                        isUninstalling -> {
+                            MonoLabel(
+                                text = "REMOVING FILES…",
+                                muted = true,
+                                modifier = Modifier.padding(top = LauncherSpacing.Sm),
+                            )
+                        }
+                    }
                 }
 
                 else -> {

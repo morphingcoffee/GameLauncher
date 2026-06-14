@@ -21,6 +21,7 @@ import com.morphingcoffee.gamelauncher.core.designsystem.LauncherTheme
 import com.morphingcoffee.gamelauncher.core.designsystem.components.AppHeader
 import com.morphingcoffee.gamelauncher.core.designsystem.components.StatusBar
 import com.morphingcoffee.gamelauncher.core.designsystem.components.VerticalTerminalRule
+import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
 import kotlinx.coroutines.delay
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -138,6 +139,7 @@ fun CatalogScreenContent(
                     isChargingLaunch = state.isChargingLaunch,
                     canUninstall = state.canUninstall,
                     isChargingUninstall = state.isChargingUninstall,
+                    isUninstalling = state.isUninstalling,
                     onDiskSizeBytes = state.onDiskSizeBytes,
                     ambientColor = state.ambientColor,
                     onVersionPickerToggled = onVersionPickerToggled,
@@ -156,6 +158,7 @@ fun CatalogScreenContent(
                 statusText = state.statusLabel,
                 clockText = state.clockText,
                 downloadProgress = state.downloadProgressFraction,
+                debugHint = if (LauncherMetadata.DEBUG_TOOLS_ENABLED) "F12 LOGS" else null,
                 onSettingsClick = onOpenSettings,
             )
         }

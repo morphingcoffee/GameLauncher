@@ -1,5 +1,6 @@
 package com.morphingcoffee.gamelauncher.core.network
 
+import com.morphingcoffee.gamelauncher.core.logging.AppLog
 import com.morphingcoffee.gamelauncher.core.model.GameBuild
 import io.ktor.client.HttpClient
 import io.ktor.client.request.header
@@ -8,6 +9,8 @@ import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.utils.io.readAvailable
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -101,17 +104,8 @@ actual class GameInstaller(
 
     actual suspend fun uninstall(gameId: String): Result<Unit> =
         runCatching {
-            val gameDir = File(LibraryPaths.gameDirectory(gameId))
-            if (!gameDir.exists()) {
-                return@runCatching
-            }
-
-            if (!gameDir.deleteRecursively()) {
-                error("Could not remove all game files. Close the game if it is running and try again.")
-            }
-
-            if (gameDir.exists()) {
-                error("Game files could not be fully removed. Close the game if it is running and try again.")
+            withContext(Dispatchers.IO) {
+                deleteGameInstall(gameId)
             }
         }
 
@@ -126,10 +120,42 @@ actual class GameInstaller(
             return null
         }
 
-        return gameDir
-            .walkTopDown()
-            .filter { it.isFile }
-            .sumOf { it.length() }
+        return runCatching {
+            gameDir
+                .walkTopDown()
+                .filter { it.isFile }
+                .sumOf { it.length() }
+        }.onFailure { error ->
+            AppLog.w("GameInstaller", "On-disk size probe failed for $gameId", error)
+        }.getOrNull()
+    }
+
+    private fun deleteGameInstall(gameId: String) {
+        val gameDir = File(LibraryPaths.gameDirectory(gameId))
+        if (!gameDir.exists()) {
+            AppLog.i("GameInstaller", "Uninstall skipped; no install directory for $gameId")
+            return
+        }
+
+        AppLog.i("GameInstaller", "Uninstalling $gameId")
+        val failures = mutableListOf<String>()
+        gameDir
+            .walkBottomUp()
+            .forEach { file ->
+                if (!file.delete() && file.exists()) {
+                    failures += file.name
+                }
+            }
+
+        if (failures.isNotEmpty() || gameDir.exists()) {
+            AppLog.e(
+                "GameInstaller",
+                "Uninstall incomplete for $gameId; failed entries=${failures.size}",
+            )
+            error("Could not remove all game files. Close the game if it is running and try again.")
+        }
+
+        AppLog.i("GameInstaller", "Uninstall complete for $gameId")
     }
 
     private suspend fun downloadToStaging(

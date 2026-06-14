@@ -23,6 +23,7 @@ fun StatusBar(
     statusText: String,
     clockText: String,
     downloadProgress: Float? = null,
+    debugHint: String? = null,
     onSettingsClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {

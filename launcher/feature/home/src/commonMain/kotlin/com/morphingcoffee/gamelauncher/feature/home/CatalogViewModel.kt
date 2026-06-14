@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.viewModelScope
 import com.morphingcoffee.gamelauncher.core.architecture.MviViewModel
 import com.morphingcoffee.gamelauncher.core.designsystem.platformClockText
+import com.morphingcoffee.gamelauncher.core.logging.AppLog
 import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 import com.morphingcoffee.gamelauncher.core.network.GameCatalogDataSource
 import com.morphingcoffee.gamelauncher.core.network.InstallState
@@ -88,10 +89,14 @@ class CatalogViewModel(
 
             CatalogEvent.UninstallClicked -> {
                 if (!state.value.canUninstall) return
+                AppLog.i("Catalog", "Uninstall charge started for ${state.value.selectedGameId}")
                 updateState { copy(isChargingUninstall = true, launchErrorMessage = null) }
             }
 
-            CatalogEvent.UninstallChargeComplete -> uninstallSelectedGame()
+            CatalogEvent.UninstallChargeComplete -> {
+                AppLog.i("Catalog", "Uninstall charge complete for ${state.value.selectedGameId}")
+                uninstallSelectedGame()
+            }
         }
     }
 
@@ -262,6 +267,7 @@ class CatalogViewModel(
 
         viewModelScope.launch {
             try {
+                AppLog.i("Catalog", "Downloading $gameId version $versionAtStart")
                 val result =
                     gameCatalogRepository.downloadAndInstall(
                         gameId = gameId,
@@ -273,6 +279,7 @@ class CatalogViewModel(
                 }
                 result
                     .onSuccess {
+                        AppLog.i("Catalog", "Install complete for $gameId version $versionAtStart")
                         probeInstallState(gameId)
                         updateState {
                             copy(
@@ -281,6 +288,7 @@ class CatalogViewModel(
                             )
                         }
                     }.onFailure { error ->
+                        AppLog.e("Catalog", "Install failed for $gameId version $versionAtStart", error)
                         updateState {
                             copy(
                                 statusLabel = "ERROR",
@@ -299,6 +307,7 @@ class CatalogViewModel(
     private fun launchSelectedGame() {
         val game = state.value.selectedGame ?: return
         viewModelScope.launch {
+            AppLog.i("Catalog", "Launching ${game.id}")
             updateState {
                 copy(
                     statusLabel = "LAUNCHING",
@@ -312,6 +321,7 @@ class CatalogViewModel(
             gameCatalogRepository
                 .launchGame(game.id)
                 .onSuccess {
+                    AppLog.i("Catalog", "Launch finished for ${game.id}")
                     updateState {
                         copy(
                             statusLabel = "READY",
@@ -342,22 +352,25 @@ class CatalogViewModel(
                             contentAlpha = 1f,
                         )
                     }
+                    AppLog.e("Catalog", "Launch failed for ${game.id}", error)
                 }
         }
     }
 
     private fun uninstallSelectedGame() {
         val game = state.value.selectedGame ?: return
-        if (!state.value.canUninstall) return
+        if (state.value.isLaunching || state.value.isDownloading || state.value.isUninstalling) return
 
         val gameId = game.id
         val versionAtStart = state.value.displayVersion
 
+        updateState { copy(isChargingUninstall = false) }
+
         viewModelScope.launch {
             try {
+                AppLog.i("Catalog", "Uninstalling $gameId version $versionAtStart")
                 updateState {
                     copy(
-                        isChargingUninstall = false,
                         isUninstalling = true,
                         statusLabel = "UNINSTALLING",
                         launchErrorMessage = null,
@@ -372,6 +385,7 @@ class CatalogViewModel(
 
                 result
                     .onSuccess {
+                        AppLog.i("Catalog", "Uninstall complete for $gameId")
                         updateState {
                             copy(
                                 installState = InstallState.NotInstalled,
@@ -381,11 +395,13 @@ class CatalogViewModel(
                             )
                         }
                     }.onFailure { error ->
+                        AppLog.e("Catalog", "Uninstall failed for $gameId", error)
                         probeInstallState(gameId)
                         updateState {
                             copy(
                                 statusLabel = "ERROR",
-                                launchErrorMessage = error.message,
+                                launchErrorMessage =
+                                    error.message ?: "Uninstall failed. See F12 logs for details.",
                             )
                         }
                     }
