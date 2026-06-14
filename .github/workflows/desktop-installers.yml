@@ -135,6 +135,8 @@ jobs:
     if: github.event.inputs.build_windows != 'false'
     runs-on: windows-latest
     timeout-minutes: 10
+    env:
+      BUILD_NUMBER: ${{ github.run_number }}
     defaults:
       run:
         working-directory: launcher
@@ -161,12 +163,16 @@ jobs:
 
       - name: Package MSI
         shell: pwsh
-        run: .\gradlew.bat :composeApp:packageMsi --no-daemon
+        run: .\gradlew.bat :composeApp:packageMsi --no-daemon -PbuildNumber=$env:BUILD_NUMBER
+
+      - name: Resolve artifact version
+        shell: pwsh
+        run: echo "ARTIFACT_VERSION=$(.\gradlew.bat -q :composeApp:printArtifactVersion --no-daemon -PbuildNumber=$env:BUILD_NUMBER)" >> $env:GITHUB_ENV
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
-          name: GameLauncher-windows
+          name: GameLauncher-windows-${{ env.ARTIFACT_VERSION }}
           path: launcher/composeApp/build/compose/binaries/main/msi/*.msi
           if-no-files-found: error
 
@@ -177,6 +183,12 @@ jobs:
           ### Windows artifact
 
           Run the MSI installer. Windows SmartScreen may warn about an unknown publisher — choose **More info** → **Run anyway**. Authenticode signing is planned for a later release.
+
+          **After install:** search Start for **Game Launcher**; a desktop shortcut is created by default.
+
+          **Build:** `${{ env.BUILD_NUMBER }}` (MSI product version `1.0.<build>`). macOS and Windows artifacts from the same workflow run share this number.
+
+          **Upgrades:** install a newer CI MSI over an existing install — no manual uninstall needed. If you installed an older MSI built *before* upgrade support ([#37](https://github.com/morphingcoffee/GameLauncher/issues/37)), uninstall once from Settings → Apps, then use newer installers.
           EOF
 
   build-windows-zip:

@@ -149,6 +149,12 @@ private fun artifactVersionLabel(): String {
     return if (build != null) "$marketing-build$build" else marketing
 }
 
+/** jpackage MSI product version — must increase monotonically for in-place upgrades. */
+private fun jpackageWindowsMsiVersion(): String {
+    val build = ciBuildNumberProperty()
+    return if (build != null) "1.0.$build" else "1.0.0"
+}
+
 compose.desktop {
     application {
         mainClass = "com.morphingcoffee.gamelauncher.MainKt"
@@ -159,12 +165,28 @@ compose.desktop {
             packageVersion = "0.0.1"
             description = "Cross-platform desktop game launcher"
             vendor = "GameLauncher"
+            licenseFile.set(layout.projectDirectory.file("installer-license.rtf"))
+
+            val iconsDir = layout.projectDirectory.dir("icons")
 
             macOS {
                 bundleID = "com.morphingcoffee.gamelauncher.desktop"
                 // JDK 17 jpackage rejects app-version with major 0; keep global 0.0.1 for artifact names.
                 packageVersion = "1.0.0"
+                iconFile.set(iconsDir.file("icon.icns"))
                 ciBuildNumberProperty()?.let { packageBuildVersion = it }
+            }
+
+            windows {
+                menu = true
+                shortcut = true
+                menuGroup = "Game Launcher"
+                // Stable upgrade code — never change after first public MSI release.
+                upgradeUuid = "8f2a1b3c-4d5e-6f70-8a9b-0c1d2e3f4a5b"
+                iconFile.set(iconsDir.file("icon.ico"))
+                // jpackage MSI product version (distinct from marketing packageVersion 0.0.1).
+                packageVersion = "1.0.0"
+                msiPackageVersion = jpackageWindowsMsiVersion()
             }
         }
     }
