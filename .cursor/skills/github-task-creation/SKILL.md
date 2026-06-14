@@ -2,8 +2,9 @@
 name: github-task-creation
 description: >-
   Create GitHub issues and tasks for GameLauncher with project board linkage.
-  Use when creating issues, tasks, roadmap items, follow-ups, or updating task
-  status on the morphingcoffee/GameLauncher roadmap project.
+  Use when creating issues, tasks, roadmap items, follow-ups, starting
+  implementation on an issue (move Status to In progress), opening a PR (In
+  review), or merging (Done) on the morphingcoffee/GameLauncher roadmap project.
 ---
 
 # GitHub Task Creation (GameLauncher)
@@ -34,6 +35,19 @@ Creating the issue alone is not enough — **attach it to the project before fin
 | PR merged / work complete | `Done` |
 
 When the user asks to update task status, **only** add/move the issue on project #1 and set **Status**. Do not comment on the issue with checklists or progress summaries.
+
+## Agent triggers — update Status without waiting to be asked
+
+**Do this as part of the workflow**, not only when the user mentions the board. No issue comments.
+
+| Trigger | Action |
+|---------|--------|
+| User asks to implement / work on issue **#N** (review, plan execution, branch checkout) | Set **#N** → `In progress` **before or alongside** first code changes |
+| PR opened for **#N** (`Closes #N`) | Set **#N** → `In review` |
+| PR merged for **#N** | Set **#N** → `Done` |
+| New issue created | Add to project #1 → `Backlog` |
+
+If you already pushed a branch without updating Status, fix it immediately when noticed (do not skip because code is done).
 
 Requires `read:project` and `project` scopes on the GitHub token. If missing:
 
@@ -132,6 +146,54 @@ gh issue view <N> --repo morphingcoffee/GameLauncher --json projectItems
 
 Confirm `projectItems` is non-empty and Status matches intent on the [project board](https://github.com/users/morphingcoffee/projects/1).
 
+### Quick Status update (cached IDs)
+
+If GraphQL queries fail or IDs drift, re-run **§2 Set Status field** queries above.
+
+| Status | `singleSelectOptionId` |
+|--------|------------------------|
+| Backlog | `f75ad846` |
+| In progress | `47fc9ee4` |
+| In review | `df73e18b` |
+| Done | `98236657` |
+
+`projectId`: `PVT_kwHOA1fh3M4BaLRa` · Status `fieldId`: `PVTSSF_lAHOA1fh3M4BaLRazhVEtAA`
+
+```bash
+source tools/dev/github-pat-from-keychain.sh
+N=37  # issue number
+OPTION_ID=47fc9ee4  # In progress — pick from table
+
+ITEM_ID=$(gh api graphql -f query='
+  query {
+    user(login: "morphingcoffee") {
+      projectV2(number: 1) {
+        items(first: 100) {
+          nodes { id content { ... on Issue { number } } }
+        }
+      }
+    }
+  }' --jq ".data.user.projectV2.items.nodes[] | select(.content.number == $N) | .id")
+
+gh api graphql -f query="
+  mutation {
+    updateProjectV2ItemFieldValue(input: {
+      projectId: \"PVT_kwHOA1fh3M4BaLRa\"
+      itemId: \"$ITEM_ID\"
+      fieldId: \"PVTSSF_lAHOA1fh3M4BaLRazhVEtAA\"
+      value: { singleSelectOptionId: \"$OPTION_ID\" }
+    }) { projectV2Item { id } }
+  }"
+```
+
+## Implement existing issue workflow
+
+1. Identify issue **#N** (user link, branch context, or `Closes #N` in PR).
+2. **Set project Status → `In progress`** (§Quick Status update or §2).
+3. Create branch `phase-N/short-desc`, implement, commit.
+4. Open PR with `Closes #N` → Status → `In review`.
+5. After merge → Status → `Done`.
+
 ## Create issue workflow
 
 1. **Create the issue** on `morphingcoffee/GameLauncher` (`gh issue create` or GitHub MCP).
@@ -143,10 +205,10 @@ Confirm `projectItems` is non-empty and Status matches intent on the [project bo
 - **Branch names:** `phase-N/short-desc` (e.g. `phase-5/settings-section`)
 - **PR body:** include `Closes #N` when work completes an issue
 - **On PR merge:** set project Status to `Done` (do not comment on the issue)
-- **On implementation start:** set project Status to `In progress`
+- **On implementation start:** set project Status to `In progress` (see **Agent triggers** — mandatory, not optional)
 - **Repository:** `morphingcoffee/GameLauncher` (public)
 
-Follow `github-workflow` rule and `prompt-before-api-ops` before `gh` writes when not explicitly requested.
+Lifecycle Status updates (In progress / In review / Done) are **workflow steps** — proceed without asking per `prompt-before-api-ops`. Ask before unrelated `gh` writes (new issues, comments, etc.) when the user did not request them.
 
 ## Issue body template
 
