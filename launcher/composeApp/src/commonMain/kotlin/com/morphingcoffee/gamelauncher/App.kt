@@ -78,6 +78,8 @@ private fun AppCatalogPreview() {
                 onDownloadClicked = {},
                 onLaunchClicked = {},
                 onLaunchChargeComplete = {},
+                onUninstallClicked = {},
+                onUninstallChargeComplete = {},
                 onAmbientColorExtracted = { _, _ -> },
                 onRetryLoad = {},
             )

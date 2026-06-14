@@ -85,6 +85,13 @@ class CatalogViewModel(
             }
 
             CatalogEvent.LaunchChargeComplete -> launchSelectedGame()
+
+            CatalogEvent.UninstallClicked -> {
+                if (!state.value.canUninstall) return
+                updateState { copy(isChargingUninstall = true, launchErrorMessage = null) }
+            }
+
+            CatalogEvent.UninstallChargeComplete -> uninstallSelectedGame()
         }
     }
 
@@ -134,6 +141,9 @@ class CatalogViewModel(
                 isVersionHistoryLoading = false,
                 installState = InstallState.Unknown,
                 isDownloading = false,
+                isChargingUninstall = false,
+                isUninstalling = false,
+                onDiskSizeBytes = null,
                 ambientColor = Color.Transparent,
                 launchErrorMessage = null,
             )
@@ -216,6 +226,20 @@ class CatalogViewModel(
             val installState = gameCatalogRepository.getInstallState(gameId)
             if (state.value.selectedGameId != gameId) return@launch
             updateState { copy(installState = installState) }
+            if (installState is InstallState.Installed && state.value.displayVersion == installState.version) {
+                probeOnDiskSize(gameId)
+            } else {
+                updateState { copy(onDiskSizeBytes = null) }
+            }
+        }
+    }
+
+    private fun probeOnDiskSize(gameId: String) {
+        viewModelScope.launch {
+            val onDiskSizeBytes = gameCatalogRepository.getOnDiskSizeBytes(gameId)
+            if (state.value.selectedGameId != gameId) return@launch
+            if (!state.value.isInstalledForDisplay) return@launch
+            updateState { copy(onDiskSizeBytes = onDiskSizeBytes) }
         }
     }
 
@@ -319,6 +343,57 @@ class CatalogViewModel(
                         )
                     }
                 }
+        }
+    }
+
+    private fun uninstallSelectedGame() {
+        val game = state.value.selectedGame ?: return
+        if (!state.value.canUninstall) return
+
+        val gameId = game.id
+        val versionAtStart = state.value.displayVersion
+
+        viewModelScope.launch {
+            try {
+                updateState {
+                    copy(
+                        isChargingUninstall = false,
+                        isUninstalling = true,
+                        statusLabel = "UNINSTALLING",
+                        launchErrorMessage = null,
+                    )
+                }
+
+                val result = gameCatalogRepository.uninstallGame(gameId)
+
+                if (state.value.selectedGameId != gameId || state.value.displayVersion != versionAtStart) {
+                    return@launch
+                }
+
+                result
+                    .onSuccess {
+                        updateState {
+                            copy(
+                                installState = InstallState.NotInstalled,
+                                onDiskSizeBytes = null,
+                                statusLabel = "READY",
+                                launchErrorMessage = null,
+                            )
+                        }
+                    }.onFailure { error ->
+                        probeInstallState(gameId)
+                        updateState {
+                            copy(
+                                statusLabel = "ERROR",
+                                launchErrorMessage = error.message,
+                            )
+                        }
+                    }
+            } finally {
+                if (state.value.selectedGameId == gameId) {
+                    updateState { copy(isUninstalling = false) }
+                }
+            }
         }
     }
 }

@@ -18,6 +18,7 @@ internal fun MetadataTable(
     currentPlatformKey: String?,
     currentPlatformBuild: GameBuild?,
     availableBuilds: Map<String, GameBuild>,
+    onDiskSizeBytes: Long? = null,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -27,8 +28,10 @@ internal fun MetadataTable(
         MetadataRow(
             label = "SIZE",
             value =
-                currentPlatformBuild?.fileSizeBytes?.let(::formatFileSize)
-                    ?: "NOT AVAILABLE",
+                formatSizeDisplay(
+                    downloadSizeBytes = currentPlatformBuild?.fileSizeBytes,
+                    onDiskSizeBytes = onDiskSizeBytes,
+                ),
         )
         MetadataRow(
             label = "PLATFORM",

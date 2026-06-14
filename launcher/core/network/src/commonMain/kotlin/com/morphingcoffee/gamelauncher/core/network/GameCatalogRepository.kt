@@ -41,5 +41,9 @@ class GameCatalogRepository(
 
     override suspend fun getInstallState(gameId: String): InstallState = gameInstaller.getInstallState(gameId)
 
+    override suspend fun uninstallGame(gameId: String): Result<Unit> = gameInstaller.uninstall(gameId)
+
+    override suspend fun getOnDiskSizeBytes(gameId: String): Long? = gameInstaller.getOnDiskSizeBytes(gameId)
+
     override suspend fun launchGame(gameId: String): Result<Unit> = gameLauncher.launch(gameId)
 }

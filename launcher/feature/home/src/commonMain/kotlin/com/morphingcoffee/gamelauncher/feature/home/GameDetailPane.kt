@@ -46,12 +46,17 @@ internal fun GameDetailPane(
     isInstallStatePending: Boolean,
     isDownloading: Boolean,
     isChargingLaunch: Boolean,
+    canUninstall: Boolean,
+    isChargingUninstall: Boolean,
+    onDiskSizeBytes: Long?,
     ambientColor: Color,
     onVersionPickerToggled: () -> Unit,
     onVersionSelected: (String) -> Unit,
     onDownloadClicked: () -> Unit,
     onLaunchClicked: () -> Unit,
     onLaunchChargeComplete: () -> Unit,
+    onUninstallClicked: () -> Unit,
+    onUninstallChargeComplete: () -> Unit,
     onAmbientColorExtracted: (Color, String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -97,6 +102,9 @@ internal fun GameDetailPane(
                         isInstallStatePending = isInstallStatePending,
                         isDownloading = isDownloading,
                         isChargingLaunch = isChargingLaunch,
+                        canUninstall = canUninstall,
+                        isChargingUninstall = isChargingUninstall,
+                        onDiskSizeBytes = onDiskSizeBytes,
                         launchErrorMessage = launchErrorMessage,
                         ambientColor = ambientColor,
                         onVersionPickerToggled = onVersionPickerToggled,
@@ -104,6 +112,8 @@ internal fun GameDetailPane(
                         onDownloadClicked = onDownloadClicked,
                         onLaunchClicked = onLaunchClicked,
                         onLaunchChargeComplete = onLaunchChargeComplete,
+                        onUninstallClicked = onUninstallClicked,
+                        onUninstallChargeComplete = onUninstallChargeComplete,
                         onAmbientColorExtracted = onAmbientColorExtracted,
                     )
                 }
@@ -124,6 +134,9 @@ private fun GameDetailContent(
     isInstallStatePending: Boolean,
     isDownloading: Boolean,
     isChargingLaunch: Boolean,
+    canUninstall: Boolean,
+    isChargingUninstall: Boolean,
+    onDiskSizeBytes: Long?,
     launchErrorMessage: String?,
     ambientColor: Color,
     onVersionPickerToggled: () -> Unit,
@@ -131,6 +144,8 @@ private fun GameDetailContent(
     onDownloadClicked: () -> Unit,
     onLaunchClicked: () -> Unit,
     onLaunchChargeComplete: () -> Unit,
+    onUninstallClicked: () -> Unit,
+    onUninstallChargeComplete: () -> Unit,
     onAmbientColorExtracted: (Color, String?) -> Unit,
 ) {
     val currentPlatformKey = PlatformKey.current()
@@ -175,6 +190,7 @@ private fun GameDetailContent(
                 currentPlatformKey = currentPlatformKey,
                 currentPlatformBuild = displayBuild,
                 availableBuilds = availableBuilds,
+                onDiskSizeBytes = if (isInstalledForDisplay) onDiskSizeBytes else null,
                 modifier = Modifier.padding(top = LauncherSpacing.Md),
             )
 
@@ -191,7 +207,16 @@ private fun GameDetailContent(
                         onClick = onLaunchClicked,
                         charging = isChargingLaunch,
                         onChargeComplete = onLaunchChargeComplete,
+                        enabled = !isChargingUninstall,
                         modifier = Modifier.padding(top = LauncherSpacing.Lg),
+                    )
+                    TerminalButton(
+                        label = "UNINSTALL",
+                        onClick = onUninstallClicked,
+                        enabled = canUninstall,
+                        charging = isChargingUninstall,
+                        onChargeComplete = onUninstallChargeComplete,
+                        modifier = Modifier.padding(top = LauncherSpacing.Sm),
                     )
                 }
 

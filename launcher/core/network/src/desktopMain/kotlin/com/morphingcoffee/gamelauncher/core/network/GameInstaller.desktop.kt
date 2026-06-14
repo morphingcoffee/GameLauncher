@@ -99,6 +99,39 @@ actual class GameInstaller(
         }
     }
 
+    actual suspend fun uninstall(gameId: String): Result<Unit> =
+        runCatching {
+            val gameDir = File(LibraryPaths.gameDirectory(gameId))
+            if (!gameDir.exists()) {
+                return@runCatching
+            }
+
+            if (!gameDir.deleteRecursively()) {
+                error("Could not remove all game files. Close the game if it is running and try again.")
+            }
+
+            if (gameDir.exists()) {
+                error("Game files could not be fully removed. Close the game if it is running and try again.")
+            }
+        }
+
+    actual fun getOnDiskSizeBytes(gameId: String): Long? {
+        val gameDir = File(LibraryPaths.gameDirectory(gameId))
+        if (!gameDir.exists()) {
+            return null
+        }
+
+        val recordFile = File(LibraryPaths.installRecordFile(gameId))
+        if (!recordFile.exists()) {
+            return null
+        }
+
+        return gameDir
+            .walkTopDown()
+            .filter { it.isFile }
+            .sumOf { it.length() }
+    }
+
     private suspend fun downloadToStaging(
         build: GameBuild,
         gameId: String,
