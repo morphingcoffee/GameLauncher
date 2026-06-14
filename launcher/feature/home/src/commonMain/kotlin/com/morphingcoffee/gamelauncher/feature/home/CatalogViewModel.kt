@@ -208,6 +208,7 @@ class CatalogViewModel(
     private fun probeInstallState(gameId: String) {
         viewModelScope.launch {
             val installState = gameCatalogRepository.getInstallState(gameId)
+            if (state.value.selectedGameId != gameId) return@launch
             updateState { copy(installState = installState) }
         }
     }

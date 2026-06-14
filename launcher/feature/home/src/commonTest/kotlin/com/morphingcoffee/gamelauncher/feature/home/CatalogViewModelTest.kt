@@ -167,6 +167,39 @@ class CatalogViewModelTest {
         }
 
     @Test
+    fun fastGameSwitch_ignoresStaleInstallStateProbe() =
+        runBlocking {
+            val repository =
+                DelayedInstallStateDataSource(
+                    installStates =
+                        mapOf(
+                            "alpha" to
+                                InstallState.Installed(
+                                    version = "0.0.1",
+                                    executablePath = "Game.app/Contents/MacOS/Game",
+                                ),
+                            "beta" to InstallState.NotInstalled,
+                        ),
+                    delaysMs =
+                        mapOf(
+                            "alpha" to 200,
+                            "beta" to 0,
+                        ),
+                )
+            val viewModel = CatalogViewModel(repository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+            assertEquals("alpha", viewModel.state.value.selectedGameId)
+
+            viewModel.onEvent(CatalogEvent.MoveSelection(1))
+            delay(300)
+
+            assertEquals("beta", viewModel.state.value.selectedGameId)
+            assertEquals(InstallState.NotInstalled, viewModel.state.value.installState)
+        }
+
+    @Test
     fun gameSelection_clearsAmbientColorAndResetsVersionState() =
         runBlocking {
             val repository =
@@ -227,6 +260,52 @@ class CatalogViewModelTest {
                 }
             }
         return ManifestRepository(client, manifestUrl = "https://example.com/manifest.json")
+    }
+
+    private class DelayedInstallStateDataSource(
+        private val installStates: Map<String, InstallState>,
+        private val delaysMs: Map<String, Long> = emptyMap(),
+    ) : GameCatalogDataSource {
+        private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
+        override val downloadProgress: StateFlow<DownloadProgress?> = _downloadProgress
+
+        override suspend fun loadCatalog(): Result<List<GameCatalogEntry>> =
+            Result.success(
+                listOf(
+                    GameCatalogEntry(
+                        id = "alpha",
+                        title = "Alpha Build",
+                        description = "Preview",
+                        latestVersion = "0.0.1",
+                        versionsUrl = "https://example.com/alpha/versions.json",
+                        builds = emptyMap(),
+                    ),
+                    GameCatalogEntry(
+                        id = "beta",
+                        title = "Beta Showcase",
+                        description = "Preview",
+                        latestVersion = "0.0.1",
+                        versionsUrl = "https://example.com/beta/versions.json",
+                        builds = emptyMap(),
+                    ),
+                ),
+            )
+
+        override suspend fun fetchVersionHistory(versionsUrl: String): Result<List<GameVersionEntry>> =
+            Result.success(emptyList())
+
+        override suspend fun downloadAndInstall(
+            gameId: String,
+            version: String,
+            build: GameBuild,
+        ): Result<Unit> = Result.success(Unit)
+
+        override suspend fun getInstallState(gameId: String): InstallState {
+            delaysMs[gameId]?.let { delay(it) }
+            return installStates[gameId] ?: InstallState.Unknown
+        }
+
+        override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
     }
 
     private class StubGameCatalogDataSource(
