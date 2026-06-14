@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="en-us" xmlns="http://schemas.microsoft.com/wix/2006/localization" Codepage="1252">
+  <String Id="message.install.dir.exist">The folder [INSTALLDIR] already exists. Install Game Launcher there anyway?</String>
+  <String Id="MainFeatureTitle">Game Launcher</String>
+  <String Id="DowngradeErrorMessage">A newer Game Launcher is already installed. This installer will exit.</String>
+  <String Id="DisallowUpgradeErrorMessage">An older Game Launcher install cannot be upgraded by this package. Uninstall the existing version from Settings, then try again.</String>
+
+  <String Id="ShortcutPromptDlg_Title">Game Launcher Setup</String>
+  <String Id="ShortcutPromptDlgTitle">{\WixUI_Font_Title}Shortcuts</String>
+  <String Id="ShortcutPromptDlgBannerBitmap">WixUI_Bmp_Banner</String>
+  <String Id="ShortcutPromptDlgDescription">Choose where Game Launcher should appear after install.</String>
+  <String Id="ShortcutPromptDlgDesktopShortcutControlLabel">Create a desktop shortcut</String>
+  <String Id="ShortcutPromptDlgStartMenuShortcutControlLabel">Create a Start Menu shortcut</String>
+  <String Id="InstallDirNotEmptyDlg_Title">Game Launcher Setup</String>
+</WixLocalization>

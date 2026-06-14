@@ -81,7 +81,10 @@ cd launcher
 # macOS — Intel (use an x64 JDK; on Apple Silicon, run under Rosetta)
 JAVA_HOME=/path/to/x64-jdk/Contents/Home ./gradlew :composeApp:packageDmg -PcomposeDesktopHost=macos-x64
 
-# Windows (WiX Toolset 3.11+ required)
+# Windows (WiX Toolset 3.11+ required) — branded MSI with WiX overrides
+pwsh ../tools/dev/package-windows-msi.ps1 -BuildNumber 1
+
+# Or Gradle only (shortcuts/upgrade UUID; no custom WiX banner/dialog)
 ./gradlew :composeApp:packageMsi
 ```
 
@@ -103,9 +106,11 @@ Desktop installers are built **on demand** via [`.github/workflows/desktop-insta
 
 **macOS:** GitHub adds a quarantine flag. After download, run `xattr -cr GameLauncher.app` (or the app inside the mounted DMG), then open normally. Developer ID signing/notarization is tracked in [#9](https://github.com/morphingcoffee/GameLauncher/issues/9). CI embeds the build number in `CFBundleVersion`.
 
-**Windows:** SmartScreen may warn about an unknown publisher — use **More info** → **Run anyway**.
+**Windows:** SmartScreen may warn about an unknown publisher — use **More info** → **Run anyway**. Authenticode signing is tracked in [#45](https://github.com/morphingcoffee/GameLauncher/issues/45).
 
-After install, search Start for **Game Launcher**; a desktop shortcut is created by default. To upgrade, run a newer MSI over the existing install (no uninstall required). CI sets `-PbuildNumber` from the workflow run; Windows maps it to MSI product version `1.0.<build>`, macOS to `CFBundleVersion`. Local builds omit `-PbuildNumber` (MSI product version `1.0.0`). Rebuild-over-install locally may require uninstalling first or passing `-PbuildNumber=<n>`. MSIs produced before [#37](https://github.com/morphingcoffee/GameLauncher/issues/37) may need a one-time uninstall before upgrading.
+After install, search Start for **Game Launcher**; a desktop shortcut is created by default. The MSI uses branded WiX assets from [`launcher/composeApp/installer/windows/jpackage/`](launcher/composeApp/installer/windows/jpackage/) (banner images, installer strings, custom icon). CI builds the MSI via [`tools/dev/package-windows-msi.ps1`](tools/dev/package-windows-msi.ps1), which passes those assets to `jpackage --resource-dir` (Gradle `:composeApp:packageMsi` does not).
+
+To upgrade, run a newer MSI over the existing install (no uninstall required). CI sets `-PbuildNumber` from the workflow run; Windows maps it to MSI product version `1.0.<build>`, macOS to `CFBundleVersion`. Local builds omit `-PbuildNumber` (MSI product version `1.0.0`). Rebuild-over-install locally may require uninstalling first or passing `-PbuildNumber=<n>`. MSIs produced before [#37](https://github.com/morphingcoffee/GameLauncher/issues/37) may need a one-time uninstall before upgrading.
 
 ---
 

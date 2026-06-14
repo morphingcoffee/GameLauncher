@@ -163,8 +163,9 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi)
             packageName = "GameLauncher"
             packageVersion = "0.0.1"
-            description = "Cross-platform desktop game launcher"
-            vendor = "GameLauncher"
+            description = "Desktop launcher for curated game builds and prototypes"
+            vendor = "Game Launcher"
+            copyright = "Game Launcher"
             licenseFile.set(layout.projectDirectory.file("installer-license.rtf"))
 
             val iconsDir = layout.projectDirectory.dir("icons")
@@ -224,6 +225,15 @@ tasks.register("printArtifactVersion") {
     description = "Prints artifact version label for CI filenames (e.g. 0.0.1-build42)"
     doLast {
         println(artifactVersionLabel())
+    }
+}
+
+tasks.register("printWindowsMsiProductVersion") {
+    notCompatibleWithConfigurationCache("Reads MSI product version for jpackage")
+    group = "distribution"
+    description = "Prints Windows MSI product version (e.g. 1.0.42)"
+    doLast {
+        println(jpackageWindowsMsiVersion())
     }
 }
 
