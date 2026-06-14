@@ -1,7 +1,14 @@
 package com.morphingcoffee.gamelauncher.feature.home
 
 import androidx.compose.ui.graphics.Color
+import com.morphingcoffee.gamelauncher.core.model.GameBuild
+import com.morphingcoffee.gamelauncher.core.model.GameCatalogEntry
+import com.morphingcoffee.gamelauncher.core.model.GameVersionEntry
+import com.morphingcoffee.gamelauncher.core.model.PlatformKey
+import com.morphingcoffee.gamelauncher.core.network.DownloadProgress
+import com.morphingcoffee.gamelauncher.core.network.GameCatalogDataSource
 import com.morphingcoffee.gamelauncher.core.network.GameCatalogRepository
+import com.morphingcoffee.gamelauncher.core.network.InstallState
 import com.morphingcoffee.gamelauncher.core.network.ManifestRepository
 import com.morphingcoffee.gamelauncher.core.network.createDownloadHttpClient
 import com.morphingcoffee.gamelauncher.core.network.createGameInstaller
@@ -15,12 +22,15 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class CatalogViewModelTest {
     @Test
@@ -89,6 +99,74 @@ class CatalogViewModelTest {
         }
 
     @Test
+    fun launchClicked_startsChargeWhenOlderVersionHasPlatformBuild() =
+        runBlocking {
+            val platformKey = PlatformKey.current() ?: return@runBlocking
+            val otherPlatformKey =
+                listOf(PlatformKey.WINDOWS_X64, PlatformKey.MACOS_ARM64, PlatformKey.MACOS_X64)
+                    .first { it != platformKey }
+            val legacyBuild =
+                GameBuild(
+                    downloadUrl = "https://example.com/legacy.zip",
+                    executablePath = "Game.app/Contents/MacOS/Game",
+                    fileSizeBytes = 1024,
+                    sha256 = "legacy-sha",
+                )
+            val game =
+                GameCatalogEntry(
+                    id = "legacy",
+                    title = "Legacy Platform",
+                    description = "Latest version is unavailable on this platform",
+                    latestVersion = "2.0.0",
+                    versionsUrl = "https://example.com/legacy/versions.json",
+                    builds =
+                        mapOf(
+                            otherPlatformKey to legacyBuild,
+                        ),
+                    versionHistory =
+                        listOf(
+                            GameVersionEntry(
+                                version = "1.0.0",
+                                releasedAt = "2024-01-01",
+                                builds = mapOf(platformKey to legacyBuild),
+                            ),
+                            GameVersionEntry(
+                                version = "2.0.0",
+                                releasedAt = "2025-01-01",
+                                builds = mapOf(otherPlatformKey to legacyBuild),
+                            ),
+                        ),
+                )
+            val repository =
+                StubGameCatalogDataSource(
+                    games = listOf(game),
+                    installState =
+                        InstallState.Installed(
+                            version = "1.0.0",
+                            executablePath = legacyBuild.executablePath,
+                        ),
+                )
+            val viewModel = CatalogViewModel(repository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+            viewModel.onEvent(CatalogEvent.VersionPickerToggled)
+            viewModel.onEvent(CatalogEvent.VersionSelected("1.0.0"))
+            delay(50)
+
+            assertFalse(
+                viewModel.state.value.selectedGame!!
+                    .isAvailableOnCurrentPlatform(),
+            )
+            assertTrue(viewModel.state.value.isInstalledForDisplay)
+            assertTrue(viewModel.state.value.displayBuild != null)
+
+            viewModel.onEvent(CatalogEvent.LaunchClicked)
+
+            assertTrue(viewModel.state.value.isChargingLaunch)
+        }
+
+    @Test
     fun gameSelection_clearsAmbientColorAndResetsVersionState() =
         runBlocking {
             val repository =
@@ -149,6 +227,34 @@ class CatalogViewModelTest {
                 }
             }
         return ManifestRepository(client, manifestUrl = "https://example.com/manifest.json")
+    }
+
+    private class StubGameCatalogDataSource(
+        private val games: List<GameCatalogEntry>,
+        private val installState: InstallState,
+    ) : GameCatalogDataSource {
+        private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
+        override val downloadProgress: StateFlow<DownloadProgress?> = _downloadProgress
+
+        override suspend fun loadCatalog(): Result<List<GameCatalogEntry>> = Result.success(games)
+
+        override suspend fun fetchVersionHistory(versionsUrl: String): Result<List<GameVersionEntry>> {
+            val gameId = versionsUrl.removeSuffix("/versions.json").substringAfterLast("/")
+            val game =
+                games.firstOrNull { it.id == gameId }
+                    ?: return Result.failure(IllegalArgumentException("Unknown game: $gameId"))
+            return Result.success(game.versionHistory)
+        }
+
+        override suspend fun downloadAndInstall(
+            gameId: String,
+            version: String,
+            build: GameBuild,
+        ): Result<Unit> = Result.success(Unit)
+
+        override suspend fun getInstallState(gameId: String): InstallState = installState
+
+        override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
     }
 
     private fun sampleManifestJson(): String =

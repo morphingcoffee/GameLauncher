@@ -78,8 +78,7 @@ class CatalogViewModel(
             CatalogEvent.DownloadClicked -> downloadSelectedVersion()
 
             CatalogEvent.LaunchClicked -> {
-                val game = state.value.selectedGame ?: return
-                if (!game.isAvailableOnCurrentPlatform()) return
+                if (state.value.displayBuild == null) return
                 if (!state.value.isInstalledForDisplay) return
                 updateState { copy(isChargingLaunch = true, launchErrorMessage = null) }
             }
