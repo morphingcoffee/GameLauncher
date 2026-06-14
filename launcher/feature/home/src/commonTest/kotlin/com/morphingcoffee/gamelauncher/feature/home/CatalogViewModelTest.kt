@@ -167,6 +167,40 @@ class CatalogViewModelTest {
         }
 
     @Test
+    fun launchComplete_restoresCatalogUi() =
+        runBlocking {
+            val platformKey = PlatformKey.current() ?: return@runBlocking
+            val build =
+                GameBuild(
+                    downloadUrl = "https://example.com/alpha.zip",
+                    executablePath = "Game.app/Contents/MacOS/Game",
+                    fileSizeBytes = 1024,
+                    sha256 = "abc",
+                )
+            val repository =
+                BlockingLaunchDataSource(
+                    platformKey = platformKey,
+                    build = build,
+                    launchDelayMs = 100,
+                )
+            val viewModel = CatalogViewModel(repository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+            viewModel.onEvent(CatalogEvent.LaunchChargeComplete)
+
+            delay(20)
+            assertEquals(0f, viewModel.state.value.contentAlpha)
+            assertTrue(viewModel.state.value.isLaunching)
+
+            delay(200)
+
+            assertEquals(1f, viewModel.state.value.contentAlpha)
+            assertFalse(viewModel.state.value.isLaunching)
+            assertEquals("READY", viewModel.state.value.statusLabel)
+        }
+
+    @Test
     fun fastGameSwitch_ignoresStaleVersionHistoryFetch() =
         runBlocking {
             val alphaHistory =
@@ -342,6 +376,49 @@ class CatalogViewModelTest {
                 }
             }
         return ManifestRepository(client, manifestUrl = "https://example.com/manifest.json")
+    }
+
+    private class BlockingLaunchDataSource(
+        private val platformKey: String,
+        private val build: GameBuild,
+        private val launchDelayMs: Long,
+    ) : GameCatalogDataSource {
+        private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
+        override val downloadProgress: StateFlow<DownloadProgress?> = _downloadProgress
+
+        override suspend fun loadCatalog(): Result<List<GameCatalogEntry>> =
+            Result.success(
+                listOf(
+                    GameCatalogEntry(
+                        id = "alpha",
+                        title = "Alpha Build",
+                        description = "Preview",
+                        latestVersion = "0.0.1",
+                        versionsUrl = "https://example.com/alpha/versions.json",
+                        builds = mapOf(platformKey to build),
+                    ),
+                ),
+            )
+
+        override suspend fun fetchVersionHistory(versionsUrl: String): Result<List<GameVersionEntry>> =
+            Result.success(emptyList())
+
+        override suspend fun downloadAndInstall(
+            gameId: String,
+            version: String,
+            build: GameBuild,
+        ): Result<Unit> = Result.success(Unit)
+
+        override suspend fun getInstallState(gameId: String): InstallState =
+            InstallState.Installed(
+                version = "0.0.1",
+                executablePath = build.executablePath,
+            )
+
+        override suspend fun launchGame(gameId: String): Result<Unit> {
+            delay(launchDelayMs)
+            return Result.success(Unit)
+        }
     }
 
     private class CountingDownloadDataSource(

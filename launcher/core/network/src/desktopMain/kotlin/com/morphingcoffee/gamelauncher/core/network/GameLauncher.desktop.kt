@@ -1,5 +1,7 @@
 package com.morphingcoffee.gamelauncher.core.network
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.io.File
 
@@ -18,10 +20,15 @@ actual class GameLauncher {
                 error("Executable not found: ${executable.absolutePath}")
             }
 
-            ProcessBuilder(executable.absolutePath)
-                .directory(gameDir)
-                .inheritIO()
-                .start()
+            val process =
+                ProcessBuilder(executable.absolutePath)
+                    .directory(gameDir)
+                    .inheritIO()
+                    .start()
+            val exitCode = withContext(Dispatchers.IO) { process.waitFor() }
+            if (exitCode != 0) {
+                error("Game exited with code $exitCode")
+            }
         }
 }
 

@@ -281,13 +281,20 @@ class CatalogViewModel(
                     isChargingLaunch = false,
                     isLaunching = true,
                     launchErrorMessage = null,
+                    contentAlpha = 0f,
                 )
             }
 
             gameCatalogRepository
                 .launchGame(game.id)
                 .onSuccess {
-                    updateState { copy(contentAlpha = 0f, isLaunching = false) }
+                    updateState {
+                        copy(
+                            statusLabel = "READY",
+                            isLaunching = false,
+                            contentAlpha = 1f,
+                        )
+                    }
                 }.onFailure { error ->
                     if (error is SimulatedLaunchException) {
                         updateState {
