@@ -1,11 +1,13 @@
 package com.morphingcoffee.gamelauncher
 
+import com.morphingcoffee.gamelauncher.core.logging.AppLog
 import com.morphingcoffee.gamelauncher.core.model.GameBuild
 import com.morphingcoffee.gamelauncher.core.model.GameCatalogEntry
 import com.morphingcoffee.gamelauncher.core.model.GameVersionEntry
 import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 import com.morphingcoffee.gamelauncher.core.network.DownloadProgress
 import com.morphingcoffee.gamelauncher.core.network.GameCatalogDataSource
+import com.morphingcoffee.gamelauncher.core.network.GameLauncher
 import com.morphingcoffee.gamelauncher.core.network.InstallState
 import com.morphingcoffee.gamelauncher.core.network.SimulatedLaunchException
 import kotlinx.coroutines.delay
@@ -15,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlin.random.Random
 
 class FakeGameCatalogDataSource(
+    private val gameLauncher: GameLauncher? = null,
     private val catalogLoadDelayMs: LongRange = 600L..2_500L,
     private val launchDelayMs: LongRange = 800L..1_800L,
     private val versionHistoryDelayMs: LongRange = 300L..900L,
@@ -122,6 +125,13 @@ class FakeGameCatalogDataSource(
         delay(launchDelayMs.random())
         return Result.failure(SimulatedLaunchException(entry.title))
     }
+
+    override suspend fun openWebGame(url: String): Result<Unit> =
+        gameLauncher?.openUrl(url)
+            ?: run {
+                AppLog.i("FakeGameCatalog", "Would open browser: $url")
+                Result.success(Unit)
+            }
 
     private suspend fun simulateDownloadProgress(
         gameId: String,
@@ -301,6 +311,14 @@ private val FAKE_CATALOG: List<GameCatalogEntry> =
             builds = emptyMap(),
             version = "TBA",
         ),
+        // Web — platform-agnostic, opens in browser
+        fakeGame(
+            id = "game-gallery",
+            title = "GAME GALLERY",
+            thumbnailUrl = "https://morphingcoffee.github.io/images/unsplash/lorenzo-herrera-p0j-mE6mGo4-unsplash.webp",
+            builds = webBuild("https://morphingcoffee.github.io/apps/games/"),
+            version = "1.0.0",
+        ),
     )
 
 private fun fakeGame(
@@ -364,6 +382,17 @@ private fun macOnlyBuilds(fileSizeBytes: Long = 48_000_000L): Map<String, GameBu
 private fun windowsOnlyBuilds(fileSizeBytes: Long = 48_000_000L): Map<String, GameBuild> =
     mapOf(
         PlatformKey.WINDOWS_X64 to gameBuild(PlatformKey.WINDOWS_X64, fileSizeBytes),
+    )
+
+private fun webBuild(url: String): Map<String, GameBuild> =
+    mapOf(
+        PlatformKey.WEB to
+            GameBuild(
+                downloadUrl = url,
+                executablePath = "",
+                fileSizeBytes = 0,
+                sha256 = "",
+            ),
     )
 
 private fun gameBuild(

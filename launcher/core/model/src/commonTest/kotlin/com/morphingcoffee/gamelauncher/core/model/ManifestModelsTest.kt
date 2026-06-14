@@ -111,6 +111,7 @@ class PlatformKeyTest {
         assertTrue(PlatformKey.WINDOWS_X64 in PlatformKey.all)
         assertTrue(PlatformKey.MACOS_ARM64 in PlatformKey.all)
         assertTrue(PlatformKey.MACOS_X64 in PlatformKey.all)
+        assertTrue(PlatformKey.WEB in PlatformKey.all)
     }
 
     @Test
@@ -121,5 +122,70 @@ class PlatformKeyTest {
         } else {
             assertNull(key)
         }
+    }
+}
+
+class WebGameBuildTest {
+    private val webBuild =
+        GameBuild(
+            downloadUrl = "https://example.com/game/",
+            executablePath = "",
+            fileSizeBytes = 0,
+            sha256 = "",
+        )
+
+    @Test
+    fun webBuild_isAvailableOnAnyPlatform() {
+        val entry =
+            GameCatalogEntry(
+                id = "web-game",
+                title = "Web Game",
+                description = "Browser game",
+                latestVersion = "1.0.0",
+                versionsUrl = "https://example.com/web-game/versions.json",
+                builds = mapOf(PlatformKey.WEB to webBuild),
+            )
+
+        assertTrue(entry.isWebGame())
+        assertTrue(entry.isAvailableOnCurrentPlatform())
+        assertEquals(webBuild, entry.buildForCurrentPlatform())
+    }
+
+    @Test
+    fun webBuild_deserializesFromManifest() {
+        val raw =
+            """
+            {
+              "schema_version": 1,
+              "launcher_minimum_version": "0.0.1",
+              "games": [
+                {
+                  "id": "game_gallery",
+                  "title": "Game Gallery",
+                  "description": "Browser prototypes.",
+                  "latest_version": "1.0.0",
+                  "versions_url": "https://cdn.example.com/games/game_gallery/versions.json",
+                  "builds": {
+                    "web": {
+                      "download_url": "https://morphingcoffee.github.io/apps/games/",
+                      "executable_path": "",
+                      "file_size_bytes": 0,
+                      "sha256": ""
+                    }
+                  }
+                }
+              ]
+            }
+            """.trimIndent()
+
+        val manifest = Json { ignoreUnknownKeys = true }.decodeFromString<Manifest>(raw)
+        val game = manifest.games.single()
+
+        assertEquals("game_gallery", game.id)
+        assertTrue(game.isWebGame())
+        assertEquals(
+            "https://morphingcoffee.github.io/apps/games/",
+            game.buildForCurrentPlatform()?.downloadUrl,
+        )
     }
 }

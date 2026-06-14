@@ -108,5 +108,6 @@ fun platformAbbreviation(platformKey: String): String =
         PlatformKey.WINDOWS_X64 -> "WIN"
         PlatformKey.MACOS_ARM64 -> "ARM"
         PlatformKey.MACOS_X64 -> "X64"
+        PlatformKey.WEB -> "WEB"
         else -> platformKey.uppercase()
     }

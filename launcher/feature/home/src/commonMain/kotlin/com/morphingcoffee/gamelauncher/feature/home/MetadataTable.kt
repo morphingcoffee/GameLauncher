@@ -12,12 +12,14 @@ import com.morphingcoffee.gamelauncher.core.designsystem.LauncherSpacing
 import com.morphingcoffee.gamelauncher.core.designsystem.components.MonoLabel
 import com.morphingcoffee.gamelauncher.core.designsystem.components.PlatformChips
 import com.morphingcoffee.gamelauncher.core.model.GameBuild
+import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 
 @Composable
 internal fun MetadataTable(
     currentPlatformKey: String?,
     currentPlatformBuild: GameBuild?,
     availableBuilds: Map<String, GameBuild>,
+    isWebGame: Boolean = false,
     onDiskSizeBytes: Long? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -31,18 +33,29 @@ internal fun MetadataTable(
                 formatSizeDisplay(
                     downloadSizeBytes = currentPlatformBuild?.fileSizeBytes,
                     onDiskSizeBytes = onDiskSizeBytes,
+                    isWebGame = isWebGame,
                 ),
         )
         MetadataRow(
             label = "PLATFORM",
-            value = formatPlatformDisplayName(currentPlatformKey),
+            value =
+                if (isWebGame) {
+                    formatPlatformDisplayName(PlatformKey.WEB)
+                } else {
+                    formatPlatformDisplayName(currentPlatformKey)
+                },
         )
         MetadataRow(
             label = "BUILDS",
             trailing = {
                 PlatformChips(
                     availablePlatformKeys = availableBuilds.keys,
-                    currentPlatformKey = currentPlatformKey,
+                    currentPlatformKey =
+                        if (isWebGame) {
+                            PlatformKey.WEB
+                        } else {
+                            currentPlatformKey
+                        },
                 )
             },
         )

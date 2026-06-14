@@ -35,7 +35,10 @@ data class GameCatalogEntry(
 ) {
     fun buildForPlatform(platformKey: String): GameBuild? = builds[platformKey]
 
-    fun buildForCurrentPlatform(): GameBuild? = PlatformKey.current()?.let(::buildForPlatform)
+    fun buildForCurrentPlatform(): GameBuild? =
+        builds[PlatformKey.WEB] ?: PlatformKey.current()?.let(::buildForPlatform)
+
+    fun isWebGame(): Boolean = PlatformKey.WEB in builds
 
     fun isAvailableOnCurrentPlatform(): Boolean = buildForCurrentPlatform() != null
 }
@@ -69,5 +72,7 @@ data class GameVersionEntry(
     @SerialName("builds")
     val builds: Map<String, GameBuild>,
 ) {
-    fun buildForCurrentPlatform(): GameBuild? = PlatformKey.current()?.let { builds[it] }
+    fun buildForCurrentPlatform(): GameBuild? = builds[PlatformKey.WEB] ?: PlatformKey.current()?.let { builds[it] }
+
+    fun isWebGame(): Boolean = PlatformKey.WEB in builds
 }

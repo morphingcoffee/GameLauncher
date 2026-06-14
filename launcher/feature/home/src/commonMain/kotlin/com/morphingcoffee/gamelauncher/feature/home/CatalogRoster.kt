@@ -88,7 +88,12 @@ internal fun CatalogRoster(
                     isSelected = game.id == selectedGameId,
                     isAvailable = game.isAvailableOnCurrentPlatform(),
                     availablePlatformKeys = game.builds.keys,
-                    currentPlatformKey = PlatformKey.current(),
+                    currentPlatformKey =
+                        if (game.isWebGame()) {
+                            PlatformKey.WEB
+                        } else {
+                            PlatformKey.current()
+                        },
                     onClick = { onGameSelected(game.id) },
                 )
             }

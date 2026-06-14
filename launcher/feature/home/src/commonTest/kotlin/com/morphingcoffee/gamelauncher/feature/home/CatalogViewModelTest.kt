@@ -201,6 +201,31 @@ class CatalogViewModelTest {
         }
 
     @Test
+    fun openClicked_opensWebGameWithoutInstall() =
+        runBlocking {
+            val webUrl = "https://morphingcoffee.github.io/apps/games/"
+            val repository = WebGameOpenDataSource(webUrl = webUrl)
+            val viewModel = CatalogViewModel(repository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+
+            assertTrue(viewModel.state.value.isWebGame)
+            assertFalse(viewModel.state.value.isInstalledForDisplay)
+            assertEquals(
+                webUrl,
+                viewModel.state.value.displayBuild
+                    ?.downloadUrl,
+            )
+
+            viewModel.onEvent(CatalogEvent.OpenClicked)
+            delay(50)
+
+            assertEquals("READY", viewModel.state.value.statusLabel)
+            assertEquals(webUrl, repository.openedUrl)
+        }
+
+    @Test
     fun fastGameSwitch_ignoresStaleVersionHistoryFetch() =
         runBlocking {
             val alphaHistory =
@@ -589,6 +614,59 @@ class CatalogViewModelTest {
         return ManifestRepository(client, manifestUrl = "https://example.com/manifest.json")
     }
 
+    private class WebGameOpenDataSource(
+        private val webUrl: String,
+    ) : GameCatalogDataSource {
+        var openedUrl: String? = null
+        private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
+        override val downloadProgress: StateFlow<DownloadProgress?> = _downloadProgress
+
+        override suspend fun loadCatalog(): Result<List<GameCatalogEntry>> =
+            Result.success(
+                listOf(
+                    GameCatalogEntry(
+                        id = "game-gallery",
+                        title = "Game Gallery",
+                        description = "Browser prototypes",
+                        latestVersion = "1.0.0",
+                        versionsUrl = "https://example.com/game-gallery/versions.json",
+                        builds =
+                            mapOf(
+                                PlatformKey.WEB to
+                                    GameBuild(
+                                        downloadUrl = webUrl,
+                                        executablePath = "",
+                                        fileSizeBytes = 0,
+                                        sha256 = "",
+                                    ),
+                            ),
+                    ),
+                ),
+            )
+
+        override suspend fun fetchVersionHistory(versionsUrl: String): Result<List<GameVersionEntry>> =
+            Result.success(emptyList())
+
+        override suspend fun downloadAndInstall(
+            gameId: String,
+            version: String,
+            build: GameBuild,
+        ): Result<Unit> = Result.success(Unit)
+
+        override suspend fun getInstallState(gameId: String): InstallState = InstallState.NotInstalled
+
+        override suspend fun uninstallGame(gameId: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun getOnDiskSizeBytes(gameId: String): Long? = null
+
+        override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun openWebGame(url: String): Result<Unit> {
+            openedUrl = url
+            return Result.success(Unit)
+        }
+    }
+
     private class BlockingLaunchDataSource(
         private val platformKey: String,
         private val build: GameBuild,
@@ -634,6 +712,8 @@ class CatalogViewModelTest {
             delay(launchDelayMs)
             return Result.success(Unit)
         }
+
+        override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
     }
 
     private class CountingDownloadDataSource(
@@ -686,6 +766,8 @@ class CatalogViewModelTest {
         override suspend fun getOnDiskSizeBytes(gameId: String): Long? = null
 
         override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
     }
 
     private class DelayedVersionHistoryDataSource(
@@ -735,6 +817,8 @@ class CatalogViewModelTest {
         override suspend fun getOnDiskSizeBytes(gameId: String): Long? = null
 
         override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
     }
 
     private class DelayedInstallStateDataSource(
@@ -785,6 +869,8 @@ class CatalogViewModelTest {
         override suspend fun getOnDiskSizeBytes(gameId: String): Long? = null
 
         override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
     }
 
     private class UninstallTrackingDataSource(
@@ -834,6 +920,8 @@ class CatalogViewModelTest {
         override suspend fun getOnDiskSizeBytes(gameId: String): Long? = 2048L
 
         override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
     }
 
     private class DelayedUninstallDataSource(
@@ -895,6 +983,8 @@ class CatalogViewModelTest {
         override suspend fun getOnDiskSizeBytes(gameId: String): Long? = null
 
         override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
     }
 
     private class StubGameCatalogDataSource(
@@ -927,6 +1017,8 @@ class CatalogViewModelTest {
         override suspend fun getOnDiskSizeBytes(gameId: String): Long? = null
 
         override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
     }
 
     private fun sampleManifestJson(): String =

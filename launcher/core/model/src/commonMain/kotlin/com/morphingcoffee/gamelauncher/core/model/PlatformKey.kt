@@ -1,18 +1,20 @@
 package com.morphingcoffee.gamelauncher.core.model
 
 /**
- * Manifest platform build keys: `windows-x64`, `macos-arm64`, `macos-x64`.
+ * Manifest platform build keys: `windows-x64`, `macos-arm64`, `macos-x64`, `web`.
  */
 object PlatformKey {
     const val WINDOWS_X64 = "windows-x64"
     const val MACOS_ARM64 = "macos-arm64"
     const val MACOS_X64 = "macos-x64"
+    const val WEB = "web"
 
     val all: Set<String> =
         setOf(
             WINDOWS_X64,
             MACOS_ARM64,
             MACOS_X64,
+            WEB,
         )
 
     /**

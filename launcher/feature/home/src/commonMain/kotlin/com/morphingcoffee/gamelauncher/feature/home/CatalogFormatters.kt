@@ -5,7 +5,9 @@ import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 internal fun formatSizeDisplay(
     downloadSizeBytes: Long?,
     onDiskSizeBytes: Long?,
+    isWebGame: Boolean = false,
 ): String {
+    if (isWebGame) return "BROWSER"
     if (downloadSizeBytes == null) return "NOT AVAILABLE"
     if (onDiskSizeBytes != null && onDiskSizeBytes != downloadSizeBytes) {
         return "${formatFileSize(downloadSizeBytes)} DL / ${formatFileSize(onDiskSizeBytes)} ON DISK"
@@ -39,6 +41,7 @@ internal fun formatPlatformDisplayName(platformKey: String?): String =
     when (platformKey) {
         PlatformKey.WINDOWS_X64 -> "Windows"
         PlatformKey.MACOS_ARM64, PlatformKey.MACOS_X64 -> "macOS"
+        PlatformKey.WEB -> "Web"
         null -> "Unknown"
         else -> platformKey
     }
