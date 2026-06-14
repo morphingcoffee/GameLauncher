@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,8 +24,11 @@ import com.morphingcoffee.gamelauncher.core.designsystem.components.MonoLabel
 import com.morphingcoffee.gamelauncher.core.designsystem.components.PlatformUnavailableBadge
 import com.morphingcoffee.gamelauncher.core.designsystem.components.TerminalButton
 import com.morphingcoffee.gamelauncher.core.designsystem.components.ThumbnailImage
+import com.morphingcoffee.gamelauncher.core.designsystem.components.VersionSelector
 import com.morphingcoffee.gamelauncher.core.designsystem.components.ambientGlow
+import com.morphingcoffee.gamelauncher.core.model.GameBuild
 import com.morphingcoffee.gamelauncher.core.model.GameCatalogEntry
+import com.morphingcoffee.gamelauncher.core.model.GameVersionEntry
 import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 
 @Composable
@@ -32,8 +37,19 @@ internal fun GameDetailPane(
     isLoading: Boolean,
     errorMessage: String?,
     launchErrorMessage: String?,
+    displayVersion: String,
+    displayBuild: GameBuild?,
+    versionHistory: List<GameVersionEntry>,
+    isVersionPickerVisible: Boolean,
+    isVersionHistoryLoading: Boolean,
+    isInstalledForDisplay: Boolean,
+    isInstallStatePending: Boolean,
+    isDownloading: Boolean,
     isChargingLaunch: Boolean,
     ambientColor: Color,
+    onVersionPickerToggled: () -> Unit,
+    onVersionSelected: (String) -> Unit,
+    onDownloadClicked: () -> Unit,
     onLaunchClicked: () -> Unit,
     onLaunchChargeComplete: () -> Unit,
     onAmbientColorExtracted: (Color, String?) -> Unit,
@@ -72,9 +88,20 @@ internal fun GameDetailPane(
                 else -> {
                     GameDetailContent(
                         game = game,
+                        displayVersion = displayVersion,
+                        displayBuild = displayBuild,
+                        versionHistory = versionHistory,
+                        isVersionPickerVisible = isVersionPickerVisible,
+                        isVersionHistoryLoading = isVersionHistoryLoading,
+                        isInstalledForDisplay = isInstalledForDisplay,
+                        isInstallStatePending = isInstallStatePending,
+                        isDownloading = isDownloading,
                         isChargingLaunch = isChargingLaunch,
                         launchErrorMessage = launchErrorMessage,
                         ambientColor = ambientColor,
+                        onVersionPickerToggled = onVersionPickerToggled,
+                        onVersionSelected = onVersionSelected,
+                        onDownloadClicked = onDownloadClicked,
                         onLaunchClicked = onLaunchClicked,
                         onLaunchChargeComplete = onLaunchChargeComplete,
                         onAmbientColorExtracted = onAmbientColorExtracted,
@@ -88,16 +115,30 @@ internal fun GameDetailPane(
 @Composable
 private fun GameDetailContent(
     game: GameCatalogEntry,
+    displayVersion: String,
+    displayBuild: GameBuild?,
+    versionHistory: List<GameVersionEntry>,
+    isVersionPickerVisible: Boolean,
+    isVersionHistoryLoading: Boolean,
+    isInstalledForDisplay: Boolean,
+    isInstallStatePending: Boolean,
+    isDownloading: Boolean,
     isChargingLaunch: Boolean,
     launchErrorMessage: String?,
     ambientColor: Color,
+    onVersionPickerToggled: () -> Unit,
+    onVersionSelected: (String) -> Unit,
+    onDownloadClicked: () -> Unit,
     onLaunchClicked: () -> Unit,
     onLaunchChargeComplete: () -> Unit,
     onAmbientColorExtracted: (Color, String?) -> Unit,
 ) {
-    val build = game.buildForCurrentPlatform()
-    val isAvailable = build != null
     val currentPlatformKey = PlatformKey.current()
+    val availableBuilds =
+        versionHistory
+            .firstOrNull { it.version == displayVersion }
+            ?.builds
+            ?: game.builds
 
     Column(modifier = Modifier.fillMaxSize()) {
         ThumbnailImage(
@@ -113,29 +154,55 @@ private fun GameDetailContent(
             modifier =
                 Modifier
                     .weight(1f)
+                    .verticalScroll(rememberScrollState())
                     .padding(LauncherSpacing.Lg),
         ) {
             DisplayTitle(text = game.title)
 
             TerminalRule(modifier = Modifier.padding(vertical = LauncherSpacing.Md))
 
-            MetadataTable(
-                version = game.latestVersion,
+            VersionSelector(
+                selectedVersion = displayVersion,
+                versions = versionHistory,
+                isLoading = isVersionHistoryLoading,
+                isExpanded = isVersionPickerVisible,
                 currentPlatformKey = currentPlatformKey,
-                currentPlatformBuild = build,
-                availableBuilds = game.builds,
+                onToggle = onVersionPickerToggled,
+                onVersionSelected = onVersionSelected,
             )
 
-            if (isAvailable) {
-                TerminalButton(
-                    label = "LAUNCH",
-                    onClick = onLaunchClicked,
-                    charging = isChargingLaunch,
-                    onChargeComplete = onLaunchChargeComplete,
-                    modifier = Modifier.padding(top = LauncherSpacing.Lg),
-                )
-            } else {
-                PlatformUnavailableBadge(modifier = Modifier.padding(top = LauncherSpacing.Lg))
+            MetadataTable(
+                currentPlatformKey = currentPlatformKey,
+                currentPlatformBuild = displayBuild,
+                availableBuilds = availableBuilds,
+                modifier = Modifier.padding(top = LauncherSpacing.Md),
+            )
+
+            when {
+                displayBuild == null -> {
+                    PlatformUnavailableBadge(modifier = Modifier.padding(top = LauncherSpacing.Lg))
+                }
+
+                isInstallStatePending -> Unit
+
+                isInstalledForDisplay -> {
+                    TerminalButton(
+                        label = "LAUNCH",
+                        onClick = onLaunchClicked,
+                        charging = isChargingLaunch,
+                        onChargeComplete = onLaunchChargeComplete,
+                        modifier = Modifier.padding(top = LauncherSpacing.Lg),
+                    )
+                }
+
+                else -> {
+                    TerminalButton(
+                        label = "DOWNLOAD",
+                        onClick = onDownloadClicked,
+                        enabled = !isDownloading,
+                        modifier = Modifier.padding(top = LauncherSpacing.Lg),
+                    )
+                }
             }
 
             if (launchErrorMessage != null) {

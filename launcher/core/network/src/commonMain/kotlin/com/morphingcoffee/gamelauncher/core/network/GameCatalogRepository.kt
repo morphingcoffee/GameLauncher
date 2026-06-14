@@ -1,6 +1,8 @@
 package com.morphingcoffee.gamelauncher.core.network
 
+import com.morphingcoffee.gamelauncher.core.model.GameBuild
 import com.morphingcoffee.gamelauncher.core.model.GameCatalogEntry
+import com.morphingcoffee.gamelauncher.core.model.GameVersionEntry
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -8,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class GameCatalogRepository(
     private val manifestRepository: ManifestRepository,
     private val gameLauncher: GameLauncher,
+    private val gameInstaller: GameInstaller,
 ) : GameCatalogDataSource {
     private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
     override val downloadProgress: StateFlow<DownloadProgress?> = _downloadProgress.asStateFlow()
@@ -17,5 +20,26 @@ class GameCatalogRepository(
             manifestRepository.fetchManifest().games
         }
 
-    override suspend fun launchGame(entry: GameCatalogEntry): Result<Unit> = gameLauncher.launch(entry)
+    override suspend fun fetchVersionHistory(versionsUrl: String): Result<List<GameVersionEntry>> =
+        runCatching {
+            manifestRepository.fetchVersionIndex(versionsUrl).versions
+        }
+
+    override suspend fun downloadAndInstall(
+        gameId: String,
+        version: String,
+        build: GameBuild,
+    ): Result<Unit> {
+        _downloadProgress.value = null
+        return gameInstaller
+            .downloadAndInstall(gameId, version, build) { progress ->
+                _downloadProgress.value = progress
+            }.also {
+                _downloadProgress.value = null
+            }
+    }
+
+    override suspend fun getInstallState(gameId: String): InstallState = gameInstaller.getInstallState(gameId)
+
+    override suspend fun launchGame(gameId: String): Result<Unit> = gameLauncher.launch(gameId)
 }
