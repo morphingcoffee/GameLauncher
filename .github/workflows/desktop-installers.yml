@@ -163,7 +163,8 @@ jobs:
 
       - name: Package MSI
         shell: pwsh
-        run: .\gradlew.bat :composeApp:packageMsi --no-daemon -PbuildNumber=$env:BUILD_NUMBER
+        run: ..\tools\dev\package-windows-msi.ps1
+        working-directory: launcher
 
       - name: Resolve artifact version
         shell: pwsh
@@ -182,7 +183,7 @@ jobs:
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
           ### Windows artifact
 
-          Run the MSI installer. Windows SmartScreen may warn about an unknown publisher — choose **More info** → **Run anyway**. Authenticode signing is planned for a later release.
+          Run the MSI installer. Windows SmartScreen may warn about an unknown publisher — choose **More info** → **Run anyway**. Authenticode signing is tracked in [#45](https://github.com/morphingcoffee/GameLauncher/issues/45).
 
           **After install:** search Start for **Game Launcher**; a desktop shortcut is created by default.
 
