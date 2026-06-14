@@ -29,6 +29,7 @@ fun main() {
             onCloseRequest = ::exitApplication,
             title = if (isDev) "Game Launcher [DEV]" else "Game Launcher",
         ) {
+            DesktopGlobalShortcuts()
             App()
         }
     }

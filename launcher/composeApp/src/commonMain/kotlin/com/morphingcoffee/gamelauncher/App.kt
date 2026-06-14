@@ -14,11 +14,13 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherTheme
 import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
 import com.morphingcoffee.gamelauncher.core.navigation.AppDestination
+import com.morphingcoffee.gamelauncher.core.navigation.DebugNavigation
 import com.morphingcoffee.gamelauncher.core.navigation.appNavigationConfig
 import com.morphingcoffee.gamelauncher.feature.home.CatalogScreen
 import com.morphingcoffee.gamelauncher.feature.home.CatalogScreenContent
@@ -27,10 +29,17 @@ import com.morphingcoffee.gamelauncher.feature.logs.LogsScreen
 import com.morphingcoffee.gamelauncher.feature.settings.SettingsScreen
 import com.morphingcoffee.gamelauncher.feature.settings.SettingsScreenContent
 import com.morphingcoffee.gamelauncher.feature.settings.SettingsState
+import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun App() {
     AppNavigation()
+}
+
+private fun openLogsDestination(backStack: androidx.navigation3.runtime.NavBackStack<NavKey>) {
+    if (backStack.lastOrNull() != AppDestination.Logs) {
+        backStack.add(AppDestination.Logs)
+    }
 }
 
 @Composable
@@ -47,6 +56,12 @@ internal fun AppNavigation(
             focusRequester.requestFocus()
         }
 
+        androidx.compose.runtime.LaunchedEffect(backStack) {
+            DebugNavigation.openLogsRequests.collectLatest {
+                openLogsDestination(backStack)
+            }
+        }
+
         Box(
             modifier =
                 Modifier
@@ -56,9 +71,7 @@ internal fun AppNavigation(
                     .onPreviewKeyEvent { event ->
                         if (!LauncherMetadata.DEBUG_TOOLS_ENABLED) return@onPreviewKeyEvent false
                         if (event.type != KeyEventType.KeyDown || event.key != Key.F12) return@onPreviewKeyEvent false
-                        if (backStack.lastOrNull() != AppDestination.Logs) {
-                            backStack.add(AppDestination.Logs)
-                        }
+                        DebugNavigation.requestOpenLogs()
                         true
                     },
         ) {

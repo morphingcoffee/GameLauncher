@@ -36,8 +36,14 @@ class CatalogViewModel(
                             downloadProgressFraction = null,
                         )
                     } else {
+                        val statusLabel =
+                            if (progress.fraction >= 1f) {
+                                "EXTRACTING"
+                            } else {
+                                "DOWNLOADING"
+                            }
                         copy(
-                            statusLabel = "DOWNLOADING",
+                            statusLabel = statusLabel,
                             downloadProgressFraction = progress.fraction,
                         )
                     }

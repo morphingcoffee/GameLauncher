@@ -43,39 +43,56 @@ actual class GameInstaller(
             }
 
             try {
-                downloadToStaging(
-                    build = build,
-                    gameId = gameId,
-                    stagingFile = stagingFile,
-                    resumeOffset = resumeOffset,
-                    onProgress = onProgress,
-                )
+                withContext(Dispatchers.IO) {
+                    downloadToStaging(
+                        build = build,
+                        gameId = gameId,
+                        stagingFile = stagingFile,
+                        resumeOffset = resumeOffset,
+                        onProgress = onProgress,
+                    )
+                }
 
-                verifySha256(stagingFile, build.sha256)
+                withContext(Dispatchers.Default) {
+                    AppLog.i("GameInstaller", "Verifying download for $gameId version $version")
+                    verifySha256(stagingFile, build.sha256)
+                }
 
                 val gameDir = File(LibraryPaths.gameDirectory(gameId))
-                if (gameDir.exists()) {
-                    gameDir.deleteRecursively()
+                withContext(Dispatchers.IO) {
+                    if (gameDir.exists()) {
+                        gameDir.deleteRecursively()
+                    }
+                    gameDir.mkdirs()
                 }
-                gameDir.mkdirs()
 
-                extractZip(stagingFile, gameDir)
+                withContext(Dispatchers.Default) {
+                    AppLog.i("GameInstaller", "Extracting $gameId version $version")
+                    extractZip(stagingFile, gameDir)
+                }
 
                 val executable = File(gameDir, build.executablePath)
                 if (!executable.exists()) {
-                    gameDir.deleteRecursively()
+                    withContext(Dispatchers.IO) {
+                        gameDir.deleteRecursively()
+                    }
                     error("Executable not found after extract: ${build.executablePath}")
                 }
 
-                writeInstallRecord(
-                    gameId = gameId,
-                    version = version,
-                    executablePath = build.executablePath,
-                    sha256 = build.sha256,
-                )
+                withContext(Dispatchers.IO) {
+                    writeInstallRecord(
+                        gameId = gameId,
+                        version = version,
+                        executablePath = build.executablePath,
+                        sha256 = build.sha256,
+                    )
+                }
+                AppLog.i("GameInstaller", "Install complete for $gameId version $version")
             } finally {
-                if (stagingFile.exists()) {
-                    stagingFile.delete()
+                withContext(Dispatchers.IO) {
+                    if (stagingFile.exists()) {
+                        stagingFile.delete()
+                    }
                 }
             }
         }

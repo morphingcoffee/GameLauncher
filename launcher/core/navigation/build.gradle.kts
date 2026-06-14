@@ -24,6 +24,7 @@ kotlin {
                 implementation(libs.navigation3.ui)
                 implementation(libs.androidx.savedstate)
                 implementation(libs.kotlinx.serialization.json)
+                implementation(libs.kotlinx.coroutines.core)
             }
         }
     }
