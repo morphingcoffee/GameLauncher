@@ -119,4 +119,4 @@ Subdirs: `downloads/`, `games/{gameId}/`
 | 5 | SkSL shader background |
 | 6 | GitHub Actions DMG + MSI matrix |
 
-Track progress on the repo Project board and linked GitHub issues.
+Track progress on the [Game Launcher Roadmap project](https://github.com/users/morphingcoffee/projects/1) (user project **#1**) and linked GitHub issues. When creating issues, follow `github-task-creation` skill — attach every launcher task to that project.
