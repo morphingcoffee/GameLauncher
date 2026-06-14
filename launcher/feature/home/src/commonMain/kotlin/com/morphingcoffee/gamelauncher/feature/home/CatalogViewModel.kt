@@ -370,18 +370,18 @@ class CatalogViewModel(
         val gameId = game.id
         val versionAtStart = state.value.displayVersion
 
-        updateState { copy(isChargingUninstall = false) }
+        updateState {
+            copy(
+                isChargingUninstall = false,
+                isUninstalling = true,
+                statusLabel = "UNINSTALLING",
+                launchErrorMessage = null,
+            )
+        }
 
         viewModelScope.launch {
             try {
                 AppLog.i("Catalog", "Uninstalling $gameId version $versionAtStart")
-                updateState {
-                    copy(
-                        isUninstalling = true,
-                        statusLabel = "UNINSTALLING",
-                        launchErrorMessage = null,
-                    )
-                }
 
                 val result = gameCatalogRepository.uninstallGame(gameId)
 

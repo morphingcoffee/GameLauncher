@@ -82,20 +82,5 @@ object AppLog {
             throwable.message?.let { append(": ").append(it) }
         }
 
-    private fun formatTimestamp(timestampMillis: Long): String {
-        val totalSeconds = timestampMillis / 1000
-        val hours = (totalSeconds / 3_600) % 24
-        val minutes = (totalSeconds / 60) % 60
-        val seconds = totalSeconds % 60
-        val millis = timestampMillis % 1_000
-        return buildString {
-            append(hours.toString().padStart(2, '0'))
-            append(':')
-            append(minutes.toString().padStart(2, '0'))
-            append(':')
-            append(seconds.toString().padStart(2, '0'))
-            append('.')
-            append(millis.toString().padStart(3, '0'))
-        }
-    }
+    private fun formatTimestamp(timestampMillis: Long): String = formatLogTimestamp(timestampMillis)
 }

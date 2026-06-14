@@ -446,6 +446,36 @@ class CatalogViewModelTest {
         }
 
     @Test
+    fun repeatedUninstallChargeComplete_startsOnlyOneUninstallJob() =
+        runBlocking {
+            val platformKey = PlatformKey.current() ?: return@runBlocking
+            val build =
+                GameBuild(
+                    downloadUrl = "https://example.com/alpha.zip",
+                    executablePath = "Game.app/Contents/MacOS/Game",
+                    fileSizeBytes = 1024,
+                    sha256 = "abc",
+                )
+            val repository =
+                DelayedUninstallDataSource(
+                    platformKey = platformKey,
+                    build = build,
+                    uninstallDelayMs = 200,
+                )
+            val viewModel = CatalogViewModel(repository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+            delay(50)
+            viewModel.onEvent(CatalogEvent.UninstallClicked)
+            viewModel.onEvent(CatalogEvent.UninstallChargeComplete)
+            viewModel.onEvent(CatalogEvent.UninstallChargeComplete)
+            delay(300)
+
+            assertEquals(1, repository.uninstallInvocationCount)
+        }
+
+    @Test
     fun uninstallBlockedWhileLaunching() =
         runBlocking {
             val platformKey = PlatformKey.current() ?: return@runBlocking
@@ -811,6 +841,7 @@ class CatalogViewModelTest {
         private val build: GameBuild,
         private val uninstallDelayMs: Long,
     ) : GameCatalogDataSource {
+        var uninstallInvocationCount = 0
         private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
         override val downloadProgress: StateFlow<DownloadProgress?> = _downloadProgress
 
@@ -856,6 +887,7 @@ class CatalogViewModelTest {
             }
 
         override suspend fun uninstallGame(gameId: String): Result<Unit> {
+            uninstallInvocationCount++
             delay(uninstallDelayMs)
             return Result.success(Unit)
         }
