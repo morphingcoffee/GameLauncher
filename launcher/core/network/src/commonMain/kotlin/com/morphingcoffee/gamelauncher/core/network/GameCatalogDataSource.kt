@@ -1,6 +1,8 @@
 package com.morphingcoffee.gamelauncher.core.network
 
+import com.morphingcoffee.gamelauncher.core.model.GameBuild
 import com.morphingcoffee.gamelauncher.core.model.GameCatalogEntry
+import com.morphingcoffee.gamelauncher.core.model.GameVersionEntry
 import kotlinx.coroutines.flow.StateFlow
 
 interface GameCatalogDataSource {
@@ -8,5 +10,15 @@ interface GameCatalogDataSource {
 
     suspend fun loadCatalog(): Result<List<GameCatalogEntry>>
 
-    suspend fun launchGame(entry: GameCatalogEntry): Result<Unit>
+    suspend fun fetchVersionHistory(versionsUrl: String): Result<List<GameVersionEntry>>
+
+    suspend fun downloadAndInstall(
+        gameId: String,
+        version: String,
+        build: GameBuild,
+    ): Result<Unit>
+
+    suspend fun getInstallState(gameId: String): InstallState
+
+    suspend fun launchGame(gameId: String): Result<Unit>
 }

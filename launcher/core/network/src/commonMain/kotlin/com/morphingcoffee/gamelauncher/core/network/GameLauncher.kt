@@ -1,9 +1,7 @@
 package com.morphingcoffee.gamelauncher.core.network
 
-import com.morphingcoffee.gamelauncher.core.model.GameCatalogEntry
-
 expect class GameLauncher {
-    suspend fun launch(entry: GameCatalogEntry): Result<Unit>
+    suspend fun launch(gameId: String): Result<Unit>
 }
 
 expect fun createGameLauncher(): GameLauncher

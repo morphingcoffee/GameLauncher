@@ -8,6 +8,6 @@ alwaysApply: true
 - **Repository:** `morphingcoffee/GameLauncher` (public)
 - **Prefer GitHub MCP** for issues, PRs, project board, and Actions status before shell fallbacks
 - **Link work to issues:** branch names like `phase-N/short-desc`; PR body includes `Closes #N`
-- **Project board:** [Game Launcher Roadmap](https://github.com/users/morphingcoffee/projects/1) — user project **#1** (`morphingcoffee`). **Every new launcher issue must be added to this project** — see `github-task-creation` skill.
+- **Project board:** [Game Launcher Roadmap](https://github.com/users/morphingcoffee/projects/1) — user project **#1** (`morphingcoffee`). **Every new launcher issue must be added to this project** — see `github-task-creation` skill. **Track progress via project Status field only** — do not post implementation-status comments on issues.
 - **Before commit/push:** follow `secret-hygiene` skill; run `tools/dev/scan-secrets.sh`
 - **Secrets:** PAT only in macOS Keychain (`security`); inject via `tools/dev/github-pat-from-keychain.sh` or `tools/dev/open-cursor-with-github.sh` — never in project config files; global MCP config at `~/.cursor/mcp.json` uses `${env:GITHUB_PAT}` only

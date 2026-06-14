@@ -25,7 +25,16 @@ object LibraryPaths {
         }
     }
 
+    fun downloadsDirectory(): String = path(rootDirectory(), "downloads")
+
+    fun downloadStagingFile(
+        gameId: String,
+        version: String,
+    ): String = path(downloadsDirectory(), "$gameId-$version.zip.part")
+
     fun gameDirectory(gameId: String): String = path(rootDirectory(), "games", gameId)
+
+    fun installRecordFile(gameId: String): String = path(gameDirectory(gameId), ".install_record.json")
 
     private fun path(vararg segments: String): String {
         require(segments.isNotEmpty()) { "path requires at least one segment" }

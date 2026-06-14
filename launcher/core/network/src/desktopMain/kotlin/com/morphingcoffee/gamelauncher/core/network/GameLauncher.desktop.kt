@@ -1,22 +1,25 @@
 package com.morphingcoffee.gamelauncher.core.network
 
-import com.morphingcoffee.gamelauncher.core.model.GameCatalogEntry
+import kotlinx.serialization.json.Json
 import java.io.File
 
 actual class GameLauncher {
-    actual suspend fun launch(entry: GameCatalogEntry): Result<Unit> =
+    actual suspend fun launch(gameId: String): Result<Unit> =
         runCatching {
-            val build =
-                entry.buildForCurrentPlatform()
-                    ?: error("No build available for the current platform")
-            val gameDir = LibraryPaths.gameDirectory(entry.id)
-            val executable = File(gameDir, build.executablePath)
+            val recordFile = File(LibraryPaths.installRecordFile(gameId))
+            if (!recordFile.exists()) {
+                error("Game is not installed: $gameId")
+            }
+
+            val record = Json.decodeFromString<GameInstallRecord>(recordFile.readText())
+            val gameDir = File(LibraryPaths.gameDirectory(gameId))
+            val executable = File(gameDir, record.executablePath)
             if (!executable.exists()) {
                 error("Executable not found: ${executable.absolutePath}")
             }
 
             ProcessBuilder(executable.absolutePath)
-                .directory(File(gameDir))
+                .directory(gameDir)
                 .inheritIO()
                 .start()
         }

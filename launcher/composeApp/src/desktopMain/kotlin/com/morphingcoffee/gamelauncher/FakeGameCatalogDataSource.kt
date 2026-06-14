@@ -6,6 +6,7 @@ import com.morphingcoffee.gamelauncher.core.model.GameVersionEntry
 import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 import com.morphingcoffee.gamelauncher.core.network.DownloadProgress
 import com.morphingcoffee.gamelauncher.core.network.GameCatalogDataSource
+import com.morphingcoffee.gamelauncher.core.network.InstallState
 import com.morphingcoffee.gamelauncher.core.network.SimulatedLaunchException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,28 +17,94 @@ import kotlin.random.Random
 class FakeGameCatalogDataSource(
     private val catalogLoadDelayMs: LongRange = 600L..2_500L,
     private val launchDelayMs: LongRange = 800L..1_800L,
+    private val versionHistoryDelayMs: LongRange = 300L..900L,
 ) : GameCatalogDataSource {
     private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
     override val downloadProgress: StateFlow<DownloadProgress?> = _downloadProgress.asStateFlow()
+
+    private val installedGames = mutableMapOf<String, String>()
 
     override suspend fun loadCatalog(): Result<List<GameCatalogEntry>> {
         delay(catalogLoadDelayMs.random())
         return Result.success(FAKE_CATALOG)
     }
 
-    override suspend fun launchGame(entry: GameCatalogEntry): Result<Unit> {
-        simulateLaunchProgress(entry)
+    override suspend fun fetchVersionHistory(versionsUrl: String): Result<List<GameVersionEntry>> {
+        delay(versionHistoryDelayMs.random())
+        val gameId = versionsUrl.removeSuffix("/versions.json").substringAfterLast("/")
+        val game =
+            FAKE_CATALOG.firstOrNull { it.id == gameId }
+                ?: return Result.failure(IllegalArgumentException("Unknown game id in versions URL: $gameId"))
+        return Result.success(game.versionHistory)
+    }
+
+    override suspend fun downloadAndInstall(
+        gameId: String,
+        version: String,
+        build: GameBuild,
+    ): Result<Unit> {
+        if (build.fileSizeBytes <= 0L) {
+            return Result.failure(IllegalArgumentException("Build file size must be greater than zero"))
+        }
+
+        val entry =
+            FAKE_CATALOG.firstOrNull { it.id == gameId }
+                ?: return Result.failure(IllegalArgumentException("Unknown game: $gameId"))
+
+        simulateDownloadProgress(entry.id, build.fileSizeBytes)
+        installedGames[gameId] = version
+        return Result.success(Unit)
+    }
+
+    override suspend fun getInstallState(gameId: String): InstallState {
+        val version = installedGames[gameId] ?: return InstallState.NotInstalled
+        val entry =
+            FAKE_CATALOG.firstOrNull { it.id == gameId }
+                ?: return InstallState.NotInstalled
+
+        val build =
+            entry.versionHistory.firstOrNull { it.version == version }?.buildForCurrentPlatform()
+                ?: if (version == entry.latestVersion) {
+                    entry.buildForCurrentPlatform()
+                } else {
+                    null
+                }
+                ?: return InstallState.NotInstalled
+
+        return InstallState.Installed(
+            version = version,
+            executablePath = build.executablePath,
+        )
+    }
+
+    override suspend fun launchGame(gameId: String): Result<Unit> {
+        val version =
+            installedGames[gameId]
+                ?: return Result.failure(IllegalStateException("Game is not installed: $gameId"))
+
+        val entry =
+            FAKE_CATALOG.firstOrNull { it.id == gameId }
+                ?: return Result.failure(IllegalArgumentException("Unknown game: $gameId"))
+
+        val build =
+            entry.versionHistory.firstOrNull { it.version == version }?.buildForCurrentPlatform()
+                ?: entry.buildForCurrentPlatform()
+                ?: return Result.failure(IllegalStateException("No build available for installed version"))
+
+        simulateDownloadProgress(entry.id, build.fileSizeBytes)
         delay(launchDelayMs.random())
         return Result.failure(SimulatedLaunchException(entry.title))
     }
 
-    private suspend fun simulateLaunchProgress(entry: GameCatalogEntry) {
-        val totalBytes = entry.buildForCurrentPlatform()?.fileSizeBytes ?: 48_000_000L
+    private suspend fun simulateDownloadProgress(
+        gameId: String,
+        totalBytes: Long,
+    ) {
         val steps = listOf(0.15f, 0.42f, 0.71f, 0.93f, 1f)
         for (fraction in steps) {
             _downloadProgress.value =
                 DownloadProgress(
-                    gameId = entry.id,
+                    gameId = gameId,
                     bytesDownloaded = (totalBytes * fraction).toLong(),
                     totalBytes = totalBytes,
                 )

@@ -15,7 +15,6 @@ import com.morphingcoffee.gamelauncher.core.model.GameBuild
 
 @Composable
 internal fun MetadataTable(
-    version: String,
     currentPlatformKey: String?,
     currentPlatformBuild: GameBuild?,
     availableBuilds: Map<String, GameBuild>,
@@ -25,7 +24,6 @@ internal fun MetadataTable(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(LauncherSpacing.Xs),
     ) {
-        MetadataRow(label = "VERSION", value = version)
         MetadataRow(
             label = "SIZE",
             value =

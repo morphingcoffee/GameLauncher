@@ -3,6 +3,8 @@ package com.morphingcoffee.gamelauncher.feature.home
 import androidx.compose.ui.graphics.Color
 import com.morphingcoffee.gamelauncher.core.network.GameCatalogRepository
 import com.morphingcoffee.gamelauncher.core.network.ManifestRepository
+import com.morphingcoffee.gamelauncher.core.network.createDownloadHttpClient
+import com.morphingcoffee.gamelauncher.core.network.createGameInstaller
 import com.morphingcoffee.gamelauncher.core.network.createGameLauncher
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -24,7 +26,7 @@ class CatalogViewModelTest {
     @Test
     fun started_loadsCatalogAndSelectsFirstGame() =
         runBlocking {
-            val repository = GameCatalogRepository(createManifestRepository(sampleManifestJson()), createGameLauncher())
+            val repository = createRepository(createManifestRepository(sampleManifestJson()))
             val viewModel = CatalogViewModel(repository)
 
             viewModel.onEvent(CatalogEvent.Started)
@@ -41,7 +43,7 @@ class CatalogViewModelTest {
     @Test
     fun moveSelection_updatesSelectedGame() =
         runBlocking {
-            val repository = GameCatalogRepository(createManifestRepository(sampleManifestJson()), createGameLauncher())
+            val repository = createRepository(createManifestRepository(sampleManifestJson()))
             val viewModel = CatalogViewModel(repository)
 
             viewModel.onEvent(CatalogEvent.Started)
@@ -69,7 +71,12 @@ class CatalogViewModelTest {
                         json(Json { ignoreUnknownKeys = true })
                     }
                 }
-            val repository = GameCatalogRepository(ManifestRepository(client), createGameLauncher())
+            val repository =
+                GameCatalogRepository(
+                    ManifestRepository(client),
+                    createGameLauncher(),
+                    createGameInstaller(createDownloadHttpClient()),
+                )
             val viewModel = CatalogViewModel(repository)
 
             viewModel.onEvent(CatalogEvent.Started)
@@ -82,12 +89,11 @@ class CatalogViewModelTest {
         }
 
     @Test
-    fun gameSelection_clearsLaunchErrorAndAmbientColor() =
+    fun gameSelection_clearsAmbientColorAndResetsVersionState() =
         runBlocking {
             val repository =
-                GameCatalogRepository(
+                createRepository(
                     createManifestRepository(sampleManifestJson()),
-                    createGameLauncher(),
                 )
             val viewModel = CatalogViewModel(repository)
 
@@ -99,21 +105,25 @@ class CatalogViewModelTest {
                     imageUrl = "https://example.com/alpha.webp",
                 ),
             )
-            viewModel.onEvent(CatalogEvent.LaunchClicked)
-            viewModel.onEvent(CatalogEvent.LaunchChargeComplete)
-            delay(200)
-
-            assertEquals("ERROR", viewModel.state.value.statusLabel)
-            assertEquals("alpha", viewModel.state.value.selectedGameId)
+            viewModel.onEvent(CatalogEvent.VersionPickerToggled)
+            viewModel.onEvent(CatalogEvent.VersionSelected("0.0.1"))
+            delay(50)
 
             viewModel.onEvent(CatalogEvent.MoveSelection(1))
             delay(50)
 
             val state = viewModel.state.value
             assertEquals("beta", state.selectedGameId)
-            assertNull(state.launchErrorMessage)
+            assertNull(state.selectedVersion)
             assertEquals(Color.Transparent, state.ambientColor)
         }
+
+    private fun createRepository(manifestRepository: ManifestRepository): GameCatalogRepository =
+        GameCatalogRepository(
+            manifestRepository = manifestRepository,
+            gameLauncher = createGameLauncher(),
+            gameInstaller = createGameInstaller(createDownloadHttpClient()),
+        )
 
     private suspend fun waitForLoadingToFinish(viewModel: CatalogViewModel) {
         repeat(100) {

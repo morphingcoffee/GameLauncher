@@ -2,6 +2,7 @@ package com.morphingcoffee.gamelauncher.core.network
 
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
@@ -14,5 +15,14 @@ actual fun createHttpClient(): HttpClient =
                     ignoreUnknownKeys = true
                 },
             )
+        }
+    }
+
+actual fun createDownloadHttpClient(): HttpClient =
+    HttpClient(CIO) {
+        install(HttpTimeout) {
+            connectTimeoutMillis = 60_000
+            socketTimeoutMillis = 3_600_000
+            requestTimeoutMillis = 3_600_000
         }
     }

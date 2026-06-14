@@ -1,5 +1,6 @@
 package com.morphingcoffee.gamelauncher.core.network
 
+import com.morphingcoffee.gamelauncher.core.model.GameVersionIndex
 import com.morphingcoffee.gamelauncher.core.model.Manifest
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -10,4 +11,6 @@ class ManifestRepository(
     private val manifestUrl: String = Config.manifestUrl,
 ) {
     suspend fun fetchManifest(): Manifest = httpClient.get(manifestUrl).body()
+
+    suspend fun fetchVersionIndex(url: String): GameVersionIndex = httpClient.get(url).body()
 }
