@@ -163,7 +163,7 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi)
             packageName = "GameLauncher"
             packageVersion = "0.0.1"
-            description = "Desktop launcher for curated game builds and prototypes"
+            description = "Curated-indie-game-launcher"
             vendor = "GameLauncher"
             copyright = "Game Launcher"
             licenseFile.set(layout.projectDirectory.file("installer-license.rtf"))

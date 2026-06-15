@@ -69,7 +69,7 @@ Write-Host "Packaging MSI product version $msiVersion with branded WiX resources
     --resource-dir $resourceDir `
     --license-file $licenseFile `
     --name GameLauncher `
-    --description "Desktop launcher for curated game builds and prototypes" `
+    --description Curated-indie-game-launcher `
     --vendor GameLauncher `
     --copyright "Game Launcher" `
     --app-version $msiVersion `
