@@ -38,7 +38,7 @@ $requiredResources = @(
     "GameLauncher.properties",
     "installer-banner.bmp",
     "installer-dialog.bmp",
-    "overrides.wxi",
+    "overrides.wxi"
 )
 foreach ($fileName in $requiredResources) {
     $resourceFile = Join-Path $resourceDir $fileName
