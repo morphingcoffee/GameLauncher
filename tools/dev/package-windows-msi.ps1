@@ -1,6 +1,6 @@
-# Builds a Windows MSI using jpackage directly so icon/properties in
-# composeApp/installer/windows/jpackage reach jpackage (Compose clears compose/tmp/resources).
-# Do not add MsiInstallerStrings_en.wxl here — jpackage duplicates localization and light fails.
+# Builds a Windows MSI using jpackage directly so icon/properties and WiX banner assets
+# reach jpackage (Compose clears compose/tmp/resources).
+# Do not add MsiInstallerStrings_en.wxl — jpackage duplicates localization and light fails.
 
 param(
     [string]$BuildNumber = $env:BUILD_NUMBER
@@ -20,7 +20,7 @@ $gradleArgs = @(":composeApp:createDistributable", "--no-daemon", "-PbuildNumber
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 $appImage = Join-Path $LauncherRoot "composeApp\build\compose\binaries\main\app\GameLauncher"
-$resourceDir = Join-Path $LauncherRoot "composeApp\installer\windows\jpackage"
+$resourceSourceDir = Join-Path $LauncherRoot "composeApp\installer\windows\jpackage"
 $licenseFile = Join-Path $LauncherRoot "composeApp\installer-license.rtf"
 $iconFile = Join-Path $LauncherRoot "composeApp\icons\icon.ico"
 $destDir = Join-Path $LauncherRoot "composeApp\build\compose\binaries\main\msi"
@@ -29,9 +29,35 @@ $msiVersion = (& .\gradlew.bat -q :composeApp:printWindowsMsiProductVersion --no
 if (-not (Test-Path $appImage)) {
     Write-Error "App image not found at $appImage"
 }
-if (-not (Test-Path $resourceDir)) {
-    Write-Error "Installer resources not found at $resourceDir"
+if (-not (Test-Path $resourceSourceDir)) {
+    Write-Error "Installer resources not found at $resourceSourceDir"
 }
+
+$stagingDir = Join-Path $LauncherRoot "composeApp\build\windows-jpackage-resources"
+if (Test-Path $stagingDir) {
+    Remove-Item $stagingDir -Recurse -Force
+}
+New-Item -ItemType Directory -Force -Path $stagingDir | Out-Null
+
+foreach ($fileName in @("GameLauncher.ico", "GameLauncher.properties", "installer-banner.bmp", "installer-dialog.bmp")) {
+    $sourceFile = Join-Path $resourceSourceDir $fileName
+    if (-not (Test-Path $sourceFile)) {
+        Write-Error "Missing installer resource: $sourceFile"
+    }
+    Copy-Item $sourceFile (Join-Path $stagingDir $fileName)
+}
+
+# WiX resolves banner paths from candle's working directory, not the config dir — use absolute paths.
+$bannerPath = (Resolve-Path (Join-Path $stagingDir "installer-banner.bmp")).Path.Replace("\", "/")
+$dialogPath = (Resolve-Path (Join-Path $stagingDir "installer-dialog.bmp")).Path.Replace("\", "/")
+$overridesWxi = @"
+<?xml version="1.0" encoding="utf-8"?>
+<Include xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <WixVariable Id="WixUIBannerBmp" Value="$bannerPath" />
+  <WixVariable Id="WixUIDialogBmp" Value="$dialogPath" />
+</Include>
+"@
+Set-Content -Path (Join-Path $stagingDir "overrides.wxi") -Value $overridesWxi -Encoding utf8NoBOM
 
 New-Item -ItemType Directory -Force -Path $destDir | Out-Null
 
@@ -41,8 +67,7 @@ if (-not (Test-Path $jpackage)) {
 }
 
 # JDK 17 jpackage requires WiX 3.x candle.exe/light.exe. GitHub runners ship WiX 3.14+ on
-# PATH, which can break jpackage's WiX sources (candle exit code 5). Prefer WiX 3.11
-# downloaded by Compose during createDistributable.
+# PATH, which can break jpackage's WiX sources. Prefer WiX 3.11 from Gradle createDistributable.
 $wixCandidates = @(
     (Join-Path $LauncherRoot "build\wix311")
     (Join-Path $LauncherRoot "composeApp\build\wix311")
@@ -67,7 +92,7 @@ Write-Host "Packaging MSI product version $msiVersion with branded WiX resources
 & $jpackage `
     --type msi `
     --app-image $appImage `
-    --resource-dir $resourceDir `
+    --resource-dir $stagingDir `
     --license-file $licenseFile `
     --name GameLauncher `
     --description Curated-indie-game-launcher `
