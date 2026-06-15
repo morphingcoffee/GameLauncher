@@ -56,7 +56,7 @@ Write-Host "Packaging MSI product version $msiVersion with branded WiX resources
     --win-menu `
     --win-menu-group "Game Launcher" `
     --win-shortcut `
-    --win-dir-chooser true `
+    --win-dir-chooser `
     --win-upgrade-uuid "8f2a1b3c-4d5e-6f70-8a9b-0c1d2e3f4a5b"
 
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
