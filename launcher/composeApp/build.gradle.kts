@@ -134,6 +134,21 @@ private fun composeDesktopHostDependency(composeVersion: String): String {
     return "org.jetbrains.compose.desktop:desktop-jvm-$hostId:$composeVersion"
 }
 
+/** Optional `-PbuildNumber=…` from CI (`github.run_number`) — shared across macOS and Windows packaging. */
+private fun ciBuildNumberProperty(): String? =
+    (findProperty("buildNumber") as String?)
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+
+/** Marketing version plus CI build suffix for artifact filenames (e.g. `0.0.1-build42`). */
+private fun artifactVersionLabel(): String {
+    val marketing =
+        compose.desktop.application.nativeDistributions.packageVersion
+            ?: error("packageVersion is not set")
+    val build = ciBuildNumberProperty()
+    return if (build != null) "$marketing-build$build" else marketing
+}
+
 compose.desktop {
     application {
         mainClass = "com.morphingcoffee.gamelauncher.MainKt"
@@ -149,6 +164,7 @@ compose.desktop {
                 bundleID = "com.morphingcoffee.gamelauncher.desktop"
                 // JDK 17 jpackage rejects app-version with major 0; keep global 0.0.1 for artifact names.
                 packageVersion = "1.0.0"
+                ciBuildNumberProperty()?.let { packageBuildVersion = it }
             }
         }
     }
@@ -171,12 +187,21 @@ gradle.taskGraph.whenReady {
 tasks.register("printPackageVersion") {
     notCompatibleWithConfigurationCache("Reads packageVersion from Compose Desktop DSL")
     group = "distribution"
-    description = "Prints packageVersion for CI artifact naming"
+    description = "Prints marketing packageVersion (no CI build suffix)"
     doLast {
         println(
             compose.desktop.application.nativeDistributions.packageVersion
                 ?: error("packageVersion is not set"),
         )
+    }
+}
+
+tasks.register("printArtifactVersion") {
+    notCompatibleWithConfigurationCache("Reads packageVersion and optional -PbuildNumber")
+    group = "distribution"
+    description = "Prints artifact version label for CI filenames (e.g. 0.0.1-build42)"
+    doLast {
+        println(artifactVersionLabel())
     }
 }
 

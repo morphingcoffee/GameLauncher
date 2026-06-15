@@ -15,6 +15,10 @@ on:
         description: Build Windows MSI
         type: boolean
         default: true
+      build_windows_zip:
+        description: Build Windows portable ZIP (app folder with GameLauncher.exe)
+        type: boolean
+        default: true
 
 concurrency:
   group: desktop-installers-${{ github.workflow }}-${{ github.event.inputs.ref || github.ref }}
@@ -26,6 +30,8 @@ jobs:
     if: github.event.inputs.build_macos != 'false'
     runs-on: macos-latest
     timeout-minutes: 15
+    env:
+      BUILD_NUMBER: ${{ github.run_number }}
     strategy:
       fail-fast: false
       matrix:
@@ -67,7 +73,7 @@ jobs:
         working-directory: ${{ github.workspace }}
 
       - name: Build macOS app image
-        run: ./gradlew :composeApp:createDistributable --no-daemon -PcomposeDesktopHost=${{ matrix.compose_host }}
+        run: ./gradlew :composeApp:createDistributable --no-daemon -PcomposeDesktopHost=${{ matrix.compose_host }} -PbuildNumber=$BUILD_NUMBER
 
       - name: Verify app binary architecture
         run: |
@@ -83,8 +89,8 @@ jobs:
       - name: Ad-hoc sign app bundle
         run: codesign --force --deep --sign - "composeApp/build/compose/binaries/main/app/GameLauncher.app"
 
-      - name: Resolve package version
-        run: echo "PACKAGE_VERSION=$(./gradlew -q :composeApp:printPackageVersion --no-daemon)" >> "$GITHUB_ENV"
+      - name: Resolve artifact version
+        run: echo "ARTIFACT_VERSION=$(./gradlew -q :composeApp:printArtifactVersion --no-daemon -PbuildNumber=$BUILD_NUMBER)" >> "$GITHUB_ENV"
 
       - name: Create DMG from signed app
         run: |
@@ -92,21 +98,21 @@ jobs:
             -volname "Game Launcher" \
             -srcfolder "composeApp/build/compose/binaries/main/app/GameLauncher.app" \
             -ov -format UDZO \
-            "GameLauncher-${PACKAGE_VERSION}-${{ matrix.compose_host }}.dmg"
+            "GameLauncher-${ARTIFACT_VERSION}-${{ matrix.compose_host }}.dmg"
 
       - name: Create portable ZIP
         run: |
           ditto -c -k --keepParent \
             "composeApp/build/compose/binaries/main/app/GameLauncher.app" \
-            "GameLauncher-${{ matrix.compose_host }}.zip"
+            "GameLauncher-${ARTIFACT_VERSION}-${{ matrix.compose_host }}.zip"
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
           name: GameLauncher-${{ matrix.compose_host }}
           path: |
-            launcher/GameLauncher-${{ env.PACKAGE_VERSION }}-${{ matrix.compose_host }}.dmg
-            launcher/GameLauncher-${{ matrix.compose_host }}.zip
+            launcher/GameLauncher-${{ env.ARTIFACT_VERSION }}-${{ matrix.compose_host }}.dmg
+            launcher/GameLauncher-${{ env.ARTIFACT_VERSION }}-${{ matrix.compose_host }}.zip
           if-no-files-found: error
 
       - name: macOS install notes
@@ -121,7 +127,7 @@ jobs:
           # or, for the DMG: mount it, then run the same on the copied .app
           ```
 
-          Then open **Game Launcher** normally. Full Developer ID signing and notarization are planned later ([#9](https://github.com/morphingcoffee/GameLauncher/issues/9)).
+          Then open **Game Launcher** normally. Build **${{ env.BUILD_NUMBER }}** is embedded in `CFBundleVersion`. Full Developer ID signing and notarization are planned later ([#9](https://github.com/morphingcoffee/GameLauncher/issues/9)).
           EOF
 
   build-windows:
@@ -171,4 +177,60 @@ jobs:
           ### Windows artifact
 
           Run the MSI installer. Windows SmartScreen may warn about an unknown publisher — choose **More info** → **Run anyway**. Authenticode signing is planned for a later release.
+          EOF
+
+  build-windows-zip:
+    name: Windows (portable ZIP)
+    if: github.event.inputs.build_windows_zip != 'false'
+    runs-on: windows-latest
+    timeout-minutes: 10
+    env:
+      BUILD_NUMBER: ${{ github.run_number }}
+    defaults:
+      run:
+        working-directory: launcher
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Package portable ZIP
+        shell: pwsh
+        run: ..\tools\dev\package-windows-zip.ps1
+        working-directory: launcher
+
+      - name: Resolve artifact version
+        shell: pwsh
+        run: |
+          $artifactVersion = .\gradlew.bat -q :composeApp:printArtifactVersion --no-daemon "-PbuildNumber=$($env:BUILD_NUMBER)"
+          "ARTIFACT_VERSION=$artifactVersion" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Upload Windows portable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: GameLauncher-windows-zip-${{ env.ARTIFACT_VERSION }}
+          path: launcher/GameLauncher-${{ env.ARTIFACT_VERSION }}-windows.zip
+          if-no-files-found: error
+
+      - name: Windows ZIP install notes
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ### Windows portable ZIP
+
+          Unzip and run `GameLauncher.exe` inside `GameLauncher-0.0.1-build<run>/`. No Start Menu entry or installer wizard.
+
+          **Upgrade:** replace the extracted folder with a newer ZIP.
+
+          **Build:** `${{ env.BUILD_NUMBER }}` (artifact version `0.0.1-build<run>`).
+
+          Downloaded games live in `%APPDATA%\GameLauncher` — deleting the portable folder does not remove them.
           EOF
