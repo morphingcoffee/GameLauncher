@@ -83,6 +83,9 @@ JAVA_HOME=/path/to/x64-jdk/Contents/Home ./gradlew :composeApp:packageDmg -Pcomp
 
 # Windows (WiX Toolset 3.11+ required)
 ./gradlew :composeApp:packageMsi
+
+# Windows portable ZIP — unzip GameLauncher-{version}/GameLauncher.exe (no installer)
+pwsh ../tools/dev/package-windows-zip.ps1 -BuildNumber 1
 ```
 
 ### CI artifacts
@@ -90,20 +93,23 @@ JAVA_HOME=/path/to/x64-jdk/Contents/Home ./gradlew :composeApp:packageDmg -Pcomp
 Desktop installers are built **on demand** via [`.github/workflows/desktop-installers.yml`](.github/workflows/desktop-installers.yml) — they do not run on every push or pull request.
 
 1. Open **Actions** → **Desktop installers** → **Run workflow**
-2. Choose branch (default `main`), optionally disable macOS or Windows
+2. Choose branch (default `main`); toggle macOS, Windows MSI, or Windows portable ZIP independently
 3. Download from the run → **Artifacts**
 
 | Runner | Artifacts |
 |--------|-----------|
-| `macos-latest` (arm64 JDK) | `GameLauncher-{version}-macos-arm64.dmg`, `GameLauncher-macos-arm64.zip` |
-| `macos-latest` (x64 JDK) | `GameLauncher-{version}-macos-x64.dmg`, `GameLauncher-macos-x64.zip` |
-| `windows-latest` | `GameLauncher-{version}.msi` |
+| `macos-latest` (arm64 JDK) | `GameLauncher-{version}-macos-arm64.dmg`, `GameLauncher-{version}-macos-arm64.zip` |
+| `macos-latest` (x64 JDK) | `GameLauncher-{version}-macos-x64.dmg`, `GameLauncher-{version}-macos-x64.zip` |
+| `windows-latest` (MSI job) | `GameLauncher-{version}.msi` (artifact `GameLauncher-windows`) |
+| `windows-latest` (ZIP job) | `GameLauncher-{version}.zip` (artifact `GameLauncher-{version}`) |
 
-`{version}` matches `packageVersion` in [`launcher/composeApp/build.gradle.kts`](launcher/composeApp/build.gradle.kts).
+`{version}` is the marketing `packageVersion` (`0.0.1`) plus a CI build suffix when built via Actions: `0.0.1-build{run}` (see `printArtifactVersion` in [`launcher/composeApp/build.gradle.kts`](launcher/composeApp/build.gradle.kts)). macOS and Windows ZIP jobs from the same workflow run share `{run}` (`github.run_number` passed as `-PbuildNumber`).
 
-**macOS:** GitHub adds a quarantine flag. After download, run `xattr -cr GameLauncher.app` (or the app inside the mounted DMG), then open normally. Developer ID signing/notarization is tracked in [#9](https://github.com/morphingcoffee/GameLauncher/issues/9).
+**macOS:** GitHub adds a quarantine flag. After download, run `xattr -cr GameLauncher.app` (or the app inside the mounted DMG), then open normally. Developer ID signing/notarization is tracked in [#9](https://github.com/morphingcoffee/GameLauncher/issues/9). CI embeds the build number in `CFBundleVersion`.
 
-**Windows:** SmartScreen may warn about an unknown publisher — use **More info** → **Run anyway**.
+**Windows MSI:** SmartScreen may warn about an unknown publisher — use **More info** → **Run anyway**.
+
+**Windows portable ZIP:** CI builds via [`tools/dev/package-windows-zip.ps1`](tools/dev/package-windows-zip.ps1) — unzip `GameLauncher-{version}.zip` to get `GameLauncher-{version}/GameLauncher.exe` (separate workflow checkbox; no WiX required).
 
 ---
 
