@@ -1,5 +1,6 @@
-# Builds a branded Windows MSI using jpackage directly so WiX overrides in
-# composeApp/installer/windows/jpackage are applied (Compose clears compose/tmp/resources).
+# Builds a Windows MSI using jpackage directly so icon/properties in
+# composeApp/installer/windows/jpackage reach jpackage (Compose clears compose/tmp/resources).
+# Do not add MsiInstallerStrings_en.wxl here — jpackage duplicates localization and light fails.
 
 param(
     [string]$BuildNumber = $env:BUILD_NUMBER
