@@ -171,7 +171,9 @@ jobs:
 
       - name: Resolve artifact version
         shell: pwsh
-        run: echo "ARTIFACT_VERSION=$(.\gradlew.bat -q :composeApp:printArtifactVersion --no-daemon -PbuildNumber=$env:BUILD_NUMBER)" >> $env:GITHUB_ENV
+        run: |
+          $artifactVersion = .\gradlew.bat -q :composeApp:printArtifactVersion --no-daemon "-PbuildNumber=$($env:BUILD_NUMBER)"
+          "ARTIFACT_VERSION=$artifactVersion" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4

@@ -114,7 +114,7 @@ Desktop installers are built **on demand** via [`.github/workflows/desktop-insta
 
 **Windows portable ZIP:** CI builds via [`tools/dev/package-windows-zip.ps1`](tools/dev/package-windows-zip.ps1) — unzip `GameLauncher-{version}.zip` to get `GameLauncher-{version}/GameLauncher.exe` (separate workflow checkbox; no WiX required).
 
-After install, search Start for **Game Launcher**; a desktop shortcut is created by default. The MSI uses branded WiX assets from [`launcher/composeApp/installer/windows/jpackage/`](launcher/composeApp/installer/windows/jpackage/) (banner images, installer strings, custom icon). CI builds the MSI via [`tools/dev/package-windows-msi.ps1`](tools/dev/package-windows-msi.ps1), which passes those assets to `jpackage --resource-dir` (Gradle `:composeApp:packageMsi` does not).
+After install, search Start for **Game Launcher**; a desktop shortcut is created by default. CI builds the MSI via [`tools/dev/package-windows-msi.ps1`](tools/dev/package-windows-msi.ps1) (custom icon/properties via `jpackage --resource-dir`; welcome copy in `installer-license.rtf`). Gradle `:composeApp:packageMsi` does not pass `--resource-dir`.
 
 To upgrade, run a newer MSI over the existing install (no uninstall required). CI sets `-PbuildNumber` from the workflow run; Windows maps it to MSI product version `1.0.<build>`, macOS to `CFBundleVersion`. Local builds omit `-PbuildNumber` (MSI product version `1.0.0`). Rebuild-over-install locally may require uninstalling first or passing `-PbuildNumber=<n>`. MSIs produced before [#37](https://github.com/morphingcoffee/GameLauncher/issues/37) may need a one-time uninstall before upgrading.
 
