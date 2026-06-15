@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Include xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <WixVariable Id="WixUIBannerBmp" Value="$(var.JpConfigDir)\installer-banner.bmp" />
-  <WixVariable Id="WixUIDialogBmp" Value="$(var.JpConfigDir)\installer-dialog.bmp" />
+  <WixVariable Id="WixUIBannerBmp" Value="$(JpConfigDir)\installer-banner.bmp" />
+  <WixVariable Id="WixUIDialogBmp" Value="$(JpConfigDir)\installer-dialog.bmp" />
 </Include>

@@ -164,7 +164,7 @@ compose.desktop {
             packageName = "GameLauncher"
             packageVersion = "0.0.1"
             description = "Desktop launcher for curated game builds and prototypes"
-            vendor = "Game Launcher"
+            vendor = "GameLauncher"
             copyright = "Game Launcher"
             licenseFile.set(layout.projectDirectory.file("installer-license.rtf"))
 

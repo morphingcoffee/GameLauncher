@@ -43,8 +43,8 @@ if (-not (Test-Path $jpackage)) {
 # PATH, which can break jpackage's WiX sources (candle exit code 5). Prefer WiX 3.11
 # downloaded by Compose during createDistributable.
 $wixCandidates = @(
-    (Join-Path $LauncherRoot "composeApp\build\wix311")
     (Join-Path $LauncherRoot "build\wix311")
+    (Join-Path $LauncherRoot "composeApp\build\wix311")
 )
 foreach ($wixDir in $wixCandidates) {
     $candle = Join-Path $wixDir "candle.exe"
@@ -70,7 +70,7 @@ Write-Host "Packaging MSI product version $msiVersion with branded WiX resources
     --license-file $licenseFile `
     --name GameLauncher `
     --description "Desktop launcher for curated game builds and prototypes" `
-    --vendor "Game Launcher" `
+    --vendor GameLauncher `
     --copyright "Game Launcher" `
     --app-version $msiVersion `
     --dest $destDir `
