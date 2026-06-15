@@ -20,7 +20,7 @@ $gradleArgs = @(":composeApp:createDistributable", "--no-daemon", "-PbuildNumber
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 $appImage = Join-Path $LauncherRoot "composeApp\build\compose\binaries\main\app\GameLauncher"
-$resourceSourceDir = Join-Path $LauncherRoot "composeApp\installer\windows\jpackage"
+$resourceDir = Join-Path $LauncherRoot "composeApp\installer\windows\jpackage"
 $licenseFile = Join-Path $LauncherRoot "composeApp\installer-license.rtf"
 $iconFile = Join-Path $LauncherRoot "composeApp\icons\icon.ico"
 $destDir = Join-Path $LauncherRoot "composeApp\build\compose\binaries\main\msi"
@@ -29,35 +29,23 @@ $msiVersion = (& .\gradlew.bat -q :composeApp:printWindowsMsiProductVersion --no
 if (-not (Test-Path $appImage)) {
     Write-Error "App image not found at $appImage"
 }
-if (-not (Test-Path $resourceSourceDir)) {
-    Write-Error "Installer resources not found at $resourceSourceDir"
+if (-not (Test-Path $resourceDir)) {
+    Write-Error "Installer resources not found at $resourceDir"
 }
 
-$stagingDir = Join-Path $LauncherRoot "composeApp\build\windows-jpackage-resources"
-if (Test-Path $stagingDir) {
-    Remove-Item $stagingDir -Recurse -Force
-}
-New-Item -ItemType Directory -Force -Path $stagingDir | Out-Null
-
-foreach ($fileName in @("GameLauncher.ico", "GameLauncher.properties", "installer-banner.bmp", "installer-dialog.bmp")) {
-    $sourceFile = Join-Path $resourceSourceDir $fileName
-    if (-not (Test-Path $sourceFile)) {
-        Write-Error "Missing installer resource: $sourceFile"
+$requiredResources = @(
+    "GameLauncher.ico",
+    "GameLauncher.properties",
+    "installer-banner.bmp",
+    "installer-dialog.bmp",
+    "overrides.wxi",
+)
+foreach ($fileName in $requiredResources) {
+    $resourceFile = Join-Path $resourceDir $fileName
+    if (-not (Test-Path $resourceFile)) {
+        Write-Error "Missing installer resource: $resourceFile"
     }
-    Copy-Item $sourceFile (Join-Path $stagingDir $fileName)
 }
-
-# WiX resolves banner paths from candle's working directory, not the config dir — use absolute paths.
-$bannerPath = (Resolve-Path (Join-Path $stagingDir "installer-banner.bmp")).Path.Replace("\", "/")
-$dialogPath = (Resolve-Path (Join-Path $stagingDir "installer-dialog.bmp")).Path.Replace("\", "/")
-$overridesWxi = @"
-<?xml version="1.0" encoding="utf-8"?>
-<Include xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <WixVariable Id="WixUIBannerBmp" Value="$bannerPath" />
-  <WixVariable Id="WixUIDialogBmp" Value="$dialogPath" />
-</Include>
-"@
-Set-Content -Path (Join-Path $stagingDir "overrides.wxi") -Value $overridesWxi -Encoding utf8NoBOM
 
 New-Item -ItemType Directory -Force -Path $destDir | Out-Null
 
@@ -92,7 +80,7 @@ Write-Host "Packaging MSI product version $msiVersion with branded WiX resources
 & $jpackage `
     --type msi `
     --app-image $appImage `
-    --resource-dir $stagingDir `
+    --resource-dir $resourceDir `
     --license-file $licenseFile `
     --name GameLauncher `
     --description Curated-indie-game-launcher `
