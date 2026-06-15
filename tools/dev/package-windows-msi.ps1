@@ -39,6 +39,28 @@ if (-not (Test-Path $jpackage)) {
     Write-Error "jpackage not found at $jpackage"
 }
 
+# JDK 17 jpackage requires WiX 3.x candle.exe/light.exe. GitHub runners ship WiX 3.14+ on
+# PATH, which can break jpackage's WiX sources (candle exit code 5). Prefer WiX 3.11
+# downloaded by Compose during createDistributable.
+$wixCandidates = @(
+    (Join-Path $LauncherRoot "composeApp\build\wix311")
+    (Join-Path $LauncherRoot "build\wix311")
+)
+foreach ($wixDir in $wixCandidates) {
+    $candle = Join-Path $wixDir "candle.exe"
+    if (Test-Path $candle) {
+        $env:PATH = "$wixDir;$env:PATH"
+        Write-Host "Using WiX from $wixDir"
+        break
+    }
+}
+$candleCmd = Get-Command candle.exe -ErrorAction SilentlyContinue
+if ($candleCmd) {
+    Write-Host "candle.exe: $($candleCmd.Source)"
+} else {
+    Write-Error "candle.exe not found on PATH after WiX setup"
+}
+
 Write-Host "Packaging MSI product version $msiVersion with branded WiX resources..."
 
 & $jpackage `
