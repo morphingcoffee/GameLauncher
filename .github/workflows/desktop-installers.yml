@@ -16,7 +16,7 @@ on:
         type: boolean
         default: true
       build_windows_zip:
-        description: Build Windows portable ZIP (app folder with GameLauncher.exe)
+        description: Build Windows portable ZIP
         type: boolean
         default: true
 
