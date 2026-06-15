@@ -165,7 +165,7 @@ compose.desktop {
             packageVersion = "0.0.1"
             description = "Curated-indie-game-launcher"
             vendor = "GameLauncher"
-            copyright = "Game Launcher"
+            copyright = "GameLauncher"
             licenseFile.set(layout.projectDirectory.file("installer-license.rtf"))
 
             val iconsDir = layout.projectDirectory.dir("icons")

@@ -71,7 +71,7 @@ Write-Host "Packaging MSI product version $msiVersion with branded WiX resources
     --name GameLauncher `
     --description Curated-indie-game-launcher `
     --vendor GameLauncher `
-    --copyright "Game Launcher" `
+    --copyright GameLauncher `
     --app-version $msiVersion `
     --dest $destDir `
     --icon $iconFile `
