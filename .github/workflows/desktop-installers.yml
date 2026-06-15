@@ -16,10 +16,6 @@ on:
         type: boolean
         default: true
       build_windows_zip:
-        description: Build Windows portable ZIP (app folder with GameLauncher.exe)
-        type: boolean
-        default: true
-      build_windows_zip:
         description: Build Windows portable ZIP
         type: boolean
         default: true
@@ -201,62 +197,6 @@ jobs:
           **Upgrades:** install a newer CI MSI over an existing install. If you installed an older MSI built *before* [#37](https://github.com/morphingcoffee/GameLauncher/issues/37), uninstall once from Settings → Apps first.
 
           Downloaded games live in `%APPDATA%\GameLauncher` — uninstalling the launcher does not remove them.
-          EOF
-
-  build-windows-zip:
-    name: Windows (portable ZIP)
-    if: github.event.inputs.build_windows_zip != 'false'
-    runs-on: windows-latest
-    timeout-minutes: 10
-    env:
-      BUILD_NUMBER: ${{ github.run_number }}
-    defaults:
-      run:
-        working-directory: launcher
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.ref || github.ref }}
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-          cache: gradle
-
-      - name: Package portable ZIP
-        shell: pwsh
-        run: ..\tools\dev\package-windows-zip.ps1
-        working-directory: launcher
-
-      - name: Resolve artifact version
-        shell: pwsh
-        run: |
-          $artifactVersion = .\gradlew.bat -q :composeApp:printArtifactVersion --no-daemon "-PbuildNumber=$($env:BUILD_NUMBER)"
-          "ARTIFACT_VERSION=$artifactVersion" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-
-      - name: Upload Windows portable ZIP
-        uses: actions/upload-artifact@v4
-        with:
-          name: GameLauncher-${{ env.ARTIFACT_VERSION }}
-          path: launcher/GameLauncher-${{ env.ARTIFACT_VERSION }}.zip
-          if-no-files-found: error
-
-      - name: Windows ZIP install notes
-        shell: bash
-        run: |
-          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
-          ### Windows portable ZIP
-
-          Unzip and run `GameLauncher.exe` inside `GameLauncher-0.0.1-build<run>/`. No Start Menu entry or installer wizard.
-
-          **Upgrade:** replace the extracted folder with a newer ZIP.
-
-          **Build:** `${{ env.BUILD_NUMBER }}` (artifact version `0.0.1-build<run>`).
-
-          Downloaded games live in `%APPDATA%\GameLauncher` — deleting the portable folder does not remove them.
           EOF
 
   build-windows-zip:
