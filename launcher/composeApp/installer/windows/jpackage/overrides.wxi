@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- jpackage includes this file before <Product> in main.wxs — WixVariables must live in a Fragment. -->
-<Include xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Fragment>
-    <WixVariable Id="WixUIBannerBmp" Value="installer-banner.bmp" />
-    <WixVariable Id="WixUIDialogBmp" Value="installer-dialog.bmp" />
-  </Fragment>
-</Include>
+<!-- Included into main.wxs at <Wix> scope — use Fragment, not a nested <Include> wrapper. -->
+<Fragment xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <WixVariable Id="WixUIBannerBmp" Value="installer-banner.bmp" />
+  <WixVariable Id="WixUIDialogBmp" Value="installer-dialog.bmp" />
+</Fragment>
