@@ -26,7 +26,7 @@ if (-not (Test-Path $appImage)) {
 
 $artifactVersion = (& .\gradlew.bat -q :composeApp:printArtifactVersion --no-daemon "-PbuildNumber=$BuildNumber").Trim()
 $versionedFolderName = "GameLauncher-$artifactVersion"
-$zipPath = Join-Path $LauncherRoot "GameLauncher-$artifactVersion-windows.zip"
+$zipPath = Join-Path $LauncherRoot "GameLauncher-$artifactVersion.zip"
 if (Test-Path $zipPath) {
     Remove-Item $zipPath -Force
 }

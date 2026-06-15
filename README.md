@@ -101,7 +101,7 @@ Desktop installers are built **on demand** via [`.github/workflows/desktop-insta
 | `macos-latest` (arm64 JDK) | `GameLauncher-{version}-macos-arm64.dmg`, `GameLauncher-{version}-macos-arm64.zip` |
 | `macos-latest` (x64 JDK) | `GameLauncher-{version}-macos-x64.dmg`, `GameLauncher-{version}-macos-x64.zip` |
 | `windows-latest` (MSI job) | `GameLauncher-{version}.msi` (artifact `GameLauncher-windows`) |
-| `windows-latest` (ZIP job) | `GameLauncher-{version}-windows.zip` (artifact `GameLauncher-windows-zip-{version}`) |
+| `windows-latest` (ZIP job) | `GameLauncher-{version}.zip` (artifact `GameLauncher-{version}`) |
 
 `{version}` is the marketing `packageVersion` (`0.0.1`) plus a CI build suffix when built via Actions: `0.0.1-build{run}` (see `printArtifactVersion` in [`launcher/composeApp/build.gradle.kts`](launcher/composeApp/build.gradle.kts)). macOS and Windows ZIP jobs from the same workflow run share `{run}` (`github.run_number` passed as `-PbuildNumber`).
 
@@ -109,7 +109,7 @@ Desktop installers are built **on demand** via [`.github/workflows/desktop-insta
 
 **Windows MSI:** SmartScreen may warn about an unknown publisher — use **More info** → **Run anyway**.
 
-**Windows portable ZIP:** CI builds via [`tools/dev/package-windows-zip.ps1`](tools/dev/package-windows-zip.ps1) — unzip `GameLauncher-{version}-windows.zip` to get `GameLauncher-{version}/GameLauncher.exe` (separate workflow checkbox; no WiX required).
+**Windows portable ZIP:** CI builds via [`tools/dev/package-windows-zip.ps1`](tools/dev/package-windows-zip.ps1) — unzip `GameLauncher-{version}.zip` to get `GameLauncher-{version}/GameLauncher.exe` (separate workflow checkbox; no WiX required).
 
 ---
 
