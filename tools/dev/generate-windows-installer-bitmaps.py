@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 """Generate WiX installer banner/dialog BMPs for Game Launcher.
 
-WiX UI stretches these bitmaps across the full control width. Keep the right
-portion a clean light panel so title/body text stays readable.
+WiX UI stretches these bitmaps across the full control width.
+
+Banner (493×58): jpackage WixUI places the step title at x≈15 and description at
+x≈25 (width≈280) on the bitmap — keep x=0..310 a clean light panel. Industrial
+art lives on the far right only.
+
+Dialog (493×312): left industrial column + right light panel for welcome copy.
 
 Outputs (launcher palette — see LauncherColors.kt):
   installer-banner.bmp  493×58
@@ -28,8 +33,9 @@ LIGHT_BOTTOM = (241, 245, 249)  # #F1F5F9
 BANNER_W, BANNER_H = 493, 58
 DIALOG_W, DIALOG_H = 493, 312
 
-# Light text zones (right side). Accent lines stay inside the art zone only.
-BANNER_ART_W = 318
+# WixUI title (~x=15, w≈200) + description (~x=25, w≈280) must sit on light pixels.
+BANNER_LIGHT_W = 312
+BANNER_ART_X = BANNER_LIGHT_W
 DIALOG_ART_W = 178
 
 
@@ -150,13 +156,38 @@ def _paint_industrial_art(
     pixels: list[list[tuple[int, int, int]]],
     art_width: int,
     height: int,
+    x_offset: int = 0,
 ) -> None:
-    _fill_vertical_gradient(pixels, 0, art_width, 0, height, PANEL, BG)
-    _fill_radial_glow(pixels, 72, height * 0.22, 140, PRIMARY, 0.28, 0, art_width, 0, height)
-    _fill_radial_glow(pixels, art_width * 0.55, height * 0.75, 120, ACCENT, 0.16, 0, art_width, 0, height)
-    _draw_scan_grid(pixels, 0, art_width, 0, height, spacing=7, strength=0.09)
-    _draw_vertical_rule(pixels, 3, 0, height, ACCENT, 0.75)
-    _draw_vertical_rule(pixels, 4, 0, height, ACCENT, 0.35)
+    x0 = x_offset
+    x1 = x_offset + art_width
+    _fill_vertical_gradient(pixels, x0, x1, 0, height, PANEL, BG)
+    _fill_radial_glow(
+        pixels,
+        x_offset + art_width * 0.35,
+        height * 0.28,
+        min(art_width, 120),
+        PRIMARY,
+        0.28,
+        x0,
+        x1,
+        0,
+        height,
+    )
+    _fill_radial_glow(
+        pixels,
+        x_offset + art_width * 0.72,
+        height * 0.72,
+        min(art_width, 100),
+        ACCENT,
+        0.18,
+        x0,
+        x1,
+        0,
+        height,
+    )
+    _draw_scan_grid(pixels, x0, x1, 0, height, spacing=7, strength=0.09)
+    _draw_vertical_rule(pixels, x_offset + 3, 0, height, ACCENT, 0.75)
+    _draw_vertical_rule(pixels, x_offset + 4, 0, height, ACCENT, 0.35)
 
 
 def _pixels_to_image(pixels: list[list[tuple[int, int, int]]], width: int, height: int) -> Image.Image:
@@ -168,16 +199,25 @@ def _make_banner() -> Image.Image:
     pixels: list[list[tuple[int, int, int]]] = [
         [BG for _ in range(BANNER_W)] for _ in range(BANNER_H)
     ]
-    _paint_industrial_art(pixels, BANNER_ART_W, BANNER_H)
-    _fill_light_panel(pixels, BANNER_ART_W, BANNER_W, 0, BANNER_H)
 
-    # Accent only in art zone — never crosses the text panel.
-    _draw_horizontal_rule(pixels, BANNER_H - 2, 0, BANNER_ART_W, ACCENT, 0.9)
-    _draw_horizontal_rule(pixels, BANNER_H - 4, 0, BANNER_ART_W, PRIMARY, 0.25)
+    # Text zone first — full light field for title + subtitle.
+    _fill_light_panel(pixels, 0, BANNER_LIGHT_W, 0, BANNER_H)
 
-    # Subtle top edge highlight on art side
-    for x in range(0, BANNER_ART_W):
-        pixels[0][x] = _lerp_rgb(pixels[0][x], ACCENT, 0.12)
+    # Hairline under text only (neutral, not cyan — avoids crowding subtitle at y≈23).
+    _draw_horizontal_rule(pixels, BANNER_H - 1, 0, BANNER_LIGHT_W, (226, 232, 240), 0.55)
+
+    # Industrial panel on the far right (out of text bounds).
+    art_width = BANNER_W - BANNER_ART_X
+    _paint_industrial_art(pixels, art_width, BANNER_H, x_offset=BANNER_ART_X)
+    _draw_horizontal_rule(pixels, BANNER_H - 2, BANNER_ART_X, BANNER_W, ACCENT, 0.85)
+    _draw_horizontal_rule(pixels, BANNER_H - 4, BANNER_ART_X, BANNER_W, PRIMARY, 0.22)
+
+    # Separator between text field and art.
+    sep_x = BANNER_ART_X
+    for y in range(BANNER_H):
+        pixels[y][sep_x] = _lerp_rgb(pixels[y][sep_x], PANEL, 0.45)
+        if sep_x + 1 < BANNER_W:
+            pixels[y][sep_x + 1] = _lerp_rgb(pixels[y][sep_x + 1], LIGHT_BOTTOM, 0.35)
 
     return _pixels_to_image(pixels, BANNER_W, BANNER_H)
 
