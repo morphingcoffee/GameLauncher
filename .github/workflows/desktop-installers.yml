@@ -12,7 +12,7 @@ on:
         type: boolean
         default: true
       build_windows:
-        description: Build Windows MSI
+        description: Build Windows MSI installer
         type: boolean
         default: true
       build_windows_zip:
@@ -130,11 +130,13 @@ jobs:
           Then open **Game Launcher** normally. Build **${{ env.BUILD_NUMBER }}** is embedded in `CFBundleVersion`. Full Developer ID signing and notarization are planned later ([#9](https://github.com/morphingcoffee/GameLauncher/issues/9)).
           EOF
 
-  build-windows:
+  build-windows-msi:
     name: Windows (MSI)
     if: github.event.inputs.build_windows != 'false'
     runs-on: windows-latest
     timeout-minutes: 10
+    env:
+      BUILD_NUMBER: ${{ github.run_number }}
     defaults:
       run:
         working-directory: launcher
@@ -151,32 +153,50 @@ jobs:
           java-version: 17
           cache: gradle
 
-      # windows-latest ships WiX 3.14+; do not pin an older Chocolatey version (downgrade fails).
+      # JDK 17 jpackage needs WiX 3.x candle/light. package-windows-msi.ps1 prefers
+      # composeApp/build/wix311 from Gradle; skip relying on the runner image WiX 3.14.
       - name: Verify WiX Toolset
         shell: pwsh
         run: |
           if (-not (Get-Command candle.exe -ErrorAction SilentlyContinue)) {
-            choco install wixtoolset -y --no-progress
+            Write-Host "candle.exe not on PATH; Gradle createDistributable will download WiX 3.11"
+          } else {
+            Write-Host "Pre-Gradle candle.exe: $((Get-Command candle.exe).Source)"
           }
 
       - name: Package MSI
         shell: pwsh
-        run: .\gradlew.bat :composeApp:packageMsi --no-daemon
+        run: ..\tools\dev\package-windows-msi.ps1
+        working-directory: launcher
 
-      - name: Upload Windows artifact
+      - name: Resolve artifact version
+        shell: pwsh
+        run: |
+          $artifactVersion = .\gradlew.bat -q :composeApp:printArtifactVersion --no-daemon "-PbuildNumber=$($env:BUILD_NUMBER)"
+          "ARTIFACT_VERSION=$artifactVersion" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Upload Windows MSI
         uses: actions/upload-artifact@v4
         with:
-          name: GameLauncher-windows
+          name: GameLauncher-windows-msi-${{ env.ARTIFACT_VERSION }}
           path: launcher/composeApp/build/compose/binaries/main/msi/*.msi
           if-no-files-found: error
 
-      - name: Windows install notes
+      - name: Windows MSI install notes
         shell: bash
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
-          ### Windows artifact
+          ### Windows MSI
 
-          Run the MSI installer. Windows SmartScreen may warn about an unknown publisher — choose **More info** → **Run anyway**. Authenticode signing is planned for a later release.
+          Run the installer. Windows SmartScreen may warn about an unknown publisher — choose **More info** → **Run anyway**. Authenticode signing is tracked in [#45](https://github.com/morphingcoffee/GameLauncher/issues/45).
+
+          **After install:** search Start for **Game Launcher**; a desktop shortcut is created by default.
+
+          **Build:** `${{ env.BUILD_NUMBER }}` (MSI product version `1.0.<build>`).
+
+          **Upgrades:** install a newer CI MSI over an existing install. If you installed an older MSI built *before* [#37](https://github.com/morphingcoffee/GameLauncher/issues/37), uninstall once from Settings → Apps first.
+
+          Downloaded games live in `%APPDATA%\GameLauncher` — uninstalling the launcher does not remove them.
           EOF
 
   build-windows-zip:

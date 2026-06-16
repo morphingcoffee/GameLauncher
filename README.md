@@ -81,7 +81,13 @@ cd launcher
 # macOS — Intel (use an x64 JDK; on Apple Silicon, run under Rosetta)
 JAVA_HOME=/path/to/x64-jdk/Contents/Home ./gradlew :composeApp:packageDmg -PcomposeDesktopHost=macos-x64
 
-# Windows (WiX Toolset 3.11+ required)
+# Windows (WiX Toolset 3.11+ required) — MSI installer with branded WiX UI
+pwsh ../tools/dev/package-windows-msi.ps1 -BuildNumber 1
+
+# Windows portable ZIP — unzip and run GameLauncher.exe (no installer)
+pwsh ../tools/dev/package-windows-zip.ps1 -BuildNumber 1
+
+# Or Gradle only (shortcuts/upgrade UUID; no custom WiX banner/dialog)
 ./gradlew :composeApp:packageMsi
 
 # Windows portable ZIP — unzip GameLauncher-{version}/GameLauncher.exe (no installer)
@@ -100,16 +106,22 @@ Desktop installers are built **on demand** via [`.github/workflows/desktop-insta
 |--------|-----------|
 | `macos-latest` (arm64 JDK) | `GameLauncher-{version}-macos-arm64.dmg`, `GameLauncher-{version}-macos-arm64.zip` |
 | `macos-latest` (x64 JDK) | `GameLauncher-{version}-macos-x64.dmg`, `GameLauncher-{version}-macos-x64.zip` |
-| `windows-latest` (MSI job) | `GameLauncher-{version}.msi` (artifact `GameLauncher-windows`) |
+| `windows-latest` (MSI job) | `GameLauncher-{version}.msi` (artifact `GameLauncher-windows-msi-{version}`) |
 | `windows-latest` (ZIP job) | `GameLauncher-{version}.zip` (artifact `GameLauncher-{version}`) |
 
-`{version}` is the marketing `packageVersion` (`0.0.1`) plus a CI build suffix when built via Actions: `0.0.1-build{run}` (see `printArtifactVersion` in [`launcher/composeApp/build.gradle.kts`](launcher/composeApp/build.gradle.kts)). macOS and Windows ZIP jobs from the same workflow run share `{run}` (`github.run_number` passed as `-PbuildNumber`).
+`{version}` is the marketing `packageVersion` (`0.0.1`) plus a CI build suffix when built via Actions: `0.0.1-build{run}` (see `printArtifactVersion` in [`launcher/composeApp/build.gradle.kts`](launcher/composeApp/build.gradle.kts)). macOS and Windows jobs from the same workflow run share `{run}` (`github.run_number` passed as `-PbuildNumber`).
 
 **macOS:** GitHub adds a quarantine flag. After download, run `xattr -cr GameLauncher.app` (or the app inside the mounted DMG), then open normally. Developer ID signing/notarization is tracked in [#9](https://github.com/morphingcoffee/GameLauncher/issues/9). CI embeds the build number in `CFBundleVersion`.
 
-**Windows MSI:** SmartScreen may warn about an unknown publisher — use **More info** → **Run anyway**.
+**Windows MSI:** SmartScreen may warn about an unknown publisher — use **More info** → **Run anyway**. Authenticode signing is tracked in [#45](https://github.com/morphingcoffee/GameLauncher/issues/45).
 
 **Windows portable ZIP:** CI builds via [`tools/dev/package-windows-zip.ps1`](tools/dev/package-windows-zip.ps1) — unzip `GameLauncher-{version}.zip` to get `GameLauncher-{version}/GameLauncher.exe` (separate workflow checkbox; no WiX required).
+
+After install, search Start for **Game Launcher**; a desktop shortcut is created by default. CI builds the MSI via [`tools/dev/package-windows-msi.ps1`](tools/dev/package-windows-msi.ps1) (custom WiX banner/dialog, icon, and properties from [`launcher/composeApp/installer/windows/msi/`](launcher/composeApp/installer/windows/msi/); welcome copy in `installer-license.rtf`). Regenerate installer BMPs with `python3 launcher/composeApp/installer/windows/msi/generate-installer-bitmaps.py` (requires Pillow). Gradle `:composeApp:packageMsi` does not pass `--resource-dir`.
+
+Uninstalling the MSI removes the app under Program Files but **not** downloaded games in `%APPDATA%\GameLauncher`.
+
+To upgrade, run a newer MSI over the existing install (no uninstall required). CI sets `-PbuildNumber` from the workflow run; Windows maps it to MSI product version `1.0.<build>`, macOS to `CFBundleVersion`. Local builds omit `-PbuildNumber` (MSI product version `1.0.0`). Rebuild-over-install locally may require uninstalling first or passing `-PbuildNumber=<n>`. MSIs produced before [#37](https://github.com/morphingcoffee/GameLauncher/issues/37) may need a one-time uninstall before upgrading.
 
 ---
 
