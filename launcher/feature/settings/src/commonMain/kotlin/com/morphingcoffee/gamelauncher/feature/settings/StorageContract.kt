@@ -80,6 +80,7 @@ data class StorageState(
             when {
                 isUninstalling -> "UNINSTALLING"
                 isLoading -> "LOADING"
+                errorMessage != null -> "ERROR"
                 else -> "STORAGE"
             }
 

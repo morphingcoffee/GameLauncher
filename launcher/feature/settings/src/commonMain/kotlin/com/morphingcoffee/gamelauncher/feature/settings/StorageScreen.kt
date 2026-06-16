@@ -213,6 +213,16 @@ fun StorageScreenContent(
                         ),
                 )
 
+                if (state.activeDialog == null) {
+                    state.errorMessage?.let { message ->
+                        MonoLabel(
+                            text = message.uppercase(),
+                            accent = true,
+                            modifier = Modifier.padding(bottom = LauncherSpacing.Sm),
+                        )
+                    }
+                }
+
                 Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
                     BoxWithConstraints(
                         modifier =

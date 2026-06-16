@@ -42,7 +42,7 @@ class StorageViewModel(
                 refresh()
             }
 
-            StorageEvent.Refresh -> refresh()
+            StorageEvent.Refresh -> refresh(clearErrorMessage = true)
 
             StorageEvent.ClockTick -> {
                 updateState { copy(clockText = platformClockText()) }
@@ -124,13 +124,18 @@ class StorageViewModel(
         }
     }
 
-    private fun refresh() {
+    private fun refresh(clearErrorMessage: Boolean = true) {
         val epoch = ++loadEpoch
         refreshJob?.cancel()
         refreshJob =
             viewModelScope.launch {
                 if (state.value.isUninstalling) return@launch
-                updateState { copy(isLoading = true, errorMessage = null) }
+                updateState {
+                    copy(
+                        isLoading = true,
+                        errorMessage = if (clearErrorMessage) null else errorMessage,
+                    )
+                }
                 refreshInstalledGames(epoch = epoch)
             }
     }
@@ -249,7 +254,7 @@ class StorageViewModel(
                                     error.message ?: "Uninstall failed. See F12 logs for details.",
                             )
                         }
-                        refresh()
+                        refresh(clearErrorMessage = false)
                     }
             }
     }
@@ -390,7 +395,6 @@ class StorageViewModel(
                         refreshInstalledGames(epoch = loadEpoch, force = true)
                     }.onFailure { error ->
                         AppLog.e("Storage", "Uninstall-all failed", error)
-                        refresh()
                         updateState {
                             copy(
                                 isUninstalling = false,
@@ -399,6 +403,7 @@ class StorageViewModel(
                                     error.message ?: "Uninstall failed. See F12 logs for details.",
                             )
                         }
+                        refresh(clearErrorMessage = false)
                     }
             }
     }

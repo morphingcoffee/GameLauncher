@@ -102,6 +102,63 @@ class StorageViewModelTest {
         }
 
     @Test
+    fun uninstallGame_failure_surfacesErrorOnMainScreen() =
+        runTest {
+            val dataSource =
+                StorageTestDataSource(
+                    installed =
+                        listOf(
+                            InstalledGameSummary("alpha", "1.0.0", 100L),
+                        ),
+                    catalog = listOf(catalogEntry("alpha", "Alpha Game")),
+                    uninstallGameResult = Result.failure(IllegalStateException("Disk busy")),
+                )
+            val viewModel = StorageViewModel(dataSource)
+            viewModel.onEvent(StorageEvent.Started)
+            waitForLoaded(viewModel)
+
+            viewModel.onEvent(StorageEvent.SegmentClicked("alpha"))
+            viewModel.onEvent(StorageEvent.UninstallClicked)
+            viewModel.onEvent(StorageEvent.UninstallChargeComplete)
+            viewModel.onEvent(StorageEvent.ChartAnimationFinished)
+            viewModel.onEvent(StorageEvent.ChartAnimationFinished)
+            waitForIdle(viewModel)
+
+            assertEquals("Disk busy", viewModel.state.value.errorMessage)
+            assertNull(viewModel.state.value.activeDialog)
+            assertEquals("ERROR", viewModel.state.value.statusLabel)
+            assertEquals(1, viewModel.state.value.segments.size)
+        }
+
+    @Test
+    fun uninstallAll_failure_surfacesError() =
+        runTest {
+            val dataSource =
+                StorageTestDataSource(
+                    installed =
+                        listOf(
+                            InstalledGameSummary("alpha", "1.0.0", 100L),
+                            InstalledGameSummary("beta", "2.0.0", 300L),
+                        ),
+                    catalog = listOf(catalogEntry("alpha", "Alpha Game"), catalogEntry("beta", "Beta Game")),
+                    uninstallAllResult = Result.failure(IllegalStateException("Permission denied")),
+                )
+            val viewModel = StorageViewModel(dataSource)
+            viewModel.onEvent(StorageEvent.Started)
+            waitForLoaded(viewModel)
+
+            viewModel.onEvent(StorageEvent.CenterClicked)
+            viewModel.onEvent(StorageEvent.UninstallAllClicked)
+            viewModel.onEvent(StorageEvent.UninstallAllChargeComplete)
+            viewModel.onEvent(StorageEvent.ChartAnimationFinished)
+            waitForIdle(viewModel)
+
+            assertEquals("Permission denied", viewModel.state.value.errorMessage)
+            assertEquals("ERROR", viewModel.state.value.statusLabel)
+            assertEquals(2, viewModel.state.value.segments.size)
+        }
+
+    @Test
     fun uninstallAll_clearsSegments() =
         runTest {
             val dataSource =
@@ -165,6 +222,8 @@ class StorageViewModelTest {
     private class StorageTestDataSource(
         installed: List<InstalledGameSummary>,
         private val catalog: List<GameCatalogEntry>,
+        private val uninstallGameResult: Result<Unit>? = null,
+        private val uninstallAllResult: Result<Unit>? = null,
     ) : GameCatalogDataSource {
         private val installedGames = installed.associate { it.gameId to it.version }.toMutableMap()
         private val sizes = installed.associate { it.gameId to it.sizeBytes }.toMutableMap()
@@ -190,11 +249,13 @@ class StorageViewModelTest {
                 InstallState.NotInstalled
             }
 
-        override suspend fun uninstallGame(gameId: String): Result<Unit> =
-            runCatching {
+        override suspend fun uninstallGame(gameId: String): Result<Unit> {
+            uninstallGameResult?.let { return it }
+            return runCatching {
                 check(installedGames.remove(gameId) != null) { "Not installed" }
                 sizes.remove(gameId)
             }
+        }
 
         override suspend fun getOnDiskSizeBytes(gameId: String): Long? = sizes[gameId]
 
@@ -209,10 +270,12 @@ class StorageViewModelTest {
                     InstalledGameSummary(gameId, version, sizeBytes)
                 }.sortedByDescending { it.sizeBytes }
 
-        override suspend fun uninstallAllGames(): Result<Unit> =
-            runCatching {
+        override suspend fun uninstallAllGames(): Result<Unit> {
+            uninstallAllResult?.let { return it }
+            return runCatching {
                 installedGames.clear()
                 sizes.clear()
             }
+        }
     }
 }

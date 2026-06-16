@@ -31,9 +31,10 @@ class FakeGameCatalogDataSource(
 
     init {
         if (seedDevInstalls) {
+            // Each entry uses allPlatformBuilds at the seeded version so storage/dev works on every desktop OS.
             installedGames["void-runner"] = "1.4.2"
-            installedGames["neon-drift"] = "0.9.0"
-            installedGames["iron-ledger"] = "0.0.1"
+            installedGames["no-signal"] = "0.0.1"
+            installedGames["long-title-alpha"] = "0.0.1"
         }
     }
 
