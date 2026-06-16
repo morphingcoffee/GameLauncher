@@ -20,7 +20,7 @@ $gradleArgs = @(":composeApp:createDistributable", "--no-daemon", "-PbuildNumber
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 $appImage = Join-Path $LauncherRoot "composeApp\build\compose\binaries\main\app\GameLauncher"
-$resourceDir = Join-Path $LauncherRoot "composeApp\installer\windows\jpackage"
+$resourceSourceDir = Join-Path $LauncherRoot "composeApp\installer\windows\jpackage"
 $licenseFile = Join-Path $LauncherRoot "composeApp\installer-license.rtf"
 $iconFile = Join-Path $LauncherRoot "composeApp\icons\icon.ico"
 $destDir = Join-Path $LauncherRoot "composeApp\build\compose\binaries\main\msi"
@@ -29,11 +29,11 @@ $msiVersion = (& .\gradlew.bat -q :composeApp:printWindowsMsiProductVersion --no
 if (-not (Test-Path $appImage)) {
     Write-Error "App image not found at $appImage"
 }
-if (-not (Test-Path $resourceDir)) {
-    Write-Error "Installer resources not found at $resourceDir"
+if (-not (Test-Path $resourceSourceDir)) {
+    Write-Error "Installer resources not found at $resourceSourceDir"
 }
 
-$requiredResources = @(
+$requiredSources = @(
     "GameLauncher.ico",
     "GameLauncher.properties",
     "installer-banner.bmp",
@@ -41,12 +41,32 @@ $requiredResources = @(
     "main.wxs",
     "overrides.wxi"
 )
-foreach ($fileName in $requiredResources) {
-    $resourceFile = Join-Path $resourceDir $fileName
-    if (-not (Test-Path $resourceFile)) {
-        Write-Error "Missing installer resource: $resourceFile"
+foreach ($fileName in $requiredSources) {
+    $sourceFile = Join-Path $resourceSourceDir $fileName
+    if (-not (Test-Path $sourceFile)) {
+        Write-Error "Missing installer resource: $sourceFile"
     }
 }
+
+# Stage resources for jpackage. WiX light resolves WixUIBannerBmp at link time; relative
+# filenames are not found under jpackage's temp config dir, so inject absolute BMP paths.
+$stagingDir = Join-Path $LauncherRoot "composeApp\build\windows-jpackage-resources"
+if (Test-Path $stagingDir) {
+    Remove-Item $stagingDir -Recurse -Force
+}
+New-Item -ItemType Directory -Force -Path $stagingDir | Out-Null
+
+foreach ($fileName in @("GameLauncher.ico", "GameLauncher.properties", "overrides.wxi", "installer-banner.bmp", "installer-dialog.bmp")) {
+    Copy-Item -Path (Join-Path $resourceSourceDir $fileName) -Destination (Join-Path $stagingDir $fileName)
+}
+
+$bannerPath = (Resolve-Path (Join-Path $stagingDir "installer-banner.bmp")).Path.Replace("\", "/")
+$dialogPath = (Resolve-Path (Join-Path $stagingDir "installer-dialog.bmp")).Path.Replace("\", "/")
+
+$mainContent = Get-Content -Path (Join-Path $resourceSourceDir "main.wxs") -Raw -Encoding UTF8
+$mainContent = $mainContent.Replace('Value="installer-banner.bmp"', "Value=`"$bannerPath`"")
+$mainContent = $mainContent.Replace('Value="installer-dialog.bmp"', "Value=`"$dialogPath`"")
+Set-Content -Path (Join-Path $stagingDir "main.wxs") -Value $mainContent -Encoding utf8NoBOM
 
 New-Item -ItemType Directory -Force -Path $destDir | Out-Null
 
@@ -77,11 +97,13 @@ if ($candleCmd) {
 }
 
 Write-Host "Packaging MSI product version $msiVersion with branded WiX resources..."
+Write-Host "Installer banner: $bannerPath"
+Write-Host "Installer dialog: $dialogPath"
 
 & $jpackage `
     --type msi `
     --app-image $appImage `
-    --resource-dir $resourceDir `
+    --resource-dir $stagingDir `
     --license-file $licenseFile `
     --name GameLauncher `
     --description Curated-indie-game-launcher `
