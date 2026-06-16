@@ -1,6 +1,3 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Included into main.wxs at <Wix> scope — use Fragment, not a nested <Include> wrapper. -->
-<Fragment xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <WixVariable Id="WixUIBannerBmp" Value="installer-banner.bmp" />
-  <WixVariable Id="WixUIDialogBmp" Value="installer-dialog.bmp" />
-</Fragment>
+<!-- Stub by design — jpackage includes this before <Product> in main.wxs. -->
+<Include/>

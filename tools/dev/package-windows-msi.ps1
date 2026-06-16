@@ -38,6 +38,7 @@ $requiredResources = @(
     "GameLauncher.properties",
     "installer-banner.bmp",
     "installer-dialog.bmp",
+    "main.wxs",
     "overrides.wxi"
 )
 foreach ($fileName in $requiredResources) {
