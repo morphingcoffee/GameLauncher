@@ -3,7 +3,8 @@
 # The zip contains a versioned top-level folder (GameLauncher-0.0.1-build42/) for side-by-side extracts.
 
 param(
-    [string]$BuildNumber = $env:BUILD_NUMBER
+    [string]$BuildNumber = $env:BUILD_NUMBER,
+    [switch]$Dev
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,16 +16,22 @@ if (-not $BuildNumber) {
     Write-Error "BUILD_NUMBER is required (workflow run number or -BuildNumber)."
 }
 
-$gradleArgs = @(":composeApp:createDistributable", "--no-daemon", "-PbuildNumber=$BuildNumber")
+$devProperty = @()
+if ($Dev) {
+    $devProperty = @("-PgameLauncherDev=true")
+}
+
+$gradleArgs = @(":composeApp:createDistributable", "--no-daemon", "-PbuildNumber=$BuildNumber") + $devProperty
 & .\gradlew.bat @gradleArgs
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-$appImage = Join-Path $LauncherRoot "composeApp\build\compose\binaries\main\app\GameLauncher"
+$packageName = (& .\gradlew.bat -q :composeApp:printAppPackageName --no-daemon "-PbuildNumber=$BuildNumber" @devProperty).Trim()
+$appImage = Join-Path $LauncherRoot "composeApp\build\compose\binaries\main\app\$packageName"
 if (-not (Test-Path $appImage)) {
     Write-Error "App image not found at $appImage"
 }
 
-$artifactVersion = (& .\gradlew.bat -q :composeApp:printArtifactVersion --no-daemon "-PbuildNumber=$BuildNumber").Trim()
+$artifactVersion = (& .\gradlew.bat -q :composeApp:printArtifactVersion --no-daemon "-PbuildNumber=$BuildNumber" @devProperty).Trim()
 $versionedFolderName = "GameLauncher-$artifactVersion"
 $zipPath = Join-Path $LauncherRoot "GameLauncher-$artifactVersion.zip"
 if (Test-Path $zipPath) {

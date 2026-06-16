@@ -140,13 +140,24 @@ private fun ciBuildNumberProperty(): String? =
         ?.trim()
         ?.takeIf { it.isNotEmpty() }
 
-/** Marketing version plus CI build suffix for artifact filenames (e.g. `0.0.1-build42`). */
+/** `-PgameLauncherDev=true` — fake catalog, `[DEV]` window title, separate installer identity. */
+private fun isGameLauncherDevBuild(): Boolean =
+    (findProperty("gameLauncherDev") as String?)
+        ?.trim()
+        .equals("true", ignoreCase = true) == true
+
+private fun desktopPackageName(): String = if (isGameLauncherDevBuild()) "GameLauncherDev" else "GameLauncher"
+
+private fun artifactVariantSuffix(): String = if (isGameLauncherDevBuild()) "-dev" else ""
+
+/** Marketing version plus CI build suffix for artifact filenames (e.g. `0.0.1-build42`, `0.0.1-build42-dev`). */
 private fun artifactVersionLabel(): String {
     val marketing =
         compose.desktop.application.nativeDistributions.packageVersion
             ?: error("packageVersion is not set")
     val build = ciBuildNumberProperty()
-    return if (build != null) "$marketing-build$build" else marketing
+    val base = if (build != null) "$marketing-build$build" else marketing
+    return base + artifactVariantSuffix()
 }
 
 /** jpackage MSI product version — must increase monotonically for in-place upgrades. */
@@ -159,9 +170,13 @@ compose.desktop {
     application {
         mainClass = "com.morphingcoffee.gamelauncher.MainKt"
 
+        if (isGameLauncherDevBuild()) {
+            jvmArgs("-Dgame.launcher.dev=true")
+        }
+
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi)
-            packageName = "GameLauncher"
+            packageName = desktopPackageName()
             packageVersion = "0.0.1"
             description = "Curated-indie-game-launcher"
             vendor = "GameLauncher"
@@ -171,9 +186,15 @@ compose.desktop {
             )
 
             val iconsDir = layout.projectDirectory.dir("icons")
+            val devBuild = isGameLauncherDevBuild()
 
             macOS {
-                bundleID = "com.morphingcoffee.gamelauncher.desktop"
+                bundleID =
+                    if (devBuild) {
+                        "com.morphingcoffee.gamelauncher.desktop.dev"
+                    } else {
+                        "com.morphingcoffee.gamelauncher.desktop"
+                    }
                 // JDK 17 jpackage rejects app-version with major 0; keep global 0.0.1 for artifact names.
                 packageVersion = "1.0.0"
                 iconFile.set(iconsDir.file("icon.icns"))
@@ -183,9 +204,14 @@ compose.desktop {
             windows {
                 menu = true
                 shortcut = true
-                menuGroup = "Game Launcher"
-                // Stable upgrade code — never change after first public MSI release.
-                upgradeUuid = "8f2a1b3c-4d5e-6f70-8a9b-0c1d2e3f4a5b"
+                menuGroup = if (devBuild) "Game Launcher DEV" else "Game Launcher"
+                // Stable upgrade codes — never change after first public MSI release (prod vs dev are separate products).
+                upgradeUuid =
+                    if (devBuild) {
+                        "9e3b2c4d-6f5e-7a81-0c9d-1e2f3a4b5c6d"
+                    } else {
+                        "8f2a1b3c-4d5e-6f70-8a9b-0c1d2e3f4a5b"
+                    }
                 iconFile.set(iconsDir.file("icon.ico"))
                 // jpackage MSI product version (distinct from marketing packageVersion 0.0.1).
                 packageVersion = "1.0.0"
@@ -245,5 +271,35 @@ tasks.register("printComposeDesktopHost") {
     description = "Prints the Compose Desktop Skiko host id (macos-arm64, macos-x64, …)"
     doLast {
         println(composeDesktopHostId())
+    }
+}
+
+tasks.register("printAppPackageName") {
+    notCompatibleWithConfigurationCache("Reads gameLauncherDev and packageName from Compose Desktop DSL")
+    group = "distribution"
+    description = "Prints jpackage app folder name (GameLauncher or GameLauncherDev)"
+    doLast {
+        println(desktopPackageName())
+    }
+}
+
+tasks.register("printWindowsUpgradeUuid") {
+    notCompatibleWithConfigurationCache("Reads Windows upgradeUuid from Compose Desktop DSL")
+    group = "distribution"
+    description = "Prints Windows MSI upgrade UUID for the current prod/dev variant"
+    doLast {
+        println(
+            compose.desktop.application.nativeDistributions.windows.upgradeUuid
+                ?: error("windows.upgradeUuid is not set"),
+        )
+    }
+}
+
+tasks.register("printMacOsDmgVolumeName") {
+    notCompatibleWithConfigurationCache("Reads gameLauncherDev for DMG volume label")
+    group = "distribution"
+    description = "Prints macOS DMG volume name (Game Launcher or Game Launcher DEV)"
+    doLast {
+        println(if (isGameLauncherDevBuild()) "Game Launcher DEV" else "Game Launcher")
     }
 }
