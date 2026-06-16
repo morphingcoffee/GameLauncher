@@ -117,7 +117,7 @@ Desktop installers are built **on demand** via [`.github/workflows/desktop-insta
 
 **Windows portable ZIP:** CI builds via [`tools/dev/package-windows-zip.ps1`](tools/dev/package-windows-zip.ps1) — unzip `GameLauncher-{version}.zip` to get `GameLauncher-{version}/GameLauncher.exe` (separate workflow checkbox; no WiX required).
 
-After install, search Start for **Game Launcher**; a desktop shortcut is created by default. CI builds the MSI via [`tools/dev/package-windows-msi.ps1`](tools/dev/package-windows-msi.ps1) (custom WiX banner/dialog, icon, and properties via `--resource-dir`; welcome copy in `installer-license.rtf`). Regenerate installer BMPs with `python3 tools/dev/generate-windows-installer-bitmaps.py` (requires Pillow). Gradle `:composeApp:packageMsi` does not pass `--resource-dir`.
+After install, search Start for **Game Launcher**; a desktop shortcut is created by default. CI builds the MSI via [`tools/dev/package-windows-msi.ps1`](tools/dev/package-windows-msi.ps1) (custom WiX banner/dialog, icon, and properties from [`launcher/composeApp/installer/windows/msi/`](launcher/composeApp/installer/windows/msi/); welcome copy in `installer-license.rtf`). Regenerate installer BMPs with `python3 launcher/composeApp/installer/windows/msi/generate-installer-bitmaps.py` (requires Pillow). Gradle `:composeApp:packageMsi` does not pass `--resource-dir`.
 
 Uninstalling the MSI removes the app under Program Files but **not** downloaded games in `%APPDATA%\GameLauncher`.
 

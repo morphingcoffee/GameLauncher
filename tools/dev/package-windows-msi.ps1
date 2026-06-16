@@ -20,8 +20,9 @@ $gradleArgs = @(":composeApp:createDistributable", "--no-daemon", "-PbuildNumber
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 $appImage = Join-Path $LauncherRoot "composeApp\build\compose\binaries\main\app\GameLauncher"
-$resourceSourceDir = Join-Path $LauncherRoot "composeApp\installer\windows\jpackage"
-$licenseFile = Join-Path $LauncherRoot "composeApp\installer-license.rtf"
+$msiDir = Join-Path $LauncherRoot "composeApp\installer\windows\msi"
+$resourceSourceDir = Join-Path $msiDir "jpackage"
+$licenseFile = Join-Path $msiDir "installer-license.rtf"
 $iconFile = Join-Path $LauncherRoot "composeApp\icons\icon.ico"
 $destDir = Join-Path $LauncherRoot "composeApp\build\compose\binaries\main\msi"
 $msiVersion = (& .\gradlew.bat -q :composeApp:printWindowsMsiProductVersion --no-daemon "-PbuildNumber=$BuildNumber").Trim()

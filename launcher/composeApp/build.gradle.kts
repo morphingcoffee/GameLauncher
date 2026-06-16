@@ -166,7 +166,9 @@ compose.desktop {
             description = "Curated-indie-game-launcher"
             vendor = "GameLauncher"
             copyright = "GameLauncher"
-            licenseFile.set(layout.projectDirectory.file("installer-license.rtf"))
+            licenseFile.set(
+                layout.projectDirectory.file("installer/windows/msi/installer-license.rtf"),
+            )
 
             val iconsDir = layout.projectDirectory.dir("icons")
 

@@ -9,7 +9,7 @@ art lives on the far right only.
 
 Dialog (493×312): left industrial column + right light panel for welcome copy.
 
-Outputs (launcher palette — see LauncherColors.kt):
+Writes to sibling `jpackage/` (launcher palette — see LauncherColors.kt):
   installer-banner.bmp  493×58
   installer-dialog.bmp  493×312
 """
@@ -246,8 +246,7 @@ def _make_dialog() -> Image.Image:
 
 
 def main() -> None:
-    repo_root = Path(__file__).resolve().parents[2]
-    out_dir = repo_root / "launcher" / "composeApp" / "installer" / "windows" / "jpackage"
+    out_dir = Path(__file__).resolve().parent / "jpackage"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     banner_path = out_dir / "installer-banner.bmp"
