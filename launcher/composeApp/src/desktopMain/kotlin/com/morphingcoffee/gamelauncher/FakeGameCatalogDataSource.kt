@@ -186,7 +186,7 @@ private val FAKE_CATALOG: List<GameCatalogEntry> =
             id = "void-runner",
             title = "VOID RUNNER",
             thumbnailSeed = 101,
-            builds = allPlatformBuilds(51_200_000L),
+            builds = allPlatformBuilds(620_000_000L),
             version = "1.4.2",
             versionHistory =
                 listOf(
@@ -204,7 +204,7 @@ private val FAKE_CATALOG: List<GameCatalogEntry> =
                         PlatformKey.WINDOWS_X64,
                         PlatformKey.MACOS_ARM64,
                         PlatformKey.MACOS_X64,
-                        fileSizeBytes = 51_200_000L,
+                        fileSizeBytes = 620_000_000L,
                     ),
                 ),
         ),
@@ -213,7 +213,7 @@ private val FAKE_CATALOG: List<GameCatalogEntry> =
             id = "neon-drift",
             title = "NEON DRIFT",
             thumbnailSeed = 202,
-            builds = platformBuilds(PlatformKey.MACOS_ARM64, PlatformKey.MACOS_X64, fileSizeBytes = 88_400_000L),
+            builds = platformBuilds(PlatformKey.MACOS_ARM64, PlatformKey.MACOS_X64, fileSizeBytes = 380_000_000L),
             version = "0.9.0",
             versionHistory =
                 listOf(
@@ -224,7 +224,7 @@ private val FAKE_CATALOG: List<GameCatalogEntry> =
                         "2025-01-20",
                         PlatformKey.MACOS_ARM64,
                         PlatformKey.MACOS_X64,
-                        fileSizeBytes = 88_400_000L,
+                        fileSizeBytes = 380_000_000L,
                     ),
                 ),
         ),

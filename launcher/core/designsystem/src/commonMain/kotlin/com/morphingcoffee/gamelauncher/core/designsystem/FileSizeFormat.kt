@@ -1,11 +1,13 @@
 package com.morphingcoffee.gamelauncher.core.designsystem
 
+import kotlin.math.roundToInt
+
 fun formatFileSize(bytes: Long): String {
     if (bytes < 1_024L) return "$bytes B"
     val kb = bytes / 1_024.0
     if (kb < 1_024.0) return "${kb.toOneDecimal()} KB"
     val mb = kb / 1_024.0
-    if (mb < 1_024.0) return "${mb.toOneDecimal()} MB"
+    if (mb < 1_024.0) return "${mb.roundToInt()} MB"
     val gb = mb / 1_024.0
     return "${gb.toOneDecimal()} GB"
 }

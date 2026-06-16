@@ -30,5 +30,5 @@ interface GameCatalogDataSource {
 
     suspend fun listInstalledGames(): List<InstalledGameSummary> = emptyList()
 
-    suspend fun uninstallAllGames(): Result<Unit> = Result.success(Unit)
+    suspend fun uninstallAllGames(): Result<Unit>
 }

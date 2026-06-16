@@ -7,15 +7,34 @@ import com.morphingcoffee.gamelauncher.core.network.DownloadProgress
 import com.morphingcoffee.gamelauncher.core.network.GameCatalogDataSource
 import com.morphingcoffee.gamelauncher.core.network.InstallState
 import com.morphingcoffee.gamelauncher.core.network.InstalledGameSummary
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class StorageViewModelTest {
+    @BeforeTest
+    fun setUp() {
+        Dispatchers.setMain(UnconfinedTestDispatcher())
+    }
+
+    @AfterTest
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
     @Test
     fun started_loadsInstalledSegmentsAndTotal() =
         runTest {
@@ -35,7 +54,7 @@ class StorageViewModelTest {
             val viewModel = StorageViewModel(dataSource)
 
             viewModel.onEvent(StorageEvent.Started)
-            waitForLoadingToFinish(viewModel)
+            waitForLoaded(viewModel)
 
             val state = viewModel.state.value
             assertEquals(400L, state.totalBytes)
@@ -59,7 +78,7 @@ class StorageViewModelTest {
                 )
             val viewModel = StorageViewModel(dataSource)
             viewModel.onEvent(StorageEvent.Started)
-            waitForLoadingToFinish(viewModel)
+            waitForLoaded(viewModel)
 
             val beta =
                 viewModel.state.value.segments
@@ -67,7 +86,9 @@ class StorageViewModelTest {
             viewModel.onEvent(StorageEvent.SegmentClicked(beta.gameId))
             viewModel.onEvent(StorageEvent.UninstallClicked)
             viewModel.onEvent(StorageEvent.UninstallChargeComplete)
-            waitForLoadingToFinish(viewModel)
+            viewModel.onEvent(StorageEvent.ChartAnimationFinished)
+            viewModel.onEvent(StorageEvent.ChartAnimationFinished)
+            waitForIdle(viewModel)
 
             assertEquals(1, viewModel.state.value.segments.size)
             assertEquals(
@@ -94,25 +115,36 @@ class StorageViewModelTest {
                 )
             val viewModel = StorageViewModel(dataSource)
             viewModel.onEvent(StorageEvent.Started)
-            waitForLoadingToFinish(viewModel)
+            waitForLoaded(viewModel)
 
             viewModel.onEvent(StorageEvent.CenterClicked)
             viewModel.onEvent(StorageEvent.UninstallAllClicked)
             viewModel.onEvent(StorageEvent.UninstallAllChargeComplete)
-            waitForLoadingToFinish(viewModel)
+            viewModel.onEvent(StorageEvent.ChartAnimationFinished)
+            waitForIdle(viewModel)
 
-            assertTrue(
-                viewModel.state.value.segments
-                    .isEmpty(),
-            )
+            val segments = viewModel.state.value.segments
+            assertTrue(segments.isEmpty())
             assertEquals(0L, viewModel.state.value.totalBytes)
         }
 
-    private suspend fun waitForLoadingToFinish(viewModel: StorageViewModel) {
-        repeat(20) {
-            if (!viewModel.state.value.isLoading && !viewModel.state.value.isUninstalling) return
+    private suspend fun TestScope.waitForLoaded(viewModel: StorageViewModel) {
+        repeat(40) {
+            advanceUntilIdle()
+            if (!viewModel.state.value.isLoading) return
             kotlinx.coroutines.delay(25)
         }
+        advanceUntilIdle()
+    }
+
+    private suspend fun TestScope.waitForIdle(viewModel: StorageViewModel) {
+        repeat(40) {
+            advanceUntilIdle()
+            val state = viewModel.state.value
+            if (!state.isLoading && !state.isUninstalling && state.chartAnimation == null) return
+            kotlinx.coroutines.delay(25)
+        }
+        advanceUntilIdle()
     }
 
     private fun catalogEntry(
@@ -179,7 +211,8 @@ class StorageViewModelTest {
 
         override suspend fun uninstallAllGames(): Result<Unit> =
             runCatching {
-                installedGames.keys.toList().forEach { uninstallGame(it).getOrThrow() }
+                installedGames.clear()
+                sizes.clear()
             }
     }
 }

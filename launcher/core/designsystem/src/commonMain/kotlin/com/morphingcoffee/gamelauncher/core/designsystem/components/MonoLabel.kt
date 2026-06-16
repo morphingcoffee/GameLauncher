@@ -51,11 +51,12 @@ fun DisplayTitle(
     text: String,
     modifier: Modifier = Modifier,
     color: Color = LauncherColors.OnBackground,
+    style: TextStyle = LauncherTypography.displayLarge,
 ) {
     Text(
         text = text.uppercase(),
         modifier = modifier,
-        style = LauncherTypography.displayLarge,
+        style = style,
         color = color,
         maxLines = 2,
         overflow = TextOverflow.Ellipsis,

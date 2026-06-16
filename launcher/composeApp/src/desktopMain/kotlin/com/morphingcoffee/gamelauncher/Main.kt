@@ -25,9 +25,9 @@ fun main() {
 
     application {
         Window(
-            state = rememberWindowState(width = 900.dp, height = 580.dp),
+            state = rememberWindowState(width = 900.dp, height = 620.dp),
             onCloseRequest = ::exitApplication,
-            title = if (isDev) "Game Launcher [DEV]" else "Game Launcher",
+            title = if (isDev) "MC.GAME.LAUNCHER [DEV]" else "MC.GAME.LAUNCHER",
         ) {
             DesktopGlobalShortcuts()
             App()

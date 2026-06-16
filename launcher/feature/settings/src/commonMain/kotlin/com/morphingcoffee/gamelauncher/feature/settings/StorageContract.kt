@@ -1,6 +1,7 @@
 package com.morphingcoffee.gamelauncher.feature.settings
 
 import com.morphingcoffee.gamelauncher.core.designsystem.components.PieSegment
+import com.morphingcoffee.gamelauncher.core.designsystem.components.StorageChartAnimation
 import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
 import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 
@@ -30,6 +31,10 @@ sealed interface StorageEvent {
     data object UninstallAllClicked : StorageEvent
 
     data object UninstallAllChargeComplete : StorageEvent
+
+    data object ChartAnimationFinished : StorageEvent
+
+    data object ScreenHidden : StorageEvent
 }
 
 data class StorageSegmentUi(
@@ -53,10 +58,18 @@ data class StorageState(
     val isLoading: Boolean = true,
     val segments: List<StorageSegmentUi> = emptyList(),
     val totalBytes: Long = 0L,
+    /** Breakdown list held steady during segment reflow so the pie layout does not jump. */
+    val breakdownSegments: List<StorageSegmentUi>? = null,
+    /** Center label totals held steady during segment reflow. */
+    val centerDisplayTotalBytes: Long? = null,
+    val centerDisplayInstallCount: Int? = null,
     val hoveredSegmentId: String? = null,
     val activeDialog: StorageDialog? = null,
     val isChargingUninstall: Boolean = false,
     val isUninstalling: Boolean = false,
+    val chartAnimation: StorageChartAnimation? = null,
+    val pendingUninstallAll: Boolean = false,
+    val pendingUninstallGameId: String? = null,
     val errorMessage: String? = null,
     val appVersion: String = LauncherMetadata.VERSION,
     val platformLabel: String = "unknown",
@@ -71,7 +84,16 @@ data class StorageState(
             }
 
     val canUninstall: Boolean
-        get() = !isLoading && !isUninstalling && !isChargingUninstall
+        get() = !isLoading && !isUninstalling && !isChargingUninstall && chartAnimation == null
+
+    val displayBreakdownSegments: List<StorageSegmentUi>
+        get() = breakdownSegments ?: segments
+
+    val displayCenterTotalBytes: Long
+        get() = centerDisplayTotalBytes ?: totalBytes
+
+    val displayCenterInstallCount: Int
+        get() = centerDisplayInstallCount ?: segments.size
 }
 
 internal fun formatStoragePlatformLabel(platformKey: String?): String =

@@ -21,6 +21,7 @@ import com.morphingcoffee.gamelauncher.core.designsystem.LauncherTheme
 import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
 import com.morphingcoffee.gamelauncher.core.navigation.AppDestination
 import com.morphingcoffee.gamelauncher.core.navigation.DebugNavigation
+import com.morphingcoffee.gamelauncher.core.navigation.NavigationBackInterceptor
 import com.morphingcoffee.gamelauncher.core.navigation.appNavigationConfig
 import com.morphingcoffee.gamelauncher.feature.home.CatalogScreen
 import com.morphingcoffee.gamelauncher.feature.home.CatalogScreenContent
@@ -45,9 +46,13 @@ private fun openLogsDestination(backStack: androidx.navigation3.runtime.NavBackS
 
 @Composable
 internal fun AppNavigation(
-    catalogContent: @Composable (onOpenSettings: () -> Unit) -> Unit = { onOpenSettings ->
-        CatalogScreen(onOpenSettings = onOpenSettings)
-    },
+    catalogContent: @Composable (onOpenAbout: () -> Unit, onOpenStorage: () -> Unit) -> Unit =
+        { onOpenAbout, onOpenStorage ->
+            CatalogScreen(
+                onOpenAbout = onOpenAbout,
+                onOpenStorage = onOpenStorage,
+            )
+        },
 ) {
     LauncherTheme {
         val backStack = rememberNavBackStack(appNavigationConfig, AppDestination.Home)
@@ -79,24 +84,23 @@ internal fun AppNavigation(
             NavDisplay(
                 backStack = backStack,
                 onBack = {
+                    if (NavigationBackInterceptor.handler?.invoke() == true) return@NavDisplay
                     if (backStack.size > 1) backStack.removeLastOrNull()
                 },
                 entryProvider = { key ->
                     when (key) {
                         AppDestination.Home ->
                             NavEntry(key) {
-                                catalogContent {
-                                    backStack.add(AppDestination.Settings)
-                                }
+                                catalogContent(
+                                    { backStack.add(AppDestination.Settings) },
+                                    { backStack.add(AppDestination.Storage) },
+                                )
                             }
                         AppDestination.Settings ->
                             NavEntry(key) {
                                 SettingsScreen(
                                     onBack = {
                                         if (backStack.size > 1) backStack.removeLastOrNull()
-                                    },
-                                    onOpenStorage = {
-                                        backStack.add(AppDestination.Storage)
                                     },
                                 )
                             }
@@ -133,7 +137,7 @@ internal fun AppNavigation(
 @Composable
 private fun AppCatalogPreview() {
     AppNavigation(
-        catalogContent = { _ ->
+        catalogContent = { _, _ ->
             CatalogScreenContent(
                 state = catalogPreviewState(),
                 requestRosterFocus = false,
@@ -156,7 +160,7 @@ private fun AppCatalogPreview() {
 }
 
 @Preview(
-    name = "App — settings",
+    name = "App — about",
     widthDp = 1280,
     heightDp = 720,
     showBackground = true,

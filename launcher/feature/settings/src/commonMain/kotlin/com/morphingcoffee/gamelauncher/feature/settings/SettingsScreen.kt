@@ -33,10 +33,7 @@ import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 import kotlinx.coroutines.delay
 
 @Composable
-fun SettingsScreen(
-    onBack: () -> Unit,
-    onOpenStorage: () -> Unit = {},
-) {
+fun SettingsScreen(onBack: () -> Unit) {
     var state by remember {
         mutableStateOf(
             SettingsState(
@@ -55,7 +52,6 @@ fun SettingsScreen(
     SettingsScreenContent(
         state = state,
         onBack = onBack,
-        onOpenStorage = onOpenStorage,
     )
 }
 
@@ -63,7 +59,6 @@ fun SettingsScreen(
 fun SettingsScreenContent(
     state: SettingsState,
     onBack: () -> Unit,
-    onOpenStorage: () -> Unit = {},
 ) {
     val uriHandler = LocalUriHandler.current
 
@@ -87,7 +82,7 @@ fun SettingsScreenContent(
                         .padding(horizontal = LauncherSpacing.Lg, vertical = LauncherSpacing.Xl),
                 verticalArrangement = Arrangement.spacedBy(LauncherSpacing.Lg),
             ) {
-                DisplayTitle(text = "Settings")
+                DisplayTitle(text = "About")
 
                 SettingsInfoRow(
                     label = "VERSION",
@@ -103,11 +98,6 @@ fun SettingsScreenContent(
                 }
 
                 TerminalButton(
-                    label = "[ STORAGE ]",
-                    onClick = onOpenStorage,
-                )
-
-                TerminalButton(
                     label = "[ BACK ]",
                     onClick = onBack,
                     modifier = Modifier.padding(top = LauncherSpacing.Md),
@@ -115,7 +105,7 @@ fun SettingsScreenContent(
             }
 
             StatusBar(
-                statusText = "SETTINGS",
+                statusText = "ABOUT",
                 clockText = state.clockText,
             )
         }
@@ -153,7 +143,7 @@ private fun formatPlatformLabel(platformKey: String?): String =
     }
 
 @Preview(
-    name = "Settings",
+    name = "About",
     widthDp = 1280,
     heightDp = 720,
     showBackground = true,

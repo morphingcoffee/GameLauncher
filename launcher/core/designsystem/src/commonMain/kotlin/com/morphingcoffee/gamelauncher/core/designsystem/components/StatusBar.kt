@@ -18,13 +18,18 @@ import com.morphingcoffee.gamelauncher.core.designsystem.LauncherColors
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherSpacing
 import com.morphingcoffee.gamelauncher.core.designsystem.TerminalRule
 
+data class StatusBarAction(
+    val label: String,
+    val accent: Boolean = true,
+    val onClick: () -> Unit,
+)
+
 @Composable
 fun StatusBar(
     statusText: String,
     clockText: String,
     downloadProgress: Float? = null,
-    debugHint: String? = null,
-    onSettingsClick: (() -> Unit)? = null,
+    actions: List<StatusBarAction> = emptyList(),
     modifier: Modifier = Modifier,
 ) {
     ColumnWithRule(modifier = modifier) {
@@ -54,14 +59,11 @@ fun StatusBar(
                 horizontalArrangement = Arrangement.spacedBy(LauncherSpacing.Md),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (debugHint != null) {
-                    MonoLabel(text = debugHint, muted = true)
-                }
-                if (onSettingsClick != null) {
+                actions.forEach { action ->
                     MonoLabel(
-                        text = "SETTINGS",
-                        accent = true,
-                        modifier = Modifier.clickable(onClick = onSettingsClick),
+                        text = action.label,
+                        accent = action.accent,
+                        modifier = Modifier.clickable(onClick = action.onClick),
                     )
                 }
                 MonoLabel(text = clockText, muted = true)
