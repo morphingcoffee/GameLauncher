@@ -19,7 +19,7 @@ from __future__ import annotations
 import math
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 # Launcher industrial palette
 BG = (13, 17, 23)  # #0D1117
@@ -27,6 +27,7 @@ SURFACE = (22, 27, 34)  # #161B22
 PANEL = (31, 41, 51)  # #1F2933
 ACCENT = (77, 217, 255)  # #4DD9FF
 PRIMARY = (108, 158, 255)  # #6C9EFF
+ON_TEXT = (230, 237, 243)  # #E6EDF3
 LIGHT_TOP = (250, 251, 253)  # #FAFBFD
 LIGHT_BOTTOM = (241, 245, 249)  # #F1F5F9
 
@@ -37,6 +38,23 @@ DIALOG_W, DIALOG_H = 493, 312
 BANNER_LIGHT_W = 312
 BANNER_ART_X = BANNER_LIGHT_W
 DIALOG_ART_W = 178
+
+# Monospace candidates for PIL (generator may run on macOS, Linux, or Windows).
+_MONO_FONT_CANDIDATES: tuple[tuple[str, int | None], ...] = (
+    ("/System/Library/Fonts/Menlo.ttc", 0),
+    ("/System/Library/Fonts/Supplemental/Courier New.ttf", None),
+    ("/Library/Fonts/Courier New.ttf", None),
+    ("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", None),
+    ("/usr/share/fonts/TTF/DejaVuSansMono.ttf", None),
+    ("C:\\Windows\\Fonts\\consola.ttf", None),
+    ("C:\\Windows\\Fonts\\lucon.ttf", None),
+)
+
+DIALOG_TITLE_LINES: tuple[tuple[str, tuple[int, int, int]], ...] = (
+    ("MC", ACCENT),
+    (".GAME", ON_TEXT),
+    (".LAUNCHER", ON_TEXT),
+)
 
 
 def _lerp(a: float, b: float, t: float) -> float:
@@ -195,6 +213,55 @@ def _pixels_to_image(pixels: list[list[tuple[int, int, int]]], width: int, heigh
     return Image.frombytes("RGB", (width, height), flat)
 
 
+def _load_mono_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    for path, index in _MONO_FONT_CANDIDATES:
+        font_path = Path(path)
+        if not font_path.exists():
+            continue
+        try:
+            if index is None:
+                return ImageFont.truetype(str(font_path), size)
+            return ImageFont.truetype(str(font_path), size, index=index)
+        except OSError:
+            continue
+    return ImageFont.load_default()
+
+
+def _draw_dialog_branding(img: Image.Image) -> None:
+    """Stacked MC.GAME.LAUNCHER title on the left art column (matches AppHeader MonoLabel)."""
+    draw = ImageDraw.Draw(img)
+    font_title = _load_mono_font(11)
+    font_label = _load_mono_font(9)
+
+    line_h = 14
+    block_h = len(DIALOG_TITLE_LINES) * line_h
+    label_gap = 10
+    label_text = "· SETUP ·"
+    label_bbox = draw.textbbox((0, 0), label_text, font=font_label)
+    label_h = label_bbox[3] - label_bbox[1]
+    total_h = block_h + label_gap + label_h
+
+    x = 14
+    y_start = (DIALOG_H - total_h) // 2 + 6
+
+    rule_x0 = 11
+    rule_x1 = DIALOG_ART_W - 10
+    rule_top = y_start - 9
+    rule_bottom = y_start + block_h + 6
+    draw.line((rule_x0, rule_top, rule_x1, rule_top), fill=_lerp_rgb(ACCENT, BG, 0.35))
+    draw.line((rule_x0, rule_bottom, rule_x1, rule_bottom), fill=_lerp_rgb(PANEL, BG, 0.25))
+
+    glow = _lerp_rgb(BG, PRIMARY, 0.45)
+    y = y_start
+    for text, color in DIALOG_TITLE_LINES:
+        draw.text((x + 1, y + 1), text, fill=glow, font=font_title)
+        draw.text((x, y), text, fill=color, font=font_title)
+        y += line_h
+
+    muted = _lerp_rgb(ON_TEXT, BG, 0.52)
+    draw.text((x, y + label_gap), label_text, fill=muted, font=font_label)
+
+
 def _make_banner() -> Image.Image:
     pixels: list[list[tuple[int, int, int]]] = [
         [BG for _ in range(BANNER_W)] for _ in range(BANNER_H)
@@ -242,7 +309,9 @@ def _make_dialog() -> Image.Image:
         if sep_x + 1 < DIALOG_W:
             pixels[y][sep_x + 1] = _lerp_rgb(pixels[y][sep_x + 1], LIGHT_BOTTOM, 0.4)
 
-    return _pixels_to_image(pixels, DIALOG_W, DIALOG_H)
+    img = _pixels_to_image(pixels, DIALOG_W, DIALOG_H)
+    _draw_dialog_branding(img)
+    return img
 
 
 def main() -> None:
