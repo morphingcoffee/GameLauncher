@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.koinCompiler)
 }
 
 kotlin {
@@ -28,15 +29,33 @@ kotlin {
         }
         val commonMain by getting {
             dependencies {
+                implementation(project(":core:architecture"))
                 implementation(project(":core:designsystem"))
+                implementation(project(":core:logging"))
                 implementation(project(":core:model"))
                 implementation(project(":core:navigation"))
+                implementation(project(":core:network"))
                 implementation(libs.compose.runtime)
                 implementation(libs.compose.foundation)
                 implementation(libs.compose.material3)
                 implementation(libs.compose.ui)
                 implementation(libs.compose.ui.tooling.preview)
                 implementation(libs.kotlinx.coroutines.core)
+                implementation(libs.androidx.lifecycle.viewmodel)
+                implementation(libs.androidx.lifecycle.viewmodel.compose)
+                implementation(libs.androidx.lifecycle.runtime.compose)
+                implementation(project.dependencies.platform(libs.koin.bom))
+                implementation(libs.koin.core)
+                implementation(libs.koin.annotations)
+                implementation(libs.koin.compose)
+                implementation(libs.koin.compose.viewmodel)
+            }
+        }
+        val commonTest by getting {
+            dependencies {
+                implementation(libs.kotlin.test)
+                implementation(libs.kotlinx.coroutines.test)
+                implementation(project(":core:network"))
             }
         }
     }
@@ -62,4 +81,8 @@ android {
 
 dependencies {
     debugImplementation(libs.compose.ui.tooling)
+}
+
+koinCompiler {
+    compileSafety = true
 }

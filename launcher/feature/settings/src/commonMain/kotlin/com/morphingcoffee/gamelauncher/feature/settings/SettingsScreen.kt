@@ -33,7 +33,10 @@ import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 import kotlinx.coroutines.delay
 
 @Composable
-fun SettingsScreen(onBack: () -> Unit) {
+fun SettingsScreen(
+    onBack: () -> Unit,
+    onOpenStorage: () -> Unit = {},
+) {
     var state by remember {
         mutableStateOf(
             SettingsState(
@@ -52,6 +55,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     SettingsScreenContent(
         state = state,
         onBack = onBack,
+        onOpenStorage = onOpenStorage,
     )
 }
 
@@ -59,6 +63,7 @@ fun SettingsScreen(onBack: () -> Unit) {
 fun SettingsScreenContent(
     state: SettingsState,
     onBack: () -> Unit,
+    onOpenStorage: () -> Unit = {},
 ) {
     val uriHandler = LocalUriHandler.current
 
@@ -96,6 +101,11 @@ fun SettingsScreenContent(
                         onClick = { uriHandler.openUri(link.url) },
                     )
                 }
+
+                TerminalButton(
+                    label = "[ STORAGE ]",
+                    onClick = onOpenStorage,
+                )
 
                 TerminalButton(
                     label = "[ BACK ]",

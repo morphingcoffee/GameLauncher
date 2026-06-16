@@ -1,5 +1,6 @@
 package com.morphingcoffee.gamelauncher.feature.home
 
+import com.morphingcoffee.gamelauncher.core.designsystem.formatFileSize
 import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 
 internal fun formatSizeDisplay(
@@ -16,16 +17,6 @@ internal fun formatSizeDisplay(
         return formatFileSize(onDiskSizeBytes)
     }
     return formatFileSize(downloadSizeBytes)
-}
-
-internal fun formatFileSize(bytes: Long): String {
-    if (bytes < 1_024L) return "$bytes B"
-    val kb = bytes / 1_024.0
-    if (kb < 1_024.0) return "${kb.toOneDecimal()} KB"
-    val mb = kb / 1_024.0
-    if (mb < 1_024.0) return "${mb.toOneDecimal()} MB"
-    val gb = mb / 1_024.0
-    return "${gb.toOneDecimal()} GB"
 }
 
 internal fun formatPlatformLabel(platformKey: String?): String =
@@ -45,12 +36,3 @@ internal fun formatPlatformDisplayName(platformKey: String?): String =
         null -> "Unknown"
         else -> platformKey
     }
-
-private fun Double.toOneDecimal(): String {
-    val scaled = (this * 10.0).toInt() / 10.0
-    return if (scaled % 1.0 == 0.0) {
-        scaled.toInt().toString()
-    } else {
-        scaled.toString()
-    }
-}

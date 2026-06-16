@@ -126,7 +126,37 @@ actual class GameInstaller(
             }
         }
 
-    actual fun getOnDiskSizeBytes(gameId: String): Long? {
+    actual fun getOnDiskSizeBytes(gameId: String): Long? = measureGameDirectoryBytes(gameId)
+
+    actual fun listInstalledGames(): List<InstalledGameSummary> {
+        val gamesRoot = File(LibraryPaths.gamesRootDirectory())
+        if (!gamesRoot.exists()) {
+            return emptyList()
+        }
+
+        return gamesRoot
+            .listFiles()
+            ?.asSequence()
+            ?.filter { it.isDirectory }
+            ?.mapNotNull { directory ->
+                val gameId = directory.name
+                when (val installState = getInstallState(gameId)) {
+                    is InstallState.Installed -> {
+                        val sizeBytes = measureGameDirectoryBytes(gameId) ?: return@mapNotNull null
+                        InstalledGameSummary(
+                            gameId = gameId,
+                            version = installState.version,
+                            sizeBytes = sizeBytes,
+                        )
+                    }
+                    else -> null
+                }
+            }?.sortedByDescending { it.sizeBytes }
+            ?.toList()
+            ?: emptyList()
+    }
+
+    private fun measureGameDirectoryBytes(gameId: String): Long? {
         val gameDir = File(LibraryPaths.gameDirectory(gameId))
         if (!gameDir.exists()) {
             return null

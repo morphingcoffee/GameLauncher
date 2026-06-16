@@ -9,6 +9,7 @@ import com.morphingcoffee.gamelauncher.core.network.DownloadProgress
 import com.morphingcoffee.gamelauncher.core.network.GameCatalogDataSource
 import com.morphingcoffee.gamelauncher.core.network.GameLauncher
 import com.morphingcoffee.gamelauncher.core.network.InstallState
+import com.morphingcoffee.gamelauncher.core.network.InstalledGameSummary
 import com.morphingcoffee.gamelauncher.core.network.SimulatedLaunchException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,11 +22,20 @@ class FakeGameCatalogDataSource(
     private val catalogLoadDelayMs: LongRange = 600L..2_500L,
     private val launchDelayMs: LongRange = 800L..1_800L,
     private val versionHistoryDelayMs: LongRange = 300L..900L,
+    seedDevInstalls: Boolean = true,
 ) : GameCatalogDataSource {
     private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
     override val downloadProgress: StateFlow<DownloadProgress?> = _downloadProgress.asStateFlow()
 
     private val installedGames = mutableMapOf<String, String>()
+
+    init {
+        if (seedDevInstalls) {
+            installedGames["void-runner"] = "1.4.2"
+            installedGames["neon-drift"] = "0.9.0"
+            installedGames["iron-ledger"] = "0.0.1"
+        }
+    }
 
     override suspend fun loadCatalog(): Result<List<GameCatalogEntry>> {
         delay(catalogLoadDelayMs.random())
@@ -106,6 +116,24 @@ class FakeGameCatalogDataSource(
         // Simulated extracted size is ~8% larger than the download archive for dev previews.
         return (build.fileSizeBytes * 108L) / 100L
     }
+
+    override suspend fun listInstalledGames(): List<InstalledGameSummary> =
+        installedGames
+            .mapNotNull { (gameId, version) ->
+                val sizeBytes = getOnDiskSizeBytes(gameId) ?: return@mapNotNull null
+                InstalledGameSummary(
+                    gameId = gameId,
+                    version = version,
+                    sizeBytes = sizeBytes,
+                )
+            }.sortedByDescending { it.sizeBytes }
+
+    override suspend fun uninstallAllGames(): Result<Unit> =
+        runCatching {
+            installedGames.keys.toList().forEach { gameId ->
+                uninstallGame(gameId).getOrThrow()
+            }
+        }
 
     override suspend fun launchGame(gameId: String): Result<Unit> {
         val version =

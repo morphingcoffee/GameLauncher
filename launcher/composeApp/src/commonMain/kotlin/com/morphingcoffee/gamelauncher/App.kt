@@ -29,6 +29,7 @@ import com.morphingcoffee.gamelauncher.feature.logs.LogsScreen
 import com.morphingcoffee.gamelauncher.feature.settings.SettingsScreen
 import com.morphingcoffee.gamelauncher.feature.settings.SettingsScreenContent
 import com.morphingcoffee.gamelauncher.feature.settings.SettingsState
+import com.morphingcoffee.gamelauncher.feature.settings.StorageScreen
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable
@@ -91,6 +92,17 @@ internal fun AppNavigation(
                         AppDestination.Settings ->
                             NavEntry(key) {
                                 SettingsScreen(
+                                    onBack = {
+                                        if (backStack.size > 1) backStack.removeLastOrNull()
+                                    },
+                                    onOpenStorage = {
+                                        backStack.add(AppDestination.Storage)
+                                    },
+                                )
+                            }
+                        AppDestination.Storage ->
+                            NavEntry(key) {
+                                StorageScreen(
                                     onBack = {
                                         if (backStack.size > 1) backStack.removeLastOrNull()
                                     },

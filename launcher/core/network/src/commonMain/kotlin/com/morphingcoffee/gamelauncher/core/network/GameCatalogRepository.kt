@@ -53,4 +53,23 @@ class GameCatalogRepository(
     override suspend fun launchGame(gameId: String): Result<Unit> = gameLauncher.launch(gameId)
 
     override suspend fun openWebGame(url: String): Result<Unit> = gameLauncher.openUrl(url)
+
+    override suspend fun listInstalledGames(): List<InstalledGameSummary> =
+        withContext(Dispatchers.IO) {
+            gameInstaller.listInstalledGames()
+        }
+
+    override suspend fun uninstallAllGames(): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val installed = gameInstaller.listInstalledGames()
+                val failures = mutableListOf<String>()
+                for (game in installed) {
+                    gameInstaller.uninstall(game.gameId).onFailure { failures += game.gameId }
+                }
+                if (failures.isNotEmpty()) {
+                    error("Could not uninstall: ${failures.joinToString()}")
+                }
+            }
+        }
 }

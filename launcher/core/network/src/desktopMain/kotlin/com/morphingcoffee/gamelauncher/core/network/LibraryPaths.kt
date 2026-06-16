@@ -32,7 +32,9 @@ object LibraryPaths {
         version: String,
     ): String = path(downloadsDirectory(), "$gameId-$version.zip.part")
 
-    fun gameDirectory(gameId: String): String = path(rootDirectory(), "games", gameId)
+    fun gamesRootDirectory(): String = path(rootDirectory(), "games")
+
+    fun gameDirectory(gameId: String): String = path(gamesRootDirectory(), gameId)
 
     fun installRecordFile(gameId: String): String = path(gameDirectory(gameId), ".install_record.json")
 
