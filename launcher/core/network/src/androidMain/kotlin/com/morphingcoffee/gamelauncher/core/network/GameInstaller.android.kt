@@ -17,6 +17,8 @@ actual class GameInstaller {
         Result.failure(UnsupportedOperationException("Game uninstall is only supported on desktop"))
 
     actual fun getOnDiskSizeBytes(gameId: String): Long? = null
+
+    actual fun listInstalledGames(): List<InstalledGameSummary> = emptyList()
 }
 
 actual fun createGameInstaller(downloadHttpClient: HttpClient): GameInstaller = GameInstaller()

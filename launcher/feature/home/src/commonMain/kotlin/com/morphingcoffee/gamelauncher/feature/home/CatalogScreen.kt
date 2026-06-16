@@ -20,15 +20,18 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherTheme
 import com.morphingcoffee.gamelauncher.core.designsystem.components.AppHeader
 import com.morphingcoffee.gamelauncher.core.designsystem.components.StatusBar
+import com.morphingcoffee.gamelauncher.core.designsystem.components.StatusBarAction
 import com.morphingcoffee.gamelauncher.core.designsystem.components.VerticalTerminalRule
 import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
+import com.morphingcoffee.gamelauncher.core.navigation.DebugNavigation
 import kotlinx.coroutines.delay
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun CatalogScreen(
     viewModel: CatalogViewModel = koinViewModel(),
-    onOpenSettings: () -> Unit = {},
+    onOpenAbout: () -> Unit = {},
+    onOpenStorage: () -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var requestRosterFocus by remember { mutableStateOf(false) }
@@ -70,7 +73,8 @@ fun CatalogScreen(
             viewModel.onEvent(CatalogEvent.AmbientColorExtracted(color, imageUrl))
         },
         onRetryLoad = { viewModel.onEvent(CatalogEvent.RetryLoad) },
-        onOpenSettings = onOpenSettings,
+        onOpenAbout = onOpenAbout,
+        onOpenStorage = onOpenStorage,
     )
 }
 
@@ -91,7 +95,8 @@ fun CatalogScreenContent(
     onUninstallChargeComplete: () -> Unit,
     onAmbientColorExtracted: (Color, String?) -> Unit,
     onRetryLoad: () -> Unit,
-    onOpenSettings: () -> Unit = {},
+    onOpenAbout: () -> Unit = {},
+    onOpenStorage: () -> Unit = {},
 ) {
     val contentAlpha by animateFloatAsState(
         targetValue = state.contentAlpha,
@@ -162,8 +167,19 @@ fun CatalogScreenContent(
                 statusText = state.statusLabel,
                 clockText = state.clockText,
                 downloadProgress = state.downloadProgressFraction,
-                debugHint = if (LauncherMetadata.DEBUG_TOOLS_ENABLED) "F12 LOGS" else null,
-                onSettingsClick = onOpenSettings,
+                actions =
+                    buildList {
+                        if (LauncherMetadata.DEBUG_TOOLS_ENABLED) {
+                            add(
+                                StatusBarAction(
+                                    label = "LOGS",
+                                    onClick = { DebugNavigation.requestOpenLogs() },
+                                ),
+                            )
+                        }
+                        add(StatusBarAction(label = "STORAGE", onClick = onOpenStorage))
+                        add(StatusBarAction(label = "ABOUT", onClick = onOpenAbout))
+                    },
             )
         }
     }

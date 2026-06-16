@@ -82,7 +82,7 @@ fun SettingsScreenContent(
                         .padding(horizontal = LauncherSpacing.Lg, vertical = LauncherSpacing.Xl),
                 verticalArrangement = Arrangement.spacedBy(LauncherSpacing.Lg),
             ) {
-                DisplayTitle(text = "Settings")
+                DisplayTitle(text = "About")
 
                 SettingsInfoRow(
                     label = "VERSION",
@@ -105,7 +105,7 @@ fun SettingsScreenContent(
             }
 
             StatusBar(
-                statusText = "SETTINGS",
+                statusText = "ABOUT",
                 clockText = state.clockText,
             )
         }
@@ -143,7 +143,7 @@ private fun formatPlatformLabel(platformKey: String?): String =
     }
 
 @Preview(
-    name = "Settings",
+    name = "About",
     widthDp = 1280,
     heightDp = 720,
     showBackground = true,

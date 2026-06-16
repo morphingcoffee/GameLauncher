@@ -3,7 +3,8 @@
 # Do not add MsiInstallerStrings_en.wxl — jpackage duplicates localization and light fails.
 
 param(
-    [string]$BuildNumber = $env:BUILD_NUMBER
+    [string]$BuildNumber = $env:BUILD_NUMBER,
+    [switch]$Dev
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,17 +16,27 @@ if (-not $BuildNumber) {
     Write-Error "BUILD_NUMBER is required (workflow run number or -BuildNumber)."
 }
 
-$gradleArgs = @(":composeApp:createDistributable", "--no-daemon", "-PbuildNumber=$BuildNumber")
+$devProperty = @()
+if ($Dev) {
+    $devProperty = @("-PgameLauncherDev=true")
+}
+
+$gradleArgs = @(":composeApp:createDistributable", "--no-daemon", "-PbuildNumber=$BuildNumber") + $devProperty
 & .\gradlew.bat @gradleArgs
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-$appImage = Join-Path $LauncherRoot "composeApp\build\compose\binaries\main\app\GameLauncher"
+$packageName = (& .\gradlew.bat -q :composeApp:printAppPackageName --no-daemon "-PbuildNumber=$BuildNumber" @devProperty).Trim()
+$artifactVersion = (& .\gradlew.bat -q :composeApp:printArtifactVersion --no-daemon "-PbuildNumber=$BuildNumber" @devProperty).Trim()
+$upgradeUuid = (& .\gradlew.bat -q :composeApp:printWindowsUpgradeUuid --no-daemon "-PbuildNumber=$BuildNumber" @devProperty).Trim()
+$appImage = Join-Path $LauncherRoot "composeApp\build\compose\binaries\main\app\$packageName"
 $msiDir = Join-Path $LauncherRoot "composeApp\installer\windows\msi"
 $resourceSourceDir = Join-Path $msiDir "jpackage"
+$propertiesFileName = if ($Dev) { "GameLauncherDev.properties" } else { "GameLauncher.properties" }
 $licenseFile = Join-Path $msiDir "installer-license.rtf"
 $iconFile = Join-Path $LauncherRoot "composeApp\icons\icon.ico"
 $destDir = Join-Path $LauncherRoot "composeApp\build\compose\binaries\main\msi"
-$msiVersion = (& .\gradlew.bat -q :composeApp:printWindowsMsiProductVersion --no-daemon "-PbuildNumber=$BuildNumber").Trim()
+$msiVersion = (& .\gradlew.bat -q :composeApp:printWindowsMsiProductVersion --no-daemon "-PbuildNumber=$BuildNumber" @devProperty).Trim()
+$publishedMsi = Join-Path $LauncherRoot "GameLauncher-$artifactVersion.msi"
 
 if (-not (Test-Path $appImage)) {
     Write-Error "App image not found at $appImage"
@@ -36,7 +47,7 @@ if (-not (Test-Path $resourceSourceDir)) {
 
 $requiredSources = @(
     "GameLauncher.ico",
-    "GameLauncher.properties",
+    $propertiesFileName,
     "installer-banner.bmp",
     "installer-dialog.bmp",
     "main.wxs",
@@ -57,9 +68,11 @@ if (Test-Path $stagingDir) {
 }
 New-Item -ItemType Directory -Force -Path $stagingDir | Out-Null
 
-foreach ($fileName in @("GameLauncher.ico", "GameLauncher.properties", "overrides.wxi", "installer-banner.bmp", "installer-dialog.bmp")) {
-    Copy-Item -Path (Join-Path $resourceSourceDir $fileName) -Destination (Join-Path $stagingDir $fileName)
-}
+Copy-Item -Path (Join-Path $resourceSourceDir "GameLauncher.ico") -Destination (Join-Path $stagingDir "GameLauncher.ico")
+Copy-Item -Path (Join-Path $resourceSourceDir $propertiesFileName) -Destination (Join-Path $stagingDir "$packageName.properties")
+Copy-Item -Path (Join-Path $resourceSourceDir "overrides.wxi") -Destination (Join-Path $stagingDir "overrides.wxi")
+Copy-Item -Path (Join-Path $resourceSourceDir "installer-banner.bmp") -Destination (Join-Path $stagingDir "installer-banner.bmp")
+Copy-Item -Path (Join-Path $resourceSourceDir "installer-dialog.bmp") -Destination (Join-Path $stagingDir "installer-dialog.bmp")
 
 $bannerPath = (Resolve-Path (Join-Path $stagingDir "installer-banner.bmp")).Path.Replace("\", "/")
 $dialogPath = (Resolve-Path (Join-Path $stagingDir "installer-dialog.bmp")).Path.Replace("\", "/")
@@ -97,7 +110,7 @@ if ($candleCmd) {
     Write-Error "candle.exe not found on PATH after WiX setup"
 }
 
-Write-Host "Packaging MSI product version $msiVersion with branded WiX resources..."
+Write-Host "Packaging MSI product version $msiVersion ($packageName) with branded WiX resources..."
 Write-Host "Installer banner: $bannerPath"
 Write-Host "Installer dialog: $dialogPath"
 
@@ -106,7 +119,7 @@ Write-Host "Installer dialog: $dialogPath"
     --app-image $appImage `
     --resource-dir $stagingDir `
     --license-file $licenseFile `
-    --name GameLauncher `
+    --name $packageName `
     --description Curated-indie-game-launcher `
     --vendor GameLauncher `
     --copyright GameLauncher `
@@ -114,11 +127,17 @@ Write-Host "Installer dialog: $dialogPath"
     --dest $destDir `
     --icon $iconFile `
     --win-menu `
-    --win-menu-group "Game Launcher" `
+    --win-menu-group $(if ($Dev) { "Game Launcher DEV" } else { "Game Launcher" }) `
     --win-shortcut `
     --win-dir-chooser `
-    --win-upgrade-uuid "8f2a1b3c-4d5e-6f70-8a9b-0c1d2e3f4a5b"
+    --win-upgrade-uuid $upgradeUuid
 
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-Write-Host "MSI written to $destDir"
+$builtMsi = Get-ChildItem -Path $destDir -Filter *.msi | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+if (-not $builtMsi) {
+    Write-Error "No MSI produced in $destDir"
+}
+
+Copy-Item -Path $builtMsi.FullName -Destination $publishedMsi -Force
+Write-Host "MSI written to $publishedMsi"

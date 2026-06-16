@@ -72,12 +72,18 @@ jobs:
         run: chmod +x ./launcher/gradlew
         working-directory: ${{ github.workspace }}
 
-      - name: Build macOS app image
+      - name: Build macOS app image (prod)
         run: ./gradlew :composeApp:createDistributable --no-daemon -PcomposeDesktopHost=${{ matrix.compose_host }} -PbuildNumber=$BUILD_NUMBER
 
-      - name: Verify app binary architecture
+      - name: Resolve prod packaging metadata
         run: |
-          BIN="composeApp/build/compose/binaries/main/app/GameLauncher.app/Contents/MacOS/GameLauncher"
+          echo "ARTIFACT_VERSION=$(./gradlew -q :composeApp:printArtifactVersion --no-daemon -PbuildNumber=$BUILD_NUMBER)" >> "$GITHUB_ENV"
+          echo "APP_PACKAGE_NAME=$(./gradlew -q :composeApp:printAppPackageName --no-daemon -PbuildNumber=$BUILD_NUMBER)" >> "$GITHUB_ENV"
+          echo "DMG_VOLUME_NAME=$(./gradlew -q :composeApp:printMacOsDmgVolumeName --no-daemon -PbuildNumber=$BUILD_NUMBER)" >> "$GITHUB_ENV"
+
+      - name: Verify prod app binary architecture
+        run: |
+          BIN="composeApp/build/compose/binaries/main/app/${APP_PACKAGE_NAME}.app/Contents/MacOS/${APP_PACKAGE_NAME}"
           OUTPUT=$(file "$BIN")
           echo "$OUTPUT"
           case "${{ matrix.expected_arch }}" in
@@ -86,25 +92,55 @@ jobs:
             *) echo "Unknown expected_arch: ${{ matrix.expected_arch }}"; exit 1 ;;
           esac
 
-      - name: Ad-hoc sign app bundle
-        run: codesign --force --deep --sign - "composeApp/build/compose/binaries/main/app/GameLauncher.app"
+      - name: Ad-hoc sign prod app bundle
+        run: codesign --force --deep --sign - "composeApp/build/compose/binaries/main/app/${APP_PACKAGE_NAME}.app"
 
-      - name: Resolve artifact version
-        run: echo "ARTIFACT_VERSION=$(./gradlew -q :composeApp:printArtifactVersion --no-daemon -PbuildNumber=$BUILD_NUMBER)" >> "$GITHUB_ENV"
-
-      - name: Create DMG from signed app
+      - name: Create prod DMG and ZIP
         run: |
           hdiutil create \
-            -volname "Game Launcher" \
-            -srcfolder "composeApp/build/compose/binaries/main/app/GameLauncher.app" \
+            -volname "$DMG_VOLUME_NAME" \
+            -srcfolder "composeApp/build/compose/binaries/main/app/${APP_PACKAGE_NAME}.app" \
             -ov -format UDZO \
             "GameLauncher-${ARTIFACT_VERSION}-${{ matrix.compose_host }}.dmg"
 
-      - name: Create portable ZIP
-        run: |
           ditto -c -k --keepParent \
-            "composeApp/build/compose/binaries/main/app/GameLauncher.app" \
+            "composeApp/build/compose/binaries/main/app/${APP_PACKAGE_NAME}.app" \
             "GameLauncher-${ARTIFACT_VERSION}-${{ matrix.compose_host }}.zip"
+
+      - name: Build macOS app image (dev)
+        run: ./gradlew :composeApp:createDistributable --no-daemon -PcomposeDesktopHost=${{ matrix.compose_host }} -PbuildNumber=$BUILD_NUMBER -PgameLauncherDev=true
+
+      - name: Resolve dev packaging metadata
+        run: |
+          echo "ARTIFACT_VERSION_DEV=$(./gradlew -q :composeApp:printArtifactVersion --no-daemon -PbuildNumber=$BUILD_NUMBER -PgameLauncherDev=true)" >> "$GITHUB_ENV"
+          echo "APP_PACKAGE_NAME_DEV=$(./gradlew -q :composeApp:printAppPackageName --no-daemon -PbuildNumber=$BUILD_NUMBER -PgameLauncherDev=true)" >> "$GITHUB_ENV"
+          echo "DMG_VOLUME_NAME_DEV=$(./gradlew -q :composeApp:printMacOsDmgVolumeName --no-daemon -PbuildNumber=$BUILD_NUMBER -PgameLauncherDev=true)" >> "$GITHUB_ENV"
+
+      - name: Verify dev app binary architecture
+        run: |
+          BIN="composeApp/build/compose/binaries/main/app/${APP_PACKAGE_NAME_DEV}.app/Contents/MacOS/${APP_PACKAGE_NAME_DEV}"
+          OUTPUT=$(file "$BIN")
+          echo "$OUTPUT"
+          case "${{ matrix.expected_arch }}" in
+            arm64) echo "$OUTPUT" | grep -q 'arm64' || { echo "Expected arm64 binary"; exit 1; } ;;
+            x86_64) echo "$OUTPUT" | grep -q 'x86_64' || { echo "Expected x86_64 binary"; exit 1; } ;;
+            *) echo "Unknown expected_arch: ${{ matrix.expected_arch }}"; exit 1 ;;
+          esac
+
+      - name: Ad-hoc sign dev app bundle
+        run: codesign --force --deep --sign - "composeApp/build/compose/binaries/main/app/${APP_PACKAGE_NAME_DEV}.app"
+
+      - name: Create dev DMG and ZIP
+        run: |
+          hdiutil create \
+            -volname "$DMG_VOLUME_NAME_DEV" \
+            -srcfolder "composeApp/build/compose/binaries/main/app/${APP_PACKAGE_NAME_DEV}.app" \
+            -ov -format UDZO \
+            "GameLauncher-${ARTIFACT_VERSION_DEV}-${{ matrix.compose_host }}.dmg"
+
+          ditto -c -k --keepParent \
+            "composeApp/build/compose/binaries/main/app/${APP_PACKAGE_NAME_DEV}.app" \
+            "GameLauncher-${ARTIFACT_VERSION_DEV}-${{ matrix.compose_host }}.zip"
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
@@ -113,12 +149,17 @@ jobs:
           path: |
             launcher/GameLauncher-${{ env.ARTIFACT_VERSION }}-${{ matrix.compose_host }}.dmg
             launcher/GameLauncher-${{ env.ARTIFACT_VERSION }}-${{ matrix.compose_host }}.zip
+            launcher/GameLauncher-${{ env.ARTIFACT_VERSION_DEV }}-${{ matrix.compose_host }}.dmg
+            launcher/GameLauncher-${{ env.ARTIFACT_VERSION_DEV }}-${{ matrix.compose_host }}.zip
           if-no-files-found: error
 
       - name: macOS install notes
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
           ### macOS artifacts (${{ matrix.compose_host }})
+
+          Each artifact bundle includes **prod** and **dev** (`-dev` suffix) DMG + ZIP pairs.
+          Dev builds ship fake catalog data and show **MC.GAME.LAUNCHER [DEV]** in the title bar.
 
           GitHub adds a quarantine flag to downloaded files. After downloading:
 
@@ -164,22 +205,21 @@ jobs:
             Write-Host "Pre-Gradle candle.exe: $((Get-Command candle.exe).Source)"
           }
 
-      - name: Package MSI
+      - name: Package prod MSI
         shell: pwsh
         run: ..\tools\dev\package-windows-msi.ps1
         working-directory: launcher
 
-      - name: Resolve artifact version
+      - name: Package dev MSI
         shell: pwsh
-        run: |
-          $artifactVersion = .\gradlew.bat -q :composeApp:printArtifactVersion --no-daemon "-PbuildNumber=$($env:BUILD_NUMBER)"
-          "ARTIFACT_VERSION=$artifactVersion" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+        run: ..\tools\dev\package-windows-msi.ps1 -Dev
+        working-directory: launcher
 
       - name: Upload Windows MSI
         uses: actions/upload-artifact@v4
         with:
-          name: GameLauncher-windows-msi-${{ env.ARTIFACT_VERSION }}
-          path: launcher/composeApp/build/compose/binaries/main/msi/*.msi
+          name: GameLauncher-windows-msi
+          path: launcher/GameLauncher-*.msi
           if-no-files-found: error
 
       - name: Windows MSI install notes
@@ -187,6 +227,8 @@ jobs:
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
           ### Windows MSI
+
+          Artifact includes **prod** and **dev** (`-dev` in filename) installers. Dev builds use fake catalog data and a separate Start Menu group (**Game Launcher DEV**).
 
           Run the installer. Windows SmartScreen may warn about an unknown publisher — choose **More info** → **Run anyway**. Authenticode signing is tracked in [#45](https://github.com/morphingcoffee/GameLauncher/issues/45).
 
@@ -222,22 +264,21 @@ jobs:
           java-version: 17
           cache: gradle
 
-      - name: Package portable ZIP
+      - name: Package prod portable ZIP
         shell: pwsh
         run: ..\tools\dev\package-windows-zip.ps1
         working-directory: launcher
 
-      - name: Resolve artifact version
+      - name: Package dev portable ZIP
         shell: pwsh
-        run: |
-          $artifactVersion = .\gradlew.bat -q :composeApp:printArtifactVersion --no-daemon "-PbuildNumber=$($env:BUILD_NUMBER)"
-          "ARTIFACT_VERSION=$artifactVersion" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+        run: ..\tools\dev\package-windows-zip.ps1 -Dev
+        working-directory: launcher
 
       - name: Upload Windows portable ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: GameLauncher-${{ env.ARTIFACT_VERSION }}
-          path: launcher/GameLauncher-${{ env.ARTIFACT_VERSION }}.zip
+          name: GameLauncher-windows-portable
+          path: launcher/GameLauncher-*.zip
           if-no-files-found: error
 
       - name: Windows ZIP install notes
@@ -246,7 +287,9 @@ jobs:
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
           ### Windows portable ZIP
 
-          Unzip and run `GameLauncher.exe` inside `GameLauncher-0.0.1-build<run>/`. No Start Menu entry or installer wizard.
+          Artifact includes **prod** and **dev** (`-dev` in filename) portable folders. Dev builds use fake catalog data.
+
+          Unzip and run `GameLauncher.exe` (prod) or `GameLauncherDev.exe` (dev) inside the versioned folder. No Start Menu entry or installer wizard.
 
           **Upgrade:** replace the extracted folder with a newer ZIP.
 

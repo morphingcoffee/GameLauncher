@@ -9,6 +9,7 @@ import com.morphingcoffee.gamelauncher.core.network.DownloadProgress
 import com.morphingcoffee.gamelauncher.core.network.GameCatalogDataSource
 import com.morphingcoffee.gamelauncher.core.network.GameLauncher
 import com.morphingcoffee.gamelauncher.core.network.InstallState
+import com.morphingcoffee.gamelauncher.core.network.InstalledGameSummary
 import com.morphingcoffee.gamelauncher.core.network.SimulatedLaunchException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,11 +22,21 @@ class FakeGameCatalogDataSource(
     private val catalogLoadDelayMs: LongRange = 600L..2_500L,
     private val launchDelayMs: LongRange = 800L..1_800L,
     private val versionHistoryDelayMs: LongRange = 300L..900L,
+    seedDevInstalls: Boolean = true,
 ) : GameCatalogDataSource {
     private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
     override val downloadProgress: StateFlow<DownloadProgress?> = _downloadProgress.asStateFlow()
 
     private val installedGames = mutableMapOf<String, String>()
+
+    init {
+        if (seedDevInstalls) {
+            // Each entry uses allPlatformBuilds at the seeded version so storage/dev works on every desktop OS.
+            installedGames["void-runner"] = "1.4.2"
+            installedGames["no-signal"] = "0.0.1"
+            installedGames["long-title-alpha"] = "0.0.1"
+        }
+    }
 
     override suspend fun loadCatalog(): Result<List<GameCatalogEntry>> {
         delay(catalogLoadDelayMs.random())
@@ -107,6 +118,24 @@ class FakeGameCatalogDataSource(
         return (build.fileSizeBytes * 108L) / 100L
     }
 
+    override suspend fun listInstalledGames(): List<InstalledGameSummary> =
+        installedGames
+            .mapNotNull { (gameId, version) ->
+                val sizeBytes = getOnDiskSizeBytes(gameId) ?: return@mapNotNull null
+                InstalledGameSummary(
+                    gameId = gameId,
+                    version = version,
+                    sizeBytes = sizeBytes,
+                )
+            }.sortedByDescending { it.sizeBytes }
+
+    override suspend fun uninstallAllGames(): Result<Unit> =
+        runCatching {
+            installedGames.keys.toList().forEach { gameId ->
+                uninstallGame(gameId).getOrThrow()
+            }
+        }
+
     override suspend fun launchGame(gameId: String): Result<Unit> {
         val version =
             installedGames[gameId]
@@ -158,7 +187,7 @@ private val FAKE_CATALOG: List<GameCatalogEntry> =
             id = "void-runner",
             title = "VOID RUNNER",
             thumbnailSeed = 101,
-            builds = allPlatformBuilds(51_200_000L),
+            builds = allPlatformBuilds(620_000_000L),
             version = "1.4.2",
             versionHistory =
                 listOf(
@@ -176,7 +205,7 @@ private val FAKE_CATALOG: List<GameCatalogEntry> =
                         PlatformKey.WINDOWS_X64,
                         PlatformKey.MACOS_ARM64,
                         PlatformKey.MACOS_X64,
-                        fileSizeBytes = 51_200_000L,
+                        fileSizeBytes = 620_000_000L,
                     ),
                 ),
         ),
@@ -185,7 +214,7 @@ private val FAKE_CATALOG: List<GameCatalogEntry> =
             id = "neon-drift",
             title = "NEON DRIFT",
             thumbnailSeed = 202,
-            builds = platformBuilds(PlatformKey.MACOS_ARM64, PlatformKey.MACOS_X64, fileSizeBytes = 88_400_000L),
+            builds = platformBuilds(PlatformKey.MACOS_ARM64, PlatformKey.MACOS_X64, fileSizeBytes = 380_000_000L),
             version = "0.9.0",
             versionHistory =
                 listOf(
@@ -196,7 +225,7 @@ private val FAKE_CATALOG: List<GameCatalogEntry> =
                         "2025-01-20",
                         PlatformKey.MACOS_ARM64,
                         PlatformKey.MACOS_X64,
-                        fileSizeBytes = 88_400_000L,
+                        fileSizeBytes = 380_000_000L,
                     ),
                 ),
         ),

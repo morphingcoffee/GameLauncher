@@ -27,4 +27,8 @@ interface GameCatalogDataSource {
     suspend fun launchGame(gameId: String): Result<Unit>
 
     suspend fun openWebGame(url: String): Result<Unit>
+
+    suspend fun listInstalledGames(): List<InstalledGameSummary> = emptyList()
+
+    suspend fun uninstallAllGames(): Result<Unit>
 }

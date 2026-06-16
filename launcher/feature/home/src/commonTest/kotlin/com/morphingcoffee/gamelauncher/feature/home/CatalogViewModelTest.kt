@@ -665,6 +665,8 @@ class CatalogViewModelTest {
             openedUrl = url
             return Result.success(Unit)
         }
+
+        override suspend fun uninstallAllGames(): Result<Unit> = Result.success(Unit)
     }
 
     private class BlockingLaunchDataSource(
@@ -714,6 +716,8 @@ class CatalogViewModelTest {
         }
 
         override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun uninstallAllGames(): Result<Unit> = Result.success(Unit)
     }
 
     private class CountingDownloadDataSource(
@@ -768,6 +772,8 @@ class CatalogViewModelTest {
         override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
 
         override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun uninstallAllGames(): Result<Unit> = Result.success(Unit)
     }
 
     private class DelayedVersionHistoryDataSource(
@@ -819,6 +825,8 @@ class CatalogViewModelTest {
         override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
 
         override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun uninstallAllGames(): Result<Unit> = Result.success(Unit)
     }
 
     private class DelayedInstallStateDataSource(
@@ -871,6 +879,8 @@ class CatalogViewModelTest {
         override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
 
         override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun uninstallAllGames(): Result<Unit> = Result.success(Unit)
     }
 
     private class UninstallTrackingDataSource(
@@ -922,6 +932,8 @@ class CatalogViewModelTest {
         override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
 
         override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun uninstallAllGames(): Result<Unit> = Result.success(Unit)
     }
 
     private class DelayedUninstallDataSource(
@@ -985,6 +997,8 @@ class CatalogViewModelTest {
         override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
 
         override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun uninstallAllGames(): Result<Unit> = Result.success(Unit)
     }
 
     private class StubGameCatalogDataSource(
@@ -1019,6 +1033,8 @@ class CatalogViewModelTest {
         override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
 
         override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun uninstallAllGames(): Result<Unit> = Result.success(Unit)
     }
 
     private fun sampleManifestJson(): String =
