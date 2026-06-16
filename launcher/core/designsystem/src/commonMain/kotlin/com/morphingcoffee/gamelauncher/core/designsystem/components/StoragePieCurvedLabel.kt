@@ -59,17 +59,18 @@ internal fun DrawScope.drawCurvedSegmentLabel(
     if (totalSpan < degreesPerChar) return
 
     val midAngle = if (isFullRing) FULL_RING_LABEL_MID_ANGLE else layout.midAngle
+    val angleStep = totalSpan / chars.size.coerceAtLeast(1)
     val startAngle = midAngle - totalSpan / 2f + degreesPerChar / 2f
 
     chars.forEachIndexed { index, char ->
-        val angle = startAngle + index * (totalSpan / chars.size.coerceAtLeast(1))
+        val angle = startAngle + index * angleStep
         val anchor = polarToCartesian(center, labelRadius, angle)
         val charLayout =
             textMeasurer.measure(
                 text = AnnotatedString(char.toString()),
                 style = charStyle,
             )
-        rotate(degrees = curvedCharRotationDegrees(angle), pivot = anchor) {
+        rotate(degrees = angle + 90f, pivot = anchor) {
             drawText(
                 textLayoutResult = charLayout,
                 topLeft =
@@ -80,15 +81,6 @@ internal fun DrawScope.drawCurvedSegmentLabel(
             )
         }
     }
-}
-
-/** Keep characters upright on the bottom half of the ring. */
-private fun curvedCharRotationDegrees(angleDegrees: Float): Float {
-    var rotation = angleDegrees + 90f
-    if (rotation > 90f && rotation < 270f) {
-        rotation += 180f
-    }
-    return rotation
 }
 
 internal fun curvedSegmentLabel(
