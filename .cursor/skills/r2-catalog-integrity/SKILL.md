@@ -74,6 +74,7 @@ Report lines: `PASS|WARN|FAIL  [scope] name — detail`
 
 - `scope` is `manifest`, `game:{id}`, or version-scoped `game:{id} v{version}`
 - Treat **WARN** as non-blocking unless the user wants zero warnings
+- Missing `uncompressed_size_bytes` is a **FAIL** (required for true install size display)
 
 ## Related
 

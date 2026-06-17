@@ -74,6 +74,19 @@ def validate_platforms(platform_list: List[str], builds: Dict[str, Any]) -> None
             die(f"build metadata missing for platform: {platform}")
 
 
+def warn_missing_uncompressed_sizes(builds: Dict[str, Any], platform_list: List[str]) -> None:
+    """Advise when builds omit install size (register_version.py computes this from zip)."""
+    for platform in platform_list:
+        meta = builds.get(platform, {})
+        size = meta.get("uncompressed_size_bytes")
+        if not isinstance(size, int) or size <= 0:
+            print(
+                f"register-game-version: warning: {platform} missing uncompressed_size_bytes "
+                "(use register_version.py to scan staging zip, or add to BUILDS_JSON)",
+                file=sys.stderr,
+            )
+
+
 def new_versions_index(game_id: str) -> Dict[str, Any]:
     return {"game_id": game_id, "versions": []}
 
@@ -461,6 +474,7 @@ def register_version(repo_root: Path, options: RegisterOptions) -> None:
         options.cdn_base,
     )
     validate_platforms(options.platform_list, builds_for_version)
+    warn_missing_uncompressed_sizes(builds_for_version, options.platform_list)
 
     versions_url = f"{options.cdn_base}/{r2_versions_object_key(options.game_id)}"
     versions_remote_path = r2_versions_object_key(options.game_id)

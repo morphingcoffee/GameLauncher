@@ -66,6 +66,21 @@ class TestValidateBuildMetadata(unittest.TestCase):
         )
         self.assertGreater(checker.errors, 0)
 
+    def test_missing_uncompressed_size_fails(self) -> None:
+        checker = CatalogChecker()
+        validate_build_metadata(
+            checker,
+            "v1.0.0",
+            "windows-x64",
+            {
+                "download_url": "https://cdn.example.com/x.zip",
+                "executable_path": "Game.exe",
+                "file_size_bytes": 1000,
+                "sha256": "a" * 64,
+            },
+        )
+        self.assertGreater(checker.errors, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

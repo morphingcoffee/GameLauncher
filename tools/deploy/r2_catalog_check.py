@@ -95,7 +95,7 @@ def validate_build_metadata(
         checker.ok(label, "sha256 valid")
 
     if not build.get("uncompressed_size_bytes"):
-        checker.warn(label, "missing uncompressed_size_bytes")
+        checker.fail(label, "missing uncompressed_size_bytes")
 
 
 def remote_object_size(remote: str, object_key: str) -> Optional[int]:
