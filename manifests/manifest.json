@@ -22,7 +22,7 @@
     {
       "id": "arcade_gym",
       "title": "Arcade Gym",
-      "description": "Arcade fitness game for macOS (Intel).",
+      "description": "A game gym — a room with prototype mechanics to try and test.",
       "thumbnail_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/assets/arcade_gym/thumbnail.webp",
       "latest_version": "0.0.1",
       "versions_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/games/arcade_gym/versions.json",

@@ -114,6 +114,7 @@ python3 tools/deploy/r2_deploy.py --copy \
 # 2. Register — scans r2_staging zip for sha256/sizes, updates git JSON, publishes to R2
 python3 tools/deploy/register_version.py krabs_v1 0.0.1 --platform windows-x64
 # executable_path comes from manifests/games/krabs_v1/releases/0.0.1.json if present
+# New games: pass --title, --description, --thumbnail-url (user-supplied — never placeholder copy)
 
 # 3. Commit catalog changes
 git add manifests/manifest.json manifests/games/
