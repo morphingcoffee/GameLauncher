@@ -202,7 +202,7 @@ jobs:
     name: Windows (MSI)
     if: github.event.inputs.build_windows != 'false'
     runs-on: windows-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       BUILD_NUMBER: ${{ github.run_number }}
     defaults:
@@ -272,7 +272,7 @@ jobs:
     name: Windows (portable ZIP)
     if: github.event.inputs.build_windows_zip != 'false'
     runs-on: windows-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       BUILD_NUMBER: ${{ github.run_number }}
     defaults:
