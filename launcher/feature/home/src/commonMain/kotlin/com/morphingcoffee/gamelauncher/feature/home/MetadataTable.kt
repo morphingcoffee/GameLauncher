@@ -20,6 +20,7 @@ internal fun MetadataTable(
     currentPlatformBuild: GameBuild?,
     availableBuilds: Map<String, GameBuild>,
     isWebGame: Boolean = false,
+    isInstalled: Boolean = false,
     onDiskSizeBytes: Long? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -32,7 +33,9 @@ internal fun MetadataTable(
             value =
                 formatSizeDisplay(
                     downloadSizeBytes = currentPlatformBuild?.fileSizeBytes,
+                    uncompressedSizeBytes = currentPlatformBuild?.uncompressedSizeBytes,
                     onDiskSizeBytes = onDiskSizeBytes,
+                    isInstalled = isInstalled,
                     isWebGame = isWebGame,
                 ),
         )

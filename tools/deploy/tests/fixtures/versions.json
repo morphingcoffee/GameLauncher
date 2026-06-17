@@ -8,6 +8,7 @@
         "macos-arm64": {
           "executable_path": "Game.app/Contents/MacOS/Game",
           "file_size_bytes": 1000,
+          "uncompressed_size_bytes": 2500,
           "sha256": "abc",
           "download_url": "https://cdn.example.com/games/cool_game/v1.0.0/macos-arm64/game.zip"
         }

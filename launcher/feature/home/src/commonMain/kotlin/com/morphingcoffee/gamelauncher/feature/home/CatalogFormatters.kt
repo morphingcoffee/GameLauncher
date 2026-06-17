@@ -5,18 +5,19 @@ import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 
 internal fun formatSizeDisplay(
     downloadSizeBytes: Long?,
+    uncompressedSizeBytes: Long?,
     onDiskSizeBytes: Long?,
+    isInstalled: Boolean = false,
     isWebGame: Boolean = false,
 ): String {
     if (isWebGame) return "BROWSER"
-    if (downloadSizeBytes == null) return "NOT AVAILABLE"
-    if (onDiskSizeBytes != null && onDiskSizeBytes != downloadSizeBytes) {
-        return "${formatFileSize(downloadSizeBytes)} DL / ${formatFileSize(onDiskSizeBytes)} ON DISK"
+    if (isInstalled) {
+        return onDiskSizeBytes?.let { "${formatFileSize(it)} ON DISK" } ?: "NOT AVAILABLE"
     }
-    if (onDiskSizeBytes != null) {
-        return formatFileSize(onDiskSizeBytes)
-    }
-    return formatFileSize(downloadSizeBytes)
+    val preDownloadBytes =
+        uncompressedSizeBytes?.takeIf { it > 0L }
+            ?: downloadSizeBytes?.takeIf { it > 0L }
+    return preDownloadBytes?.let(::formatFileSize) ?: "NOT AVAILABLE"
 }
 
 internal fun formatPlatformLabel(platformKey: String?): String =

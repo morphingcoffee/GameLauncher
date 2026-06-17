@@ -4,7 +4,19 @@ Upload artifacts to [Cloudflare R2](https://developers.cloudflare.com/r2/) via [
 
 Manifest schema and CI workflows for issue [#3](https://github.com/morphingcoffee/GameLauncher/issues/3).
 
-## Bucket layout
+## Repository layout
+
+| Path | Git | Purpose |
+|------|-----|---------|
+| `manifests/manifest.json` | Yes | Live catalog (latest builds per game) |
+| `r2_staging/games/{game_id}/v{version}/{platform}/game.zip` | **No** | Local mirror of R2 build path before upload |
+| `r2_staging/assets/{game_id}/` | **No** | Local mirror of R2 assets before upload |
+| `manifests/games/{game_id}/versions.json` | Yes | Version history (source of truth) |
+| `manifests/games/{game_id}/releases/{version}.json` | Yes | Optional overrides (`executable_path`, `released_at`) |
+
+Paths under `r2_staging/` match R2 object keys — the copy destination is the same path without the `r2_staging/` prefix.
+
+## Bucket layout (R2)
 
 ```
 manifest.json                         # live catalog (launcher fetches on startup)
@@ -28,7 +40,7 @@ Cloudflare static tokens are scoped to the **bucket**, not individual object pre
 
 Object Read & Write does not grant delete — a mistaken `rclone sync` cannot remove remote objects when delete is denied at the token level.
 
-Prefix-level scoping (e.g. `manifest.json` only vs `games/**`) requires [Cloudflare Temporary Credentials](https://developers.cloudflare.com/r2/api/s3/temporary-credentials/) and is not implemented yet.
+Prefix-level scoping (e.g. `manifest.json` only vs `games/**`) requires [Cloudflare Temporary Credentials](https://developers.cloudflare.com/r2/api/temporary-credentials/) and is not implemented yet.
 
 ### GitHub Secrets (repository settings)
 
@@ -74,32 +86,89 @@ python3 tools/deploy/r2_test_auth.py
 
 In CI, run **Actions → R2 env check → Run workflow** (see [`.github/workflows/r2-env-check.yml`](../.github/workflows/r2-env-check.yml)) after merge.
 
-Stage artifacts in the gitignored top-level `games/` directory, then upload:
+Stage binaries in the gitignored [`r2_staging/`](../r2_staging/) directory (paths mirror R2 keys), then upload:
 
 ```bash
 # Game binary — prefer --copy (append-only, no remote deletes)
-python3 tools/deploy/r2_deploy.py --copy ./games/cool_game/v1.2.0/macos-arm64 games/cool_game/v1.2.0/macos-arm64
-python3 tools/deploy/r2_deploy.py --copy ./games/cool_game/v1.2.0/windows-x64 games/cool_game/v1.2.0/windows-x64
+python3 tools/deploy/r2_deploy.py --copy \
+  ./r2_staging/games/cool_game/v1.2.0/macos-arm64 \
+  games/cool_game/v1.2.0/macos-arm64
+python3 tools/deploy/r2_deploy.py --copy \
+  ./r2_staging/games/cool_game/v1.2.0/windows-x64 \
+  games/cool_game/v1.2.0/windows-x64
 
 # Thumbnail / assets
-python3 tools/deploy/r2_deploy.py --copy ./games/cool_game/assets assets/cool_game
+python3 tools/deploy/r2_deploy.py --copy ./r2_staging/assets/cool_game assets/cool_game
 ```
 
 Default mode is **sync** (remote prefix mirrors local, may delete extras). Sync runs a dry-run first; pass `--allow-deletes` only after reviewing the delete list.
 
-## Release workflow (Phase 1 — manual)
+## Local release workflow (recommended)
+
+```bash
+# 1. Upload zip(s) to R2
+python3 tools/deploy/r2_deploy.py --copy \
+  ./r2_staging/games/krabs_v1/v0.0.1/windows-x64 \
+  games/krabs_v1/v0.0.1/windows-x64
+
+# 2. Register — scans r2_staging zip for sha256/sizes, updates git JSON, publishes to R2
+python3 tools/deploy/register_version.py krabs_v1 0.0.1 --platform windows-x64
+# executable_path comes from manifests/games/krabs_v1/releases/0.0.1.json if present
+
+# 3. Commit catalog changes
+git add manifests/manifest.json manifests/games/
+git commit -m "Register krabs_v1 v0.0.1"
+```
+
+### Patch metadata on an existing version
+
+When catalog fields change (e.g. add `uncompressed_size_bytes`) but the zip is unchanged:
+
+```bash
+# Merge catalog inline builds into git versions.json for latest_version
+python3 tools/deploy/sync_versions_index.py krabs_v1 --merge-catalog
+
+# Publish to R2
+python3 tools/deploy/r2_publish_versions.py krabs_v1
+```
+
+Or pull from R2 first, then merge:
+
+```bash
+python3 tools/deploy/sync_versions_index.py krabs_v1 --from-r2 --force-r2 --merge-catalog --publish
+```
+
+### Publish-only commands
+
+```bash
+python3 tools/deploy/r2_publish_manifest.py
+python3 tools/deploy/r2_publish_versions.py krabs_v1
+```
+
+### Catalog integrity audit
+
+```bash
+python3 tools/deploy/r2_catalog_check.py
+python3 tools/deploy/r2_catalog_check.py --game krabs_v1 --compare-git
+```
+
+See [`.cursor/skills/r2-catalog-integrity/SKILL.md`](../.cursor/skills/r2-catalog-integrity/SKILL.md).
+
+## GitHub Actions register (CI / cross-repo)
+
+For automation or when you prefer the workflow UI:
 
 1. Upload binaries to R2 with `r2_deploy.py --copy` (see above).
 2. **Actions → Register game version → Run workflow** with:
    - `game_id`, `version`, `platforms` (e.g. `macos-arm64,windows-x64`)
    - `builds_json` — per-platform metadata, e.g.  
-     `{"macos-arm64":{"executable_path":"Game.app/Contents/MacOS/Game","file_size_bytes":12345,"sha256":"..."}}`
+     `{"macos-arm64":{"executable_path":"Game.app/Contents/MacOS/Game","file_size_bytes":12345,"uncompressed_size_bytes":45678,"sha256":"..."}}`
    - For a **new** game, also set `title`, `description`, `thumbnail_url`.
    - Uncheck **update_catalog_latest** when registering an older build for "Other versions" only.
-3. The workflow updates `games/{id}/versions.json` in R2, updates `manifests/manifest.json`, uploads live `manifest.json` to R2, and commits the git manifest change.
-4. Pushes from `github-actions[bot]` do not trigger other workflows — register uploads the live manifest directly. You can also run **Actions → Deploy manifest** manually to republish from git.
+   - Set env `UPSERT=1` in workflow (or use `--patch` locally) to update an existing version.
+3. The workflow updates R2 `versions.json`, updates git `manifests/manifest.json` and `manifests/games/{id}/versions.json`, uploads live `manifest.json` to R2, and commits.
 
-Catalog source of truth: git history of [`manifests/manifest.json`](../manifests/manifest.json). Roll back with `git revert` and push.
+Catalog source of truth: git history of [`manifests/manifest.json`](../manifests/manifest.json) and [`manifests/games/`](../manifests/games/). Roll back with `git revert` and republish.
 
 ## Tests
 
@@ -107,12 +176,6 @@ Deploy logic unit tests use Python stdlib only (no rclone/R2 required):
 
 ```bash
 cd tools/deploy && python3 -m unittest discover -s tests -v
-```
-
-Republish live `manifest.json` from git without re-registering:
-
-```bash
-python3 tools/deploy/r2_publish_manifest.py
 ```
 
 ## Security

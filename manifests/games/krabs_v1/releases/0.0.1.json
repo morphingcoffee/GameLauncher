@@ -1,0 +1,8 @@
+{
+  "released_at": "2026-06-01",
+  "platforms": {
+    "windows-x64": {
+      "executable_path": "Pushing.exe"
+    }
+  }
+}

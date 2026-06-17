@@ -51,6 +51,8 @@ data class GameBuild(
     val executablePath: String,
     @SerialName("file_size_bytes")
     val fileSizeBytes: Long,
+    @SerialName("uncompressed_size_bytes")
+    val uncompressedSizeBytes: Long? = null,
     @SerialName("sha256")
     val sha256: String,
 )

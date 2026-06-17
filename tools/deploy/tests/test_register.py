@@ -20,10 +20,12 @@ from register_game_version import (  # noqa: E402
     fetch_versions_index,
     find_game_index,
     is_object_not_found,
+    merge_platform_builds,
     new_versions_index,
     parse_platform_list,
     update_catalog_manifest,
     update_game_in_manifest,
+    upsert_version_entry,
     validate_platforms,
 )
 
@@ -171,6 +173,28 @@ class TestVersionsIndex(unittest.TestCase):
         data = append_version_entry(data, "1.0.0", "2025-01-01", builds)
         with self.assertRaises(SystemExit):
             append_version_entry(data, "1.0.0", "2025-01-02", builds)
+
+    def test_upsert_merges_duplicate_version(self) -> None:
+        data = new_versions_index("cool_game")
+        builds = {"macos-arm64": {"sha256": "x", "file_size_bytes": 100}}
+        data = upsert_version_entry(data, "1.0.0", "2025-01-01", builds)
+        patched = upsert_version_entry(
+            data,
+            "1.0.0",
+            "2025-01-02",
+            {"macos-arm64": {"uncompressed_size_bytes": 200}},
+        )
+        build = patched["versions"][0]["builds"]["macos-arm64"]
+        self.assertEqual(build["sha256"], "x")
+        self.assertEqual(build["uncompressed_size_bytes"], 200)
+
+    def test_merge_platform_builds(self) -> None:
+        merged = merge_platform_builds(
+            {"windows-x64": {"sha256": "abc"}},
+            {"windows-x64": {"file_size_bytes": 10}},
+        )
+        self.assertEqual(merged["windows-x64"]["sha256"], "abc")
+        self.assertEqual(merged["windows-x64"]["file_size_bytes"], 10)
 
 
 class TestManifestUpdates(unittest.TestCase):

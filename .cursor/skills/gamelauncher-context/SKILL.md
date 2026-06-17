@@ -19,6 +19,8 @@ description: >-
 |------|---------|
 | `launcher/` | KMP desktop app (Gradle root — `composeApp`, `core/*`, `feature/*`) |
 | `manifests/` | Catalog manifest (`manifest.json`) — git source of truth, CI deploys to R2 |
+| `manifests/games/{id}/` | Version history (`versions.json`) and release overrides — git source of truth |
+| `r2_staging/` | Gitignored local mirror of R2 `games/` and `assets/` prefixes (see `r2_staging/README.md`) |
 | `tools/deploy/` | Cloudflare R2 upload scripts — see `tools/deploy/README.md` |
 | `tools/dev/` | Repo tooling (secret scan, GitHub PAT helpers) |
 | `.github/` | CI workflows |
@@ -68,9 +70,11 @@ Git source of truth: [`manifests/manifest.json`](../../manifests/manifest.json).
 }
 ```
 
+`file_size_bytes` is the compressed download size (zip). `uncompressed_size_bytes` is the installed on-disk footprint declared at publish time (sum of zip entry sizes).
+
 ### Version index (`games/{game_id}/versions.json`)
 
-Lazy-loaded when user opens "Other versions". Lives in R2 only; maintained by the register-game-version workflow.
+Lazy-loaded when user opens "Other versions". Git source: `manifests/games/{game_id}/versions.json`. Published to R2 on register/sync.
 
 Kotlin models in `:core:model` — `Manifest`, `GameCatalogEntry`, `GameVersionIndex`, `PlatformKey`.
 

@@ -42,6 +42,7 @@ private fun previewGame(
                             downloadUrl = "https://example.com/$id.zip",
                             executablePath = previewExecutablePath(platformKey),
                             fileSizeBytes = 48_234_567L,
+                            uncompressedSizeBytes = 96_500_000L,
                             sha256 = "abc123",
                         ),
                 )
@@ -52,6 +53,7 @@ private fun previewGame(
                             downloadUrl = "https://example.com/$id.zip",
                             executablePath = "Game.exe",
                             fileSizeBytes = 48_234_567L,
+                            uncompressedSizeBytes = 96_500_000L,
                             sha256 = "abc123",
                         ),
                 )

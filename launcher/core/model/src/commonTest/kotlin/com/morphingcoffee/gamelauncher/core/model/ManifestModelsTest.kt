@@ -33,6 +33,7 @@ class ManifestModelsTest {
                       "download_url": "https://cdn.example.com/games/cool_game/v1.2.0/macos-arm64/game.zip",
                       "executable_path": "CoolGame.app/Contents/MacOS/CoolGame",
                       "file_size_bytes": 48234567,
+                      "uncompressed_size_bytes": 96500000,
                       "sha256": "abc123"
                     }
                   }
@@ -48,6 +49,13 @@ class ManifestModelsTest {
         assertEquals("cool_game", manifest.games.first().id)
         assertEquals("1.2.0", manifest.games.first().latestVersion)
         assertNotNull(manifest.games.first().builds["macos-arm64"])
+        assertEquals(
+            96_500_000L,
+            manifest.games
+                .first()
+                .builds["macos-arm64"]
+                ?.uncompressedSizeBytes,
+        )
     }
 
     @Test
