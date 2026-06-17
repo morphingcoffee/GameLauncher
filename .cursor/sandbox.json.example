@@ -1,0 +1,6 @@
+{
+  "enableSharedBuildCache": true,
+  "additionalReadwritePaths": [
+    "/path/to/your/home/.gradle"
+  ]
+}

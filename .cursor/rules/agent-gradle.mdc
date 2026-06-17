@@ -1,0 +1,53 @@
+---
+description: >-
+  Agent shell Gradle invocations must reuse the host ~/.gradle cache (wrapper
+  dist, deps, configuration cache). Apply when running ./gradlew, ktlint, or
+  pre-commit hooks from Cursor agent terminals.
+globs:
+alwaysApply: true
+---
+
+# Agent Gradle cache
+
+Cursor sandboxes may set `GRADLE_USER_HOME` to an ephemeral `cursor-sandbox-cache` path, forcing a **cold Gradle wrapper download** and empty dependency cache every run.
+
+## Always do this for Gradle in agent shells
+
+Before `./gradlew` (or use the repo hook script which already fixes this):
+
+```bash
+source launcher/scripts/ensure-host-gradle-home.sh
+./gradlew …
+```
+
+Or inline:
+
+```bash
+GRADLE_USER_HOME="$HOME/.gradle" ./gradlew …
+```
+
+## One-time local setup (recommended)
+
+```bash
+chmod +x tools/dev/setup-cursor-sandbox.sh
+./tools/dev/setup-cursor-sandbox.sh
+```
+
+Then restart Cursor or open a new agent chat. This writes `~/.cursor/sandbox.json` with `enableSharedBuildCache` and read/write access to `~/.gradle`.
+
+Repo-level [`.cursor/sandbox.json`](../sandbox.json) enables shared build cache for this workspace; the setup script adds the user-specific Gradle path.
+
+## Optional Cursor settings
+
+- **Agents → Legacy Terminal Tool** — fewer sandbox env injections.
+- **Command allowlist** — add `./gradlew` so Gradle runs outside the sandbox when approved.
+
+## What reusing ~/.gradle speeds up
+
+| Cache | Location under ~/.gradle |
+|-------|-------------------------|
+| Wrapper distribution (no re-download of gradle-8.x-bin.zip) | `wrapper/dists/` |
+| Dependencies | `caches/` |
+| Configuration cache | `configuration-cache/` |
+
+Pre-commit [`ktlint-check.sh`](../../launcher/scripts/ktlint-check.sh) sources `ensure-host-gradle-home.sh` automatically.
