@@ -1,0 +1,8 @@
+{
+  "released_at": "2026-06-09",
+  "platforms": {
+    "macos-x64": {
+      "executable_path": "game/Arcade-Mac-Shipping.app/Contents/MacOS/Arcade-Mac-Shipping"
+    }
+  }
+}

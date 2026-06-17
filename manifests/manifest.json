@@ -18,6 +18,23 @@
           "download_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/games/krabs_v1/v0.0.1/windows-x64/game.zip"
         }
       }
+    },
+    {
+      "id": "arcade_gym",
+      "title": "Arcade Gym",
+      "description": "Arcade fitness game for macOS (Intel).",
+      "thumbnail_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/assets/arcade_gym/thumbnail.webp",
+      "latest_version": "0.0.1",
+      "versions_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/games/arcade_gym/versions.json",
+      "builds": {
+        "macos-x64": {
+          "file_size_bytes": 107555552,
+          "uncompressed_size_bytes": 335302384,
+          "sha256": "fc329a58a929b0a49f4d33509bb1d7d9ac94317fcd77cda9138d94fd5018e906",
+          "executable_path": "game/Arcade-Mac-Shipping.app/Contents/MacOS/Arcade-Mac-Shipping",
+          "download_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/games/arcade_gym/v0.0.1/macos-x64/game.zip"
+        }
+      }
     }
   ]
 }
