@@ -51,6 +51,18 @@ python3 tools/deploy/r2_catalog_check.py --compare-git --compare-git-manifest
 python3 tools/deploy/r2_catalog_check.py --manifest manifests/manifest.json
 ```
 
+## New game — catalog metadata (ask first)
+
+Before `register_version.py` when **`game_id` is not yet in `manifests/manifest.json`**, **ask the user** for every display field. **Do not invent or guess** title, description, genre, or thumbnail.
+
+| Field | Source |
+|-------|--------|
+| **title** | User-provided display name |
+| **description** | User-provided — what the game *is*; not platform, not marketing filler |
+| **thumbnail** | User-provided file path or confirmed asset; do not pick icons from the zip unless asked |
+
+Only run register after the user supplies copy (or explicitly approves text they wrote in chat). Platform keys, zip paths, and executable paths come from staging/releases JSON — catalog prose does not.
+
 ## Agent workflow
 
 1. Confirm R2 credentials work (`python3 tools/deploy/r2_env_check.py`) if the user reports auth errors.
