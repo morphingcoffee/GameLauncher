@@ -9,6 +9,7 @@ import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 import com.morphingcoffee.gamelauncher.core.network.GameCatalogDataSource
 import com.morphingcoffee.gamelauncher.core.network.InstallState
 import com.morphingcoffee.gamelauncher.core.network.SimulatedLaunchException
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -371,30 +372,43 @@ class CatalogViewModel(
         if (!state.value.isWebGame) return
 
         viewModelScope.launch {
-            AppLog.i("Catalog", "Opening web game ${game.id}")
-            updateState {
-                copy(
-                    statusLabel = "OPENING",
-                    launchErrorMessage = null,
-                )
-            }
-
-            gameCatalogRepository
-                .openWebGame(build.downloadUrl)
-                .onSuccess {
-                    AppLog.i("Catalog", "Browser opened for ${game.id}")
-                    updateState {
-                        copy(statusLabel = "READY")
-                    }
-                }.onFailure { error ->
-                    AppLog.e("Catalog", "Failed to open web game ${game.id}", error)
-                    updateState {
-                        copy(
-                            statusLabel = "ERROR",
-                            launchErrorMessage = error.message,
-                        )
-                    }
+            try {
+                AppLog.i("Catalog", "Opening web game ${game.id}")
+                updateState {
+                    copy(
+                        statusLabel = "OPENING",
+                        launchErrorMessage = null,
+                    )
                 }
+
+                gameCatalogRepository
+                    .openWebGame(build.downloadUrl)
+                    .onSuccess {
+                        AppLog.i("Catalog", "Browser opened for ${game.id}")
+                        updateState {
+                            copy(statusLabel = "READY")
+                        }
+                    }.onFailure { error ->
+                        AppLog.e("Catalog", "Failed to open web game ${game.id}", error)
+                        updateState {
+                            copy(
+                                statusLabel = "ERROR",
+                                launchErrorMessage =
+                                    error.message ?: "Failed to open browser. See F12 logs for details.",
+                            )
+                        }
+                    }
+            } catch (e: Throwable) {
+                ensureActive()
+                AppLog.e("Catalog", "Failed to open web game ${game.id}", e)
+                updateState {
+                    copy(
+                        statusLabel = "ERROR",
+                        launchErrorMessage =
+                            e.message ?: "Failed to open browser. See F12 logs for details.",
+                    )
+                }
+            }
         }
     }
 

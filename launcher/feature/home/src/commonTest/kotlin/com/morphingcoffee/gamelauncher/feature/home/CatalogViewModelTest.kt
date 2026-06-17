@@ -226,6 +226,26 @@ class CatalogViewModelTest {
         }
 
     @Test
+    fun openClicked_webOpenFailure_surfacesError() =
+        runBlocking {
+            val webUrl = "https://morphingcoffee.github.io/apps/games/"
+            val repository =
+                WebGameOpenDataSource(
+                    webUrl = webUrl,
+                    openResult = Result.failure(IllegalStateException("Browser unavailable")),
+                )
+            val viewModel = CatalogViewModel(repository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+            viewModel.onEvent(CatalogEvent.OpenClicked)
+            delay(50)
+
+            assertEquals("ERROR", viewModel.state.value.statusLabel)
+            assertEquals("Browser unavailable", viewModel.state.value.launchErrorMessage)
+        }
+
+    @Test
     fun fastGameSwitch_ignoresStaleVersionHistoryFetch() =
         runBlocking {
             val alphaHistory =
@@ -616,6 +636,7 @@ class CatalogViewModelTest {
 
     private class WebGameOpenDataSource(
         private val webUrl: String,
+        private val openResult: Result<Unit>? = null,
     ) : GameCatalogDataSource {
         var openedUrl: String? = null
         private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
@@ -663,7 +684,7 @@ class CatalogViewModelTest {
 
         override suspend fun openWebGame(url: String): Result<Unit> {
             openedUrl = url
-            return Result.success(Unit)
+            return openResult ?: Result.success(Unit)
         }
 
         override suspend fun uninstallAllGames(): Result<Unit> = Result.success(Unit)

@@ -41,7 +41,8 @@ actual class GameLauncher {
     actual suspend fun openUrl(url: String): Result<Unit> =
         runCatching {
             AppLog.i("GameLauncher", "Opening URL in browser: $url")
-            withContext(Dispatchers.IO) {
+            // Desktop.browse uses AWT; on Compose Desktop this must run on the Swing main thread.
+            withContext(Dispatchers.Main) {
                 if (!Desktop.isDesktopSupported()) {
                     error("Desktop API is not supported on this platform")
                 }
