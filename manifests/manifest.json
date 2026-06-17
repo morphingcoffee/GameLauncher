@@ -35,6 +35,22 @@
           "download_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/games/arcade_gym/v0.0.1/macos-x64/game.zip"
         }
       }
+    },
+    {
+      "id": "game_gallery",
+      "title": "Game Gallery",
+      "description": "Browser-based game prototypes gallery — opens in your default browser.",
+      "thumbnail_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/assets/game_gallery/thumbnail.webp",
+      "latest_version": "1.0.0",
+      "versions_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/games/game_gallery/versions.json",
+      "builds": {
+        "web": {
+          "download_url": "https://morphingcoffee.github.io/apps/games/",
+          "executable_path": "",
+          "file_size_bytes": 0,
+          "sha256": ""
+        }
+      }
     }
   ]
 }
