@@ -3,7 +3,7 @@
   "versions": [
     {
       "version": "1.0.0",
-      "released_at": "2026-06-17",
+      "released_at": "2022-01-19",
       "builds": {
         "web": {
           "download_url": "https://morphingcoffee.github.io/apps/games/",
