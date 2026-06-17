@@ -31,7 +31,7 @@
           "file_size_bytes": 107555552,
           "uncompressed_size_bytes": 335302384,
           "sha256": "fc329a58a929b0a49f4d33509bb1d7d9ac94317fcd77cda9138d94fd5018e906",
-          "executable_path": "game/Arcade-Mac-Shipping.app/Contents/MacOS/Arcade-Mac-Shipping",
+          "executable_path": "game/Arcade/Binaries/Mac/Arcade-Mac-Shipping.app/Contents/MacOS/Arcade-Mac-Shipping",
           "download_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/games/arcade_gym/v0.0.1/macos-x64/game.zip"
         }
       }

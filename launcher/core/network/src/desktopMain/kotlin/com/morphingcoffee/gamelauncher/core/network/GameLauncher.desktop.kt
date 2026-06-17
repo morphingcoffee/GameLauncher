@@ -24,13 +24,26 @@ actual class GameLauncher {
                 error("Executable not found: ${executable.absolutePath}")
             }
 
+            val os = System.getProperty("os.name").lowercase()
+            val isMac = "mac" in os || "darwin" in os
+
             val process =
-                ProcessBuilder(executable.absolutePath)
-                    .directory(gameDir)
-                    .inheritIO()
-                    .start()
+                if (isMac) {
+                    withContext(Dispatchers.IO) {
+                        MacGameSupport.prepareLaunch(executable)
+                        MacGameSupport.launchCommand(gameDir, executable).start()
+                    }
+                } else {
+                    if (!executable.canExecute()) {
+                        executable.setExecutable(true, false)
+                    }
+                    ProcessBuilder(executable.absolutePath)
+                        .directory(gameDir)
+                        .inheritIO()
+                        .start()
+                }
             val exitCode = withContext(Dispatchers.IO) { process.waitFor() }
-            if (exitCode != 0) {
+            if (!isMac && exitCode != 0) {
                 error("Game exited with code $exitCode")
             }
             AppLog.i("GameLauncher", "Launch finished for $gameId with exit code $exitCode")

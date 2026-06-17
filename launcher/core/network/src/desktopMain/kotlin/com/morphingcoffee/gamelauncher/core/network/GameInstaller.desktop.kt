@@ -80,6 +80,14 @@ actual class GameInstaller(
                 }
 
                 withContext(Dispatchers.IO) {
+                    if (MacGameSupport.isMacOs()) {
+                        MacGameSupport.prepareInstall(gameDir, executable)
+                    } else {
+                        prepareExtractedExecutable(executable)
+                    }
+                }
+
+                withContext(Dispatchers.IO) {
                     writeInstallRecord(
                         gameId = gameId,
                         version = version,
@@ -310,6 +318,13 @@ actual class GameInstaller(
                 zip.closeEntry()
                 entry = zip.nextEntry
             }
+        }
+    }
+
+    private fun prepareExtractedExecutable(executable: File) {
+        if (!executable.isFile) return
+        if (!executable.canExecute()) {
+            executable.setExecutable(true, false)
         }
     }
 
