@@ -23,6 +23,7 @@ from r2_config import R2Session, find_repo_root, load_env_file, remote_url, rclo
 
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 REQUIRED_BUILD_FIELDS = ("download_url", "executable_path", "file_size_bytes", "sha256")
+WEB_PLATFORM = "web"
 
 
 @dataclass
@@ -74,8 +75,26 @@ def validate_build_metadata(
     build: Dict[str, Any],
 ) -> None:
     label = f"{scope} build[{platform}]"
-    if platform not in VALID_PLATFORMS:
+    if platform not in VALID_PLATFORMS and platform != WEB_PLATFORM:
         checker.warn(label, f"non-standard platform key: {platform}")
+
+    if platform == WEB_PLATFORM:
+        download_url = build.get("download_url")
+        if not isinstance(download_url, str) or not download_url:
+            checker.fail(label, "missing download_url")
+            return
+        if build.get("executable_path") not in ("", None):
+            checker.warn(label, "web builds usually use an empty executable_path")
+        size = build.get("file_size_bytes")
+        if not isinstance(size, int) or size != 0:
+            checker.fail(label, f"web builds expect file_size_bytes=0, got {size!r}")
+            return
+        sha = build.get("sha256")
+        if sha not in ("", None):
+            checker.fail(f"{label} sha256", "web builds expect an empty sha256")
+            return
+        checker.ok(label, "web build metadata valid")
+        return
 
     for key in REQUIRED_BUILD_FIELDS:
         if key not in build or build[key] in (None, ""):
@@ -146,6 +165,10 @@ def check_build_object(
     remote: str,
     cdn_base: str,
 ) -> None:
+    if platform == WEB_PLATFORM:
+        checker.ok(f"{scope} object[{platform}]", "external web URL (not on R2)")
+        return
+
     label = f"{scope} object[{platform}]"
     download_url = build.get("download_url")
     if not isinstance(download_url, str) or not download_url:

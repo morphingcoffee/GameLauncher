@@ -11,6 +11,7 @@ DEPLOY_DIR = TESTS_DIR.parent
 sys.path.insert(0, str(DEPLOY_DIR))
 
 from r2_catalog_check import (  # noqa: E402
+    WEB_PLATFORM,
     CatalogChecker,
     cdn_path_from_url,
     validate_build_metadata,
@@ -80,6 +81,36 @@ class TestValidateBuildMetadata(unittest.TestCase):
             },
         )
         self.assertGreater(checker.errors, 0)
+
+    def test_web_build_accepts_zero_size_and_empty_sha(self) -> None:
+        checker = CatalogChecker()
+        validate_build_metadata(
+            checker,
+            "game:game_gallery v1.0.0",
+            WEB_PLATFORM,
+            {
+                "download_url": "https://morphingcoffee.github.io/apps/games/",
+                "executable_path": "",
+                "file_size_bytes": 0,
+                "sha256": "",
+            },
+        )
+        self.assertEqual(checker.errors, 0)
+
+    def test_web_build_rejects_missing_download_url(self) -> None:
+        checker = CatalogChecker()
+        validate_build_metadata(
+            checker,
+            "game:game_gallery v1.0.0",
+            WEB_PLATFORM,
+            {
+                "download_url": "",
+                "executable_path": "",
+                "file_size_bytes": 0,
+                "sha256": "",
+            },
+        )
+        self.assertEqual(checker.errors, 1)
 
 
 if __name__ == "__main__":

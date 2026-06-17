@@ -1,0 +1,17 @@
+{
+  "game_id": "game_gallery",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "released_at": "2026-06-17",
+      "builds": {
+        "web": {
+          "download_url": "https://morphingcoffee.github.io/apps/games/",
+          "executable_path": "",
+          "file_size_bytes": 0,
+          "sha256": ""
+        }
+      }
+    }
+  ]
+}
