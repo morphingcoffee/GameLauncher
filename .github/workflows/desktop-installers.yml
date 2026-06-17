@@ -7,8 +7,12 @@ on:
         description: Branch, tag, or SHA to build
         required: false
         default: main
-      build_macos:
-        description: Build macOS DMG and ZIP (Apple Silicon + Intel)
+      build_macos_arm64:
+        description: Build macOS Apple Silicon (arm64) — DMG + ZIP, prod + dev
+        type: boolean
+        default: true
+      build_macos_x64:
+        description: Build macOS Intel (x64) — DMG + ZIP, prod + dev
         type: boolean
         default: true
       build_windows:
@@ -25,23 +29,41 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  macos-matrix:
+    name: macOS matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has_targets: ${{ steps.set-matrix.outputs.has_targets }}
+    steps:
+      - id: set-matrix
+        run: |
+          include='[]'
+          if [ "${{ github.event.inputs.build_macos_arm64 }}" != "false" ]; then
+            include=$(echo "$include" | jq -c '. + [{"jdk_arch":"arm64","compose_host":"macos-arm64","expected_arch":"arm64"}]')
+          fi
+          if [ "${{ github.event.inputs.build_macos_x64 }}" != "false" ]; then
+            include=$(echo "$include" | jq -c '. + [{"jdk_arch":"x64","compose_host":"macos-x64","expected_arch":"x86_64"}]')
+          fi
+          count=$(echo "$include" | jq 'length')
+          echo "matrix={\"include\":${include}}" >> "$GITHUB_OUTPUT"
+          if [ "$count" -gt 0 ]; then
+            echo "has_targets=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_targets=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build-macos:
     name: macOS ${{ matrix.compose_host }} (DMG + app zip)
-    if: github.event.inputs.build_macos != 'false'
+    needs: macos-matrix
+    if: needs.macos-matrix.outputs.has_targets == 'true'
     runs-on: macos-latest
     timeout-minutes: 15
     env:
       BUILD_NUMBER: ${{ github.run_number }}
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - jdk_arch: arm64
-            compose_host: macos-arm64
-            expected_arch: arm64
-          - jdk_arch: x64
-            compose_host: macos-x64
-            expected_arch: x86_64
+      matrix: ${{ fromJSON(needs.macos-matrix.outputs.matrix) }}
     defaults:
       run:
         working-directory: launcher
