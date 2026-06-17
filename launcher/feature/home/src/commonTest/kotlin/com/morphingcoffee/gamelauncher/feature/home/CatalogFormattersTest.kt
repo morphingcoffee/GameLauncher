@@ -19,9 +19,9 @@ class CatalogFormattersTest {
     }
 
     @Test
-    fun formatSizeLabel_preDownload_usesInstallWhenUncompressedKnown() {
+    fun formatSizeLabel_preDownload_usesSizeWhenBothKnown() {
         assertEquals(
-            "INSTALL",
+            "SIZE",
             formatSizeLabel(
                 isWebGame = false,
                 isInstalled = false,
@@ -47,9 +47,9 @@ class CatalogFormattersTest {
     }
 
     @Test
-    fun formatSizeDisplay_preDownload_usesUncompressedSizeWithOnDiskSuffix() {
+    fun formatSizeDisplay_preDownload_showsDownloadAndInstallSize() {
         assertEquals(
-            "95 MB ON DISK",
+            "48 MB DL / 95 MB ON DISK",
             formatSizeDisplay(
                 downloadSizeBytes = 50_000_000L,
                 uncompressedSizeBytes = 100_000_000L,
@@ -71,9 +71,9 @@ class CatalogFormattersTest {
     }
 
     @Test
-    fun formatSizeDisplay_downloading_showsInstallingWithExpectedSize() {
+    fun formatSizeDisplay_downloading_showsDownloadAndInstallProgress() {
         assertEquals(
-            "95 MB INSTALLING",
+            "48 MB DL / 95 MB INSTALLING",
             formatSizeDisplay(
                 downloadSizeBytes = 50_000_000L,
                 uncompressedSizeBytes = 100_000_000L,
