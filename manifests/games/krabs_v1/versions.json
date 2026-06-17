@@ -1,14 +1,9 @@
 {
-  "schema_version": 1,
-  "launcher_minimum_version": "0.0.1",
-  "games": [
+  "game_id": "krabs_v1",
+  "versions": [
     {
-      "id": "krabs_v1",
-      "title": "KrabzV1",
-      "description": "Whatever",
-      "thumbnail_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/assets/krabs_v1/thumbnail.webp",
-      "latest_version": "0.0.1",
-      "versions_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/games/krabs_v1/versions.json",
+      "version": "0.0.1",
+      "released_at": "2026-06-01",
       "builds": {
         "windows-x64": {
           "executable_path": "Pushing.exe",

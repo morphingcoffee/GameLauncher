@@ -17,8 +17,9 @@ on:
         type: string
       builds_json:
         description: >
-          JSON object keyed by platform with executable_path, file_size_bytes, sha256.
-          Example: {"macos-arm64":{"executable_path":"Game.app/Contents/MacOS/Game","file_size_bytes":12345,"sha256":"abc..."}}
+          JSON object keyed by platform with executable_path, file_size_bytes,
+          uncompressed_size_bytes, sha256.
+          Example: {"macos-arm64":{"executable_path":"Game.app/Contents/MacOS/Game","file_size_bytes":12345,"uncompressed_size_bytes":45678,"sha256":"abc..."}}
         required: true
         type: string
       title:

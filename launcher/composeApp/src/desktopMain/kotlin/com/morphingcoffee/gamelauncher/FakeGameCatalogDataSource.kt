@@ -432,6 +432,7 @@ private fun gameBuild(
         downloadUrl = "https://example.com/dev/$platformKey/game.zip",
         executablePath = executablePath(platformKey),
         fileSizeBytes = fileSizeBytes,
+        uncompressedSizeBytes = (fileSizeBytes * 108L) / 100L,
         sha256 = "dev-sha256-$platformKey",
     )
 

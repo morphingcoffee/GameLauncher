@@ -206,6 +206,8 @@ private fun GameDetailContent(
                 currentPlatformBuild = displayBuild,
                 availableBuilds = availableBuilds,
                 isWebGame = isWebGame,
+                isInstalled = isInstalledForDisplay,
+                isDownloading = isDownloading,
                 onDiskSizeBytes = if (isInstalledForDisplay) onDiskSizeBytes else null,
                 modifier = Modifier.padding(top = LauncherSpacing.Md),
             )

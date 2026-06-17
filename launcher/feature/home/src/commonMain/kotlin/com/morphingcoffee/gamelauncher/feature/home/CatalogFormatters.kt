@@ -3,20 +3,58 @@ package com.morphingcoffee.gamelauncher.feature.home
 import com.morphingcoffee.gamelauncher.core.designsystem.formatFileSize
 import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 
+internal fun formatSizeLabel(
+    isWebGame: Boolean,
+    isInstalled: Boolean,
+    isDownloading: Boolean,
+    uncompressedSizeBytes: Long?,
+    downloadSizeBytes: Long?,
+): String? {
+    if (isWebGame) return null
+    if (isInstalled || isDownloading) return "SIZE"
+    val hasInstall = uncompressedSizeBytes?.takeIf { it > 0L } != null
+    val hasDownload = downloadSizeBytes?.takeIf { it > 0L } != null
+    return when {
+        hasInstall && hasDownload -> "SIZE"
+        hasInstall -> "INSTALL"
+        hasDownload -> "DOWNLOAD"
+        else -> "SIZE"
+    }
+}
+
 internal fun formatSizeDisplay(
     downloadSizeBytes: Long?,
+    uncompressedSizeBytes: Long?,
     onDiskSizeBytes: Long?,
+    isInstalled: Boolean = false,
+    isDownloading: Boolean = false,
     isWebGame: Boolean = false,
 ): String {
     if (isWebGame) return "BROWSER"
-    if (downloadSizeBytes == null) return "NOT AVAILABLE"
-    if (onDiskSizeBytes != null && onDiskSizeBytes != downloadSizeBytes) {
-        return "${formatFileSize(downloadSizeBytes)} DL / ${formatFileSize(onDiskSizeBytes)} ON DISK"
+    if (isInstalled) {
+        return onDiskSizeBytes?.let { "${formatFileSize(it)} ON DISK" } ?: "NOT AVAILABLE"
     }
-    if (onDiskSizeBytes != null) {
-        return formatFileSize(onDiskSizeBytes)
+
+    val downloadBytes = downloadSizeBytes?.takeIf { it > 0L }
+    val installBytes = uncompressedSizeBytes?.takeIf { it > 0L }
+
+    if (isDownloading) {
+        return when {
+            downloadBytes != null && installBytes != null ->
+                "${formatFileSize(downloadBytes)} DL / ${formatFileSize(installBytes)} INSTALLING"
+            installBytes != null -> "${formatFileSize(installBytes)} INSTALLING"
+            downloadBytes != null -> "${formatFileSize(downloadBytes)} INSTALLING"
+            else -> "INSTALLING"
+        }
     }
-    return formatFileSize(downloadSizeBytes)
+
+    return when {
+        downloadBytes != null && installBytes != null ->
+            "${formatFileSize(downloadBytes)} DL / ${formatFileSize(installBytes)} ON DISK"
+        installBytes != null -> "${formatFileSize(installBytes)} ON DISK"
+        downloadBytes != null -> "${formatFileSize(downloadBytes)} DL"
+        else -> "NOT AVAILABLE"
+    }
 }
 
 internal fun formatPlatformLabel(platformKey: String?): String =

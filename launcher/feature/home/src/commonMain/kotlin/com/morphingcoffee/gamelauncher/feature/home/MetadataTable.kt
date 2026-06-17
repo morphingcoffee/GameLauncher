@@ -20,6 +20,8 @@ internal fun MetadataTable(
     currentPlatformBuild: GameBuild?,
     availableBuilds: Map<String, GameBuild>,
     isWebGame: Boolean = false,
+    isInstalled: Boolean = false,
+    isDownloading: Boolean = false,
     onDiskSizeBytes: Long? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -27,15 +29,28 @@ internal fun MetadataTable(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(LauncherSpacing.Xs),
     ) {
-        MetadataRow(
-            label = "SIZE",
-            value =
-                formatSizeDisplay(
-                    downloadSizeBytes = currentPlatformBuild?.fileSizeBytes,
-                    onDiskSizeBytes = onDiskSizeBytes,
-                    isWebGame = isWebGame,
-                ),
-        )
+        val sizeLabel =
+            formatSizeLabel(
+                isWebGame = isWebGame,
+                isInstalled = isInstalled,
+                isDownloading = isDownloading,
+                uncompressedSizeBytes = currentPlatformBuild?.uncompressedSizeBytes,
+                downloadSizeBytes = currentPlatformBuild?.fileSizeBytes,
+            )
+        if (sizeLabel != null) {
+            MetadataRow(
+                label = sizeLabel,
+                value =
+                    formatSizeDisplay(
+                        downloadSizeBytes = currentPlatformBuild?.fileSizeBytes,
+                        uncompressedSizeBytes = currentPlatformBuild?.uncompressedSizeBytes,
+                        onDiskSizeBytes = onDiskSizeBytes,
+                        isInstalled = isInstalled,
+                        isDownloading = isDownloading,
+                        isWebGame = isWebGame,
+                    ),
+            )
+        }
         MetadataRow(
             label = "PLATFORM",
             value =
