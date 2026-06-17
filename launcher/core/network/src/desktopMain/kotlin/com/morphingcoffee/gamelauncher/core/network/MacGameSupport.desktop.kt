@@ -26,7 +26,6 @@ internal object MacGameSupport {
 
     fun prepareLaunch(executable: File) {
         if (!isMacOs()) return
-        ensureExecutable(executable)
     }
 
     fun launchCommand(
