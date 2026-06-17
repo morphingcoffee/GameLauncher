@@ -8,11 +8,19 @@ on:
         required: false
         default: main
       build_macos_arm64:
-        description: Build macOS Apple Silicon (arm64) — DMG + ZIP, prod + dev
+        description: Build macOS Apple Silicon (arm64) — DMG + ZIP
         type: boolean
         default: true
       build_macos_x64:
-        description: Build macOS Intel (x64) — DMG + ZIP, prod + dev
+        description: Build macOS Intel (x64) — DMG + ZIP
+        type: boolean
+        default: true
+      build_macos_prod:
+        description: Build macOS production variant
+        type: boolean
+        default: true
+      build_macos_dev:
+        description: Build macOS dev variant (fake catalog, [DEV] title bar)
         type: boolean
         default: true
       build_windows:
@@ -39,11 +47,33 @@ jobs:
       - id: set-matrix
         run: |
           include='[]'
+          add_entries() {
+            local jdk_arch="$1"
+            local compose_host="$2"
+            local expected_arch="$3"
+            local timeout_minutes="$4"
+            if [ "${{ github.event.inputs.build_macos_prod }}" != "false" ]; then
+              include=$(echo "$include" | jq -c \
+                --arg jdk "$jdk_arch" \
+                --arg host "$compose_host" \
+                --arg expected "$expected_arch" \
+                --argjson timeout "$timeout_minutes" \
+                '. + [{"jdk_arch":$jdk,"compose_host":$host,"expected_arch":$expected,"variant":"prod","timeout_minutes":$timeout}]')
+            fi
+            if [ "${{ github.event.inputs.build_macos_dev }}" != "false" ]; then
+              include=$(echo "$include" | jq -c \
+                --arg jdk "$jdk_arch" \
+                --arg host "$compose_host" \
+                --arg expected "$expected_arch" \
+                --argjson timeout "$timeout_minutes" \
+                '. + [{"jdk_arch":$jdk,"compose_host":$host,"expected_arch":$expected,"variant":"dev","timeout_minutes":$timeout}]')
+            fi
+          }
           if [ "${{ github.event.inputs.build_macos_arm64 }}" != "false" ]; then
-            include=$(echo "$include" | jq -c '. + [{"jdk_arch":"arm64","compose_host":"macos-arm64","expected_arch":"arm64"}]')
+            add_entries arm64 macos-arm64 arm64 15
           fi
           if [ "${{ github.event.inputs.build_macos_x64 }}" != "false" ]; then
-            include=$(echo "$include" | jq -c '. + [{"jdk_arch":"x64","compose_host":"macos-x64","expected_arch":"x86_64"}]')
+            add_entries x64 macos-x64 x86_64 20
           fi
           count=$(echo "$include" | jq 'length')
           echo "matrix={\"include\":${include}}" >> "$GITHUB_OUTPUT"
@@ -54,11 +84,11 @@ jobs:
           fi
 
   build-macos:
-    name: macOS ${{ matrix.compose_host }} (DMG + app zip)
+    name: macOS ${{ matrix.compose_host }} (${{ matrix.variant }})
     needs: macos-matrix
     if: needs.macos-matrix.outputs.has_targets == 'true'
     runs-on: macos-latest
-    timeout-minutes: 15
+    timeout-minutes: ${{ matrix.timeout_minutes }}
     env:
       BUILD_NUMBER: ${{ github.run_number }}
     strategy:
@@ -94,16 +124,25 @@ jobs:
         run: chmod +x ./launcher/gradlew
         working-directory: ${{ github.workspace }}
 
-      - name: Build macOS app image (prod)
-        run: ./gradlew :composeApp:createDistributable --no-daemon -PcomposeDesktopHost=${{ matrix.compose_host }} -PbuildNumber=$BUILD_NUMBER
-
-      - name: Resolve prod packaging metadata
+      - name: Build macOS app image (${{ matrix.variant }})
         run: |
-          echo "ARTIFACT_VERSION=$(./gradlew -q :composeApp:printArtifactVersion --no-daemon -PbuildNumber=$BUILD_NUMBER)" >> "$GITHUB_ENV"
-          echo "APP_PACKAGE_NAME=$(./gradlew -q :composeApp:printAppPackageName --no-daemon -PbuildNumber=$BUILD_NUMBER)" >> "$GITHUB_ENV"
-          echo "DMG_VOLUME_NAME=$(./gradlew -q :composeApp:printMacOsDmgVolumeName --no-daemon -PbuildNumber=$BUILD_NUMBER)" >> "$GITHUB_ENV"
+          args=(-PcomposeDesktopHost=${{ matrix.compose_host }} -PbuildNumber="$BUILD_NUMBER")
+          if [ "${{ matrix.variant }}" = "dev" ]; then
+            args+=(-PgameLauncherDev=true)
+          fi
+          ./gradlew :composeApp:createDistributable --no-daemon "${args[@]}"
 
-      - name: Verify prod app binary architecture
+      - name: Resolve packaging metadata (${{ matrix.variant }})
+        run: |
+          args=(-PbuildNumber="$BUILD_NUMBER")
+          if [ "${{ matrix.variant }}" = "dev" ]; then
+            args+=(-PgameLauncherDev=true)
+          fi
+          echo "ARTIFACT_VERSION=$(./gradlew -q :composeApp:printArtifactVersion --no-daemon "${args[@]}")" >> "$GITHUB_ENV"
+          echo "APP_PACKAGE_NAME=$(./gradlew -q :composeApp:printAppPackageName --no-daemon "${args[@]}")" >> "$GITHUB_ENV"
+          echo "DMG_VOLUME_NAME=$(./gradlew -q :composeApp:printMacOsDmgVolumeName --no-daemon "${args[@]}")" >> "$GITHUB_ENV"
+
+      - name: Verify app binary architecture (${{ matrix.variant }})
         run: |
           BIN="composeApp/build/compose/binaries/main/app/${APP_PACKAGE_NAME}.app/Contents/MacOS/${APP_PACKAGE_NAME}"
           OUTPUT=$(file "$BIN")
@@ -114,10 +153,10 @@ jobs:
             *) echo "Unknown expected_arch: ${{ matrix.expected_arch }}"; exit 1 ;;
           esac
 
-      - name: Ad-hoc sign prod app bundle
+      - name: Ad-hoc sign app bundle (${{ matrix.variant }})
         run: codesign --force --deep --sign - "composeApp/build/compose/binaries/main/app/${APP_PACKAGE_NAME}.app"
 
-      - name: Create prod DMG and ZIP
+      - name: Create DMG and ZIP (${{ matrix.variant }})
         run: |
           hdiutil create \
             -volname "$DMG_VOLUME_NAME" \
@@ -129,75 +168,41 @@ jobs:
             "composeApp/build/compose/binaries/main/app/${APP_PACKAGE_NAME}.app" \
             "GameLauncher-${ARTIFACT_VERSION}-${{ matrix.compose_host }}.zip"
 
-      - name: Build macOS app image (dev)
-        run: ./gradlew :composeApp:createDistributable --no-daemon -PcomposeDesktopHost=${{ matrix.compose_host }} -PbuildNumber=$BUILD_NUMBER -PgameLauncherDev=true
-
-      - name: Resolve dev packaging metadata
-        run: |
-          echo "ARTIFACT_VERSION_DEV=$(./gradlew -q :composeApp:printArtifactVersion --no-daemon -PbuildNumber=$BUILD_NUMBER -PgameLauncherDev=true)" >> "$GITHUB_ENV"
-          echo "APP_PACKAGE_NAME_DEV=$(./gradlew -q :composeApp:printAppPackageName --no-daemon -PbuildNumber=$BUILD_NUMBER -PgameLauncherDev=true)" >> "$GITHUB_ENV"
-          echo "DMG_VOLUME_NAME_DEV=$(./gradlew -q :composeApp:printMacOsDmgVolumeName --no-daemon -PbuildNumber=$BUILD_NUMBER -PgameLauncherDev=true)" >> "$GITHUB_ENV"
-
-      - name: Verify dev app binary architecture
-        run: |
-          BIN="composeApp/build/compose/binaries/main/app/${APP_PACKAGE_NAME_DEV}.app/Contents/MacOS/${APP_PACKAGE_NAME_DEV}"
-          OUTPUT=$(file "$BIN")
-          echo "$OUTPUT"
-          case "${{ matrix.expected_arch }}" in
-            arm64) echo "$OUTPUT" | grep -q 'arm64' || { echo "Expected arm64 binary"; exit 1; } ;;
-            x86_64) echo "$OUTPUT" | grep -q 'x86_64' || { echo "Expected x86_64 binary"; exit 1; } ;;
-            *) echo "Unknown expected_arch: ${{ matrix.expected_arch }}"; exit 1 ;;
-          esac
-
-      - name: Ad-hoc sign dev app bundle
-        run: codesign --force --deep --sign - "composeApp/build/compose/binaries/main/app/${APP_PACKAGE_NAME_DEV}.app"
-
-      - name: Create dev DMG and ZIP
-        run: |
-          hdiutil create \
-            -volname "$DMG_VOLUME_NAME_DEV" \
-            -srcfolder "composeApp/build/compose/binaries/main/app/${APP_PACKAGE_NAME_DEV}.app" \
-            -ov -format UDZO \
-            "GameLauncher-${ARTIFACT_VERSION_DEV}-${{ matrix.compose_host }}.dmg"
-
-          ditto -c -k --keepParent \
-            "composeApp/build/compose/binaries/main/app/${APP_PACKAGE_NAME_DEV}.app" \
-            "GameLauncher-${ARTIFACT_VERSION_DEV}-${{ matrix.compose_host }}.zip"
-
-      - name: Upload macOS artifacts
+      - name: Upload macOS artifacts (${{ matrix.variant }})
         uses: actions/upload-artifact@v4
         with:
-          name: GameLauncher-${{ matrix.compose_host }}
+          name: GameLauncher-${{ matrix.compose_host }}-${{ matrix.variant }}
           path: |
             launcher/GameLauncher-${{ env.ARTIFACT_VERSION }}-${{ matrix.compose_host }}.dmg
             launcher/GameLauncher-${{ env.ARTIFACT_VERSION }}-${{ matrix.compose_host }}.zip
-            launcher/GameLauncher-${{ env.ARTIFACT_VERSION_DEV }}-${{ matrix.compose_host }}.dmg
-            launcher/GameLauncher-${{ env.ARTIFACT_VERSION_DEV }}-${{ matrix.compose_host }}.zip
           if-no-files-found: error
 
-      - name: macOS install notes
+      - name: macOS install notes (${{ matrix.variant }})
         run: |
-          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
-          ### macOS artifacts (${{ matrix.compose_host }})
+          variant_note="Production build uses the live catalog."
+          if [ "${{ matrix.variant }}" = "dev" ]; then
+            variant_note="Dev build ships fake catalog data and shows **MC.GAME.LAUNCHER [DEV]** in the title bar."
+          fi
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ### macOS artifacts (${{ matrix.compose_host }}, ${{ matrix.variant }})
 
-          Each artifact bundle includes **prod** and **dev** (`-dev` suffix) DMG + ZIP pairs.
-          Dev builds ship fake catalog data and show **MC.GAME.LAUNCHER [DEV]** in the title bar.
+          ${variant_note}
 
           GitHub adds a quarantine flag to downloaded files. After downloading:
 
-          ```bash
+          \`\`\`bash
           xattr -cr GameLauncher.app   # if using the zip
           # or, for the DMG: mount it, then run the same on the copied .app
-          ```
+          \`\`\`
 
-          Then open **Game Launcher** normally. Build **${{ env.BUILD_NUMBER }}** is embedded in `CFBundleVersion`. Full Developer ID signing and notarization are planned later ([#9](https://github.com/morphingcoffee/GameLauncher/issues/9)).
+          Then open **Game Launcher** normally. Build **${{ env.BUILD_NUMBER }}** is embedded in \`CFBundleVersion\`. Full Developer ID signing and notarization are planned later ([#9](https://github.com/morphingcoffee/GameLauncher/issues/9)).
           EOF
 
   build-windows-msi:
     name: Windows (MSI)
     if: github.event.inputs.build_windows != 'false'
     runs-on: windows-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       BUILD_NUMBER: ${{ github.run_number }}
     defaults:
@@ -267,7 +272,7 @@ jobs:
     name: Windows (portable ZIP)
     if: github.event.inputs.build_windows_zip != 'false'
     runs-on: windows-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       BUILD_NUMBER: ${{ github.run_number }}
     defaults:
