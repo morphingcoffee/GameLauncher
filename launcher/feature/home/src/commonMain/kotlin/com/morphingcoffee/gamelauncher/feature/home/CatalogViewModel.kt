@@ -9,7 +9,7 @@ import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 import com.morphingcoffee.gamelauncher.core.network.GameCatalogDataSource
 import com.morphingcoffee.gamelauncher.core.network.InstallState
 import com.morphingcoffee.gamelauncher.core.network.SimulatedLaunchException
-import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -398,9 +398,8 @@ class CatalogViewModel(
                             )
                         }
                     }
-            } catch (e: CancellationException) {
-                throw e
             } catch (e: Throwable) {
+                ensureActive()
                 AppLog.e("Catalog", "Failed to open web game ${game.id}", e)
                 updateState {
                     copy(

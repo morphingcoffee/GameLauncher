@@ -4,10 +4,13 @@ description: >-
   Pick the right Kotlin coroutine dispatcher for GameLauncher work — keep UI
   responsive on Compose Desktop (Swing main thread). Use when adding suspend
   functions, viewModelScope.launch, blocking file/network calls, hashing,
-  compression, or directory walks.
+  compression, or directory walks. For cancellation and try/catch in coroutines,
+  also read coroutine-patterns.
 ---
 
 # Coroutine dispatchers (GameLauncher)
+
+See also [`coroutine-patterns`](../coroutine-patterns/SKILL.md) for `ensureActive()`, try/catch, and `Result` error handling in ViewModels.
 
 ## Default rule
 
