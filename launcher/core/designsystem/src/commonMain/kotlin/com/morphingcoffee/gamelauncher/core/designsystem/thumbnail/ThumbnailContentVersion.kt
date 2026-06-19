@@ -64,5 +64,8 @@ internal fun invalidateThumbnailMemoryCache(
     imageLoader: ImageLoader,
     imageUrl: String,
 ) {
-    imageLoader.memoryCache?.remove(coil3.memory.MemoryCache.Key(imageUrl))
+    val memoryCache = imageLoader.memoryCache ?: return
+    memoryCache.keys
+        .filter { it.key == imageUrl }
+        .forEach { memoryCache.remove(it) }
 }

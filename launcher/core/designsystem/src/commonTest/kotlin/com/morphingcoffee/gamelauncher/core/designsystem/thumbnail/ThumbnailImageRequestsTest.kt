@@ -17,10 +17,10 @@ class ThumbnailImageRequestsTest {
         assertEquals(CachePolicy.ENABLED, request.diskCachePolicy)
         assertEquals(CachePolicy.ENABLED, request.networkCachePolicy)
         assertTrue(request.thumbnailRevalidate)
-        assertEquals(300, request.crossfadeMillis)
+        assertEquals(THUMBNAIL_CROSSFADE_MILLIS, request.crossfadeMillis)
     }
 
     private companion object {
-        const val IMAGE_URL = "https://cdn.example.com/assets/krabs_v1/thumbnail.webp"
+        const val IMAGE_URL = "https://cdn.example.com/assets/cool_game/thumbnail.webp"
     }
 }

@@ -31,6 +31,7 @@ import coil3.SingletonImageLoader
 import coil3.compose.LocalPlatformContext
 import coil3.compose.SubcomposeAsyncImage
 import coil3.compose.SubcomposeAsyncImageContent
+import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.crossfade
@@ -38,6 +39,7 @@ import coil3.toBitmap
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherColors
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherSpacing
 import com.morphingcoffee.gamelauncher.core.designsystem.extractAmbientColor
+import com.morphingcoffee.gamelauncher.core.designsystem.thumbnail.THUMBNAIL_CROSSFADE_MILLIS
 import com.morphingcoffee.gamelauncher.core.designsystem.thumbnail.buildThumbnailValidationRequest
 import com.morphingcoffee.gamelauncher.core.designsystem.thumbnail.imageContentHash
 import com.morphingcoffee.gamelauncher.core.designsystem.thumbnail.invalidateThumbnailMemoryCache
@@ -119,7 +121,9 @@ private fun ThumbnailImageContent(
                 ImageRequest
                     .Builder(context)
                     .data(imageUrl)
-                    .crossfade(300)
+                    .memoryCachePolicy(CachePolicy.DISABLED)
+                    .diskCachePolicy(CachePolicy.ENABLED)
+                    .crossfade(THUMBNAIL_CROSSFADE_MILLIS)
                     .build()
             }
         }
@@ -180,7 +184,9 @@ private fun ThumbnailImageContent(
             SubcomposeAsyncImageContent()
         },
         loading = {
-            ThumbnailShimmer(modifier = Modifier.fillMaxSize())
+            if (refreshGeneration == 0) {
+                ThumbnailShimmer(modifier = Modifier.fillMaxSize())
+            }
         },
         error = {
             ThumbnailError(modifier = Modifier.fillMaxSize())

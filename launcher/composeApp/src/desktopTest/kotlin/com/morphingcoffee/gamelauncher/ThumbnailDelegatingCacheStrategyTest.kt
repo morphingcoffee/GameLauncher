@@ -84,6 +84,6 @@ class ThumbnailDelegatingCacheStrategyTest {
         )
 
     private companion object {
-        const val URL = "https://cdn.example.com/assets/krabs_v1/thumbnail.webp"
+        const val URL = "https://cdn.example.com/assets/cool_game/thumbnail.webp"
     }
 }
