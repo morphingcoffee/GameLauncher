@@ -26,8 +26,10 @@ kotlin {
         }
         val desktopMain by getting {
             dependencies {
+                implementation(project(":core:designsystem"))
                 implementation(project(":core:model"))
                 implementation(project(":core:logging"))
+                implementation(libs.ktor.client.cio)
                 // Generic :desktop lacks Skiko natives; use the host OS/arch artifact (was compose.desktop.currentOs).
                 implementation(
                     composeDesktopHostDependency(
@@ -65,6 +67,13 @@ kotlin {
                 implementation(libs.koin.annotations)
                 implementation(libs.koin.compose)
                 implementation(libs.koin.compose.viewmodel)
+            }
+        }
+        val desktopTest by getting {
+            dependencies {
+                implementation(libs.kotlin.test)
+                implementation(libs.kotlinx.coroutines.test)
+                implementation(project(":core:designsystem"))
             }
         }
     }

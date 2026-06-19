@@ -4,10 +4,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
-import coil3.ImageLoader
-import coil3.PlatformContext
 import coil3.SingletonImageLoader
-import coil3.network.ktor3.KtorNetworkFetcherFactory
 import com.morphingcoffee.gamelauncher.core.logging.AppLog
 import com.morphingcoffee.gamelauncher.di.appModule
 import org.koin.core.context.startKoin
@@ -40,19 +37,6 @@ private fun configureSingletonImageLoader(includeSlowNetwork: Boolean) {
         createImageLoader(context, includeSlowNetwork)
     }
 }
-
-private fun createImageLoader(
-    context: PlatformContext,
-    includeSlowNetwork: Boolean,
-): ImageLoader =
-    ImageLoader
-        .Builder(context)
-        .components {
-            if (includeSlowNetwork) {
-                add(SlowNetworkImageInterceptor())
-            }
-            add(KtorNetworkFetcherFactory())
-        }.build()
 
 private fun installUncaughtExceptionLogger() {
     val previous = Thread.getDefaultUncaughtExceptionHandler()
