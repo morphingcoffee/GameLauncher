@@ -11,7 +11,7 @@ import coil3.request.crossfade
 
 val thumbnailRevalidateKey = Extras.Key(default = false)
 
-const val THUMBNAIL_CROSSFADE_MILLIS = 800
+const val THUMBNAIL_CROSSFADE_MILLIS = 1_500
 
 val ImageRequest.thumbnailRevalidate: Boolean
     get() = getExtra(thumbnailRevalidateKey)
