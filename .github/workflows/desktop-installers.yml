@@ -7,34 +7,43 @@ on:
         description: Branch, tag, or SHA to build
         required: false
         default: main
-      build_macos_arm64:
-        description: Build macOS Apple Silicon (arm64) — DMG + ZIP
-        type: boolean
-        default: true
-      build_macos_x64:
-        description: Build macOS Intel (x64) — DMG + ZIP
-        type: boolean
-        default: true
-      build_macos_prod:
-        description: Build macOS production variant
-        type: boolean
-        default: true
-      build_macos_dev:
-        description: Build macOS dev variant (fake catalog, [DEV] title bar)
-        type: boolean
-        default: true
-      build_windows:
-        description: Build Windows MSI installer
-        type: boolean
-        default: true
-      build_windows_zip:
-        description: Build Windows portable ZIP
-        type: boolean
-        default: true
-      publish_to_r2:
-        description: Publish prod launcher installers to R2 and patch manifests/manifest.json
+
+      # Prod deploy — Windows self-update on R2 (requires MSI + portable ZIP jobs below).
+      publish_windows_prod_to_r2:
+        description: "[Prod deploy] Upload Windows prod MSI + portable ZIP to R2 and patch manifests/manifest.json"
         type: boolean
         default: false
+
+      build_windows_msi:
+        description: "[Windows] MSI installer — always builds prod + dev MSIs (required for prod deploy)"
+        type: boolean
+        default: true
+
+      build_windows_portable_zip:
+        description: "[Windows] Portable ZIP — always builds prod + dev ZIPs (required for prod deploy)"
+        type: boolean
+        default: true
+
+      # macOS — GitHub Actions artifacts only (not uploaded to R2 by this workflow).
+      build_macos_arm64:
+        description: "[macOS arm64] Apple Silicon — DMG + ZIP"
+        type: boolean
+        default: true
+
+      build_macos_x64:
+        description: "[macOS x64] Intel — DMG + ZIP"
+        type: boolean
+        default: true
+
+      build_macos_prod:
+        description: "[macOS prod] Live catalog, normal title bar"
+        type: boolean
+        default: true
+
+      build_macos_dev:
+        description: "[macOS dev] Fake catalog, [DEV] title bar (local testing only)"
+        type: boolean
+        default: true
 
 concurrency:
   group: desktop-installers-${{ github.workflow }}-${{ github.event.inputs.ref || github.ref }}
@@ -204,7 +213,7 @@ jobs:
 
   build-windows-msi:
     name: Windows (MSI)
-    if: github.event.inputs.build_windows != 'false'
+    if: github.event.inputs.build_windows_msi != 'false'
     runs-on: windows-latest
     timeout-minutes: 15
     env:
@@ -274,7 +283,7 @@ jobs:
 
   build-windows-zip:
     name: Windows (portable ZIP)
-    if: github.event.inputs.build_windows_zip != 'false'
+    if: github.event.inputs.build_windows_portable_zip != 'false'
     runs-on: windows-latest
     timeout-minutes: 15
     env:
@@ -330,8 +339,8 @@ jobs:
           EOF
 
   publish-launcher-r2:
-    name: Publish launcher to R2
-    if: github.event.inputs.publish_to_r2 == 'true'
+    name: Publish Windows prod launcher to R2
+    if: github.event.inputs.publish_windows_prod_to_r2 == 'true'
     needs:
       - build-windows-msi
       - build-windows-zip

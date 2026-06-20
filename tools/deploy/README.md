@@ -139,7 +139,7 @@ python3 tools/deploy/r2_deploy.py --copy \
 python3 tools/deploy/r2_publish_manifest.py
 ```
 
-CI: **Actions → Desktop installers → Run workflow** with **Publish to R2** enabled after verifying artifacts locally.
+CI: **Actions → Desktop installers → Run workflow** with **`[Prod deploy] Upload Windows prod…`**, **`[Windows] MSI`**, and **`[Windows] portable ZIP`** enabled. Commit `manifests/manifest.json` from the publish job afterward.
 
 ### Patch metadata on an existing version
 
