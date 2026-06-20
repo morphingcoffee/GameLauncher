@@ -17,6 +17,11 @@ from catalog_layout import (
     r2_launcher_object_key,
     r2_launcher_release_staging_dir,
 )
+from launcher_version import (
+    marketing_version,
+    validate_launcher_artifact_version,
+    validate_launcher_marketing_version,
+)
 from r2_config import find_repo_root, load_env_file
 
 CHANNEL_ARTIFACT_TYPES: Dict[str, str] = {
@@ -82,12 +87,6 @@ def file_metadata(path: Path) -> Dict[str, Any]:
         "file_size_bytes": path.stat().st_size,
         "sha256": digest.hexdigest(),
     }
-
-
-def marketing_version(artifact_version: str) -> str:
-    if "-build" in artifact_version:
-        return artifact_version.split("-build", 1)[0]
-    return artifact_version
 
 
 def discover_channels(repo_root: Path, artifact_version: str) -> List[str]:
@@ -175,10 +174,40 @@ def register_launcher_release(
     return manifest
 
 
+def validate_version_inputs(
+    artifact_version: str,
+    *,
+    bump_minimum: bool,
+    minimum_version: Optional[str],
+) -> None:
+    try:
+        validate_launcher_artifact_version(artifact_version)
+    except ValueError as error:
+        die(str(error))
+
+    if minimum_version is not None:
+        try:
+            validate_launcher_marketing_version(minimum_version)
+        except ValueError as error:
+            die(f"invalid --minimum-version: {error}")
+
+    if bump_minimum and minimum_version is None:
+        try:
+            validate_launcher_marketing_version(marketing_version(artifact_version))
+        except ValueError as error:
+            die(str(error))
+
+
 def main(argv: Optional[List[str]] = None) -> None:
     args = parse_args(argv)
     repo_root = find_repo_root()
     load_env_file(repo_root / ".env")
+
+    validate_version_inputs(
+        args.artifact_version,
+        bump_minimum=args.bump_minimum,
+        minimum_version=args.minimum_version,
+    )
 
     cdn_base = __import__("os").environ.get("R2_PUBLIC_CDN_BASE_URL", "").rstrip("/")
     if not cdn_base:

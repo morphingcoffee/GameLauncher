@@ -14,6 +14,7 @@ from r2_catalog_check import (  # noqa: E402
     WEB_PLATFORM,
     CatalogChecker,
     cdn_path_from_url,
+    check_launcher_versions,
     validate_build_metadata,
 )
 
@@ -111,6 +112,43 @@ class TestValidateBuildMetadata(unittest.TestCase):
             },
         )
         self.assertEqual(checker.errors, 1)
+
+
+class TestLauncherVersionChecks(unittest.TestCase):
+    def test_valid_launcher_versions_pass(self) -> None:
+        checker = CatalogChecker()
+        check_launcher_versions(
+            checker,
+            {
+                "launcher_minimum_version": "0.0.1",
+                "launcher": {
+                    "channels": {
+                        "windows-x64-msi": {"version": "0.0.1-build51"},
+                    },
+                },
+            },
+        )
+        self.assertEqual(checker.errors, 0)
+
+    def test_invalid_minimum_version_fails(self) -> None:
+        checker = CatalogChecker()
+        check_launcher_versions(checker, {"launcher_minimum_version": "1.0"})
+        self.assertGreater(checker.errors, 0)
+
+    def test_channel_version_without_build_suffix_fails(self) -> None:
+        checker = CatalogChecker()
+        check_launcher_versions(
+            checker,
+            {
+                "launcher_minimum_version": "0.0.1",
+                "launcher": {
+                    "channels": {
+                        "windows-x64-msi": {"version": "0.0.1"},
+                    },
+                },
+            },
+        )
+        self.assertGreater(checker.errors, 0)
 
 
 if __name__ == "__main__":
