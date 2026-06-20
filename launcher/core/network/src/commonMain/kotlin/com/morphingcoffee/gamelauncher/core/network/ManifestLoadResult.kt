@@ -8,4 +8,7 @@ sealed interface ManifestLoadResult {
     ) : ManifestLoadResult
 
     data object DecodeFailed : ManifestLoadResult
+
+    /** Dev builds use fake catalog and must not fetch or evaluate prod update metadata. */
+    data object SkippedInDevBuild : ManifestLoadResult
 }

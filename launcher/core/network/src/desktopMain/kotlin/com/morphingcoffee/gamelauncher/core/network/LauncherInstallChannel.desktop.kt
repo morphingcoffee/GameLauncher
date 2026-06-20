@@ -3,6 +3,7 @@ package com.morphingcoffee.gamelauncher.core.network
 import com.morphingcoffee.gamelauncher.core.model.LauncherChannelKey
 import com.morphingcoffee.gamelauncher.core.model.LauncherInstallIdentity
 import com.morphingcoffee.gamelauncher.core.model.LauncherRelease
+import com.morphingcoffee.gamelauncher.core.model.LauncherRuntime
 import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 import com.morphingcoffee.gamelauncher.core.model.WindowsMsiInstallMatcher
 
@@ -56,7 +57,7 @@ actual object LauncherInstallChannel {
     }
 
     private fun expectedWindowsMsiDisplayName(): String =
-        if (System.getProperty("game.launcher.dev") == "true") {
+        if (LauncherRuntime.isDevBuild()) {
             LauncherInstallIdentity.WINDOWS_MSI_DISPLAY_NAME_DEV
         } else {
             LauncherInstallIdentity.WINDOWS_MSI_DISPLAY_NAME_PROD

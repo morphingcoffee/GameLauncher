@@ -1,8 +1,10 @@
 package com.morphingcoffee.gamelauncher.core.network
 
 import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
+import com.morphingcoffee.gamelauncher.core.model.LauncherRuntime
 import com.morphingcoffee.gamelauncher.core.model.LauncherUpdateEvaluation
 import com.morphingcoffee.gamelauncher.core.model.LauncherUpdateEvaluator
+import com.morphingcoffee.gamelauncher.core.model.LauncherUpdateStatus
 import com.morphingcoffee.gamelauncher.core.model.LauncherVersion
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,6 +20,11 @@ class LauncherUpdateRepository(
     val downloadProgress: StateFlow<DownloadProgress?> = updateInstaller.downloadProgress
 
     suspend fun refreshFromManifestLoad(result: ManifestLoadResult) {
+        if (LauncherRuntime.isDevBuild()) {
+            _evaluation.value = devSupportedEvaluation()
+            return
+        }
+
         _evaluation.value =
             when (result) {
                 is ManifestLoadResult.Success -> {
@@ -29,16 +36,26 @@ class LauncherUpdateRepository(
                     )
                 }
                 ManifestLoadResult.DecodeFailed -> LauncherUpdateEvaluator.manualUpdateRequired()
+                ManifestLoadResult.SkippedInDevBuild -> devSupportedEvaluation()
             }
     }
 
     suspend fun loadAndRefresh(): ManifestLoadResult {
+        if (LauncherRuntime.isDevBuild()) {
+            _evaluation.value = devSupportedEvaluation()
+            return ManifestLoadResult.SkippedInDevBuild
+        }
+
         val result = manifestRepository.loadManifest()
         refreshFromManifestLoad(result)
         return result
     }
 
     suspend fun downloadAndApplyUpdate(): Result<Unit> {
+        if (LauncherRuntime.isDevBuild()) {
+            return Result.failure(IllegalStateException("Launcher updates are disabled in dev builds"))
+        }
+
         val evaluation = _evaluation.value ?: return Result.failure(IllegalStateException("No update evaluation"))
         val channelBuild = evaluation.channelBuild ?: return Result.failure(IllegalStateException("No channel build"))
         return updateInstaller.downloadAndApply(
@@ -50,4 +67,7 @@ class LauncherUpdateRepository(
     fun releasesUrl(): String =
         _evaluation.value?.releaseNotesUrl?.takeIf { it.isNotBlank() }
             ?: LauncherMetadata.RELEASES_URL
+
+    private fun devSupportedEvaluation(): LauncherUpdateEvaluation =
+        LauncherUpdateEvaluation(status = LauncherUpdateStatus.Supported)
 }

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.morphingcoffee.gamelauncher.core.architecture.MviViewModel
 import com.morphingcoffee.gamelauncher.core.designsystem.platformClockText
 import com.morphingcoffee.gamelauncher.core.logging.AppLog
+import com.morphingcoffee.gamelauncher.core.model.GameCatalogEntry
 import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
 import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 import com.morphingcoffee.gamelauncher.core.network.GameCatalogDataSource
@@ -191,18 +192,22 @@ class CatalogViewModel(
 
                 when (result) {
                     is ManifestLoadResult.Success -> {
-                        val games = result.manifest.games
-                        val selectedGameId = state.value.selectedGameId ?: games.firstOrNull()?.id
-                        updateState {
-                            copy(
-                                isLoading = false,
-                                games = games,
-                                selectedGameId = selectedGameId,
-                                statusLabel = "READY",
-                                errorMessage = null,
-                            )
-                        }
-                        selectedGameId?.let { probeInstallState(it) }
+                        applyLoadedGames(result.manifest.games)
+                    }
+
+                    ManifestLoadResult.SkippedInDevBuild -> {
+                        gameCatalogRepository
+                            .loadCatalog()
+                            .onSuccess { games -> applyLoadedGames(games) }
+                            .onFailure { catalogError ->
+                                updateState {
+                                    copy(
+                                        isLoading = false,
+                                        errorMessage = catalogError.message ?: "Failed to load catalog",
+                                        statusLabel = "ERROR",
+                                    )
+                                }
+                            }
                     }
 
                     ManifestLoadResult.DecodeFailed -> {
@@ -218,19 +223,8 @@ class CatalogViewModel(
                 ensureActive()
                 gameCatalogRepository
                     .loadCatalog()
-                    .onSuccess { games ->
-                        val selectedGameId = state.value.selectedGameId ?: games.firstOrNull()?.id
-                        updateState {
-                            copy(
-                                isLoading = false,
-                                games = games,
-                                selectedGameId = selectedGameId,
-                                statusLabel = "READY",
-                                errorMessage = null,
-                            )
-                        }
-                        selectedGameId?.let { probeInstallState(it) }
-                    }.onFailure { catalogError ->
+                    .onSuccess { games -> applyLoadedGames(games) }
+                    .onFailure { catalogError ->
                         updateState {
                             copy(
                                 isLoading = false,
@@ -240,6 +234,22 @@ class CatalogViewModel(
                         }
                     }
             }
+        }
+    }
+
+    private fun applyLoadedGames(games: List<GameCatalogEntry>) {
+        val selectedGameId = state.value.selectedGameId ?: games.firstOrNull()?.id
+        updateState {
+            copy(
+                isLoading = false,
+                games = games,
+                selectedGameId = selectedGameId,
+                statusLabel = "READY",
+                errorMessage = null,
+            )
+        }
+        selectedGameId?.let { gameId ->
+            viewModelScope.launch { probeInstallState(gameId) }
         }
     }
 

@@ -18,6 +18,7 @@ class ManifestRepository(
         when (val result = loadManifest()) {
             is ManifestLoadResult.Success -> result.manifest
             ManifestLoadResult.DecodeFailed -> error("Failed to decode manifest")
+            ManifestLoadResult.SkippedInDevBuild -> error("Manifest fetch skipped in dev builds")
         }
 
     suspend fun loadManifest(): ManifestLoadResult {
