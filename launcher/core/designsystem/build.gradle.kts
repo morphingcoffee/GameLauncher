@@ -30,6 +30,12 @@ kotlin {
                 implementation(libs.compose.ui)
                 implementation(libs.compose.ui.tooling.preview)
                 implementation(libs.coil.compose)
+                implementation(libs.coil.network.core)
+            }
+        }
+        val commonTest by getting {
+            dependencies {
+                implementation(libs.kotlin.test)
             }
         }
     }
