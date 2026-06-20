@@ -1,6 +1,7 @@
 package com.morphingcoffee.gamelauncher.core.designsystem.thumbnail
 
 import coil3.Extras
+import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.getExtra
 import coil3.request.CachePolicy
@@ -37,3 +38,13 @@ fun buildThumbnailValidationRequest(
         .thumbnailRevalidate()
         .crossfade(crossfadeMillis)
         .build()
+
+fun invalidateThumbnailMemoryCache(
+    imageLoader: ImageLoader,
+    imageUrl: String,
+) {
+    val memoryCache = imageLoader.memoryCache ?: return
+    memoryCache.keys
+        .filter { it.key == imageUrl }
+        .forEach { memoryCache.remove(it) }
+}

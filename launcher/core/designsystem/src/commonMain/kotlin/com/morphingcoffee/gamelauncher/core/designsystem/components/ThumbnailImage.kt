@@ -15,7 +15,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -26,11 +25,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.BitmapImage
-import coil3.Image
 import coil3.SingletonImageLoader
+import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
-import coil3.compose.SubcomposeAsyncImage
-import coil3.compose.SubcomposeAsyncImageContent
+import coil3.decode.DataSource
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
@@ -41,16 +39,7 @@ import com.morphingcoffee.gamelauncher.core.designsystem.LauncherSpacing
 import com.morphingcoffee.gamelauncher.core.designsystem.extractAmbientColor
 import com.morphingcoffee.gamelauncher.core.designsystem.thumbnail.THUMBNAIL_CROSSFADE_MILLIS
 import com.morphingcoffee.gamelauncher.core.designsystem.thumbnail.buildThumbnailValidationRequest
-import com.morphingcoffee.gamelauncher.core.designsystem.thumbnail.imageContentHash
 import com.morphingcoffee.gamelauncher.core.designsystem.thumbnail.invalidateThumbnailMemoryCache
-import com.morphingcoffee.gamelauncher.core.designsystem.thumbnail.readThumbnailDiskEtag
-import com.morphingcoffee.gamelauncher.core.designsystem.thumbnail.thumbnailContentChanged
-
-private data class PendingThumbnailValidation(
-    val image: Image,
-    val baselineEtag: String?,
-    val freshEtag: String?,
-)
 
 @Composable
 fun ThumbnailImage(
@@ -100,96 +89,60 @@ private fun ThumbnailImageContent(
 ) {
     val context = LocalPlatformContext.current
     val imageLoader = remember(context) { SingletonImageLoader.get(context) }
-    var displayedContentHash by remember(imageUrl) { mutableStateOf<String?>(null) }
-    var pendingValidation by remember(imageUrl) { mutableStateOf<PendingThumbnailValidation?>(null) }
     var refreshGeneration by remember(imageUrl) { mutableIntStateOf(0) }
 
-    fun applyThumbnailRefresh(validationImage: Image) {
-        invalidateThumbnailMemoryCache(imageLoader, imageUrl)
-        refreshGeneration += 1
-        val color = extractColorFromImage(validationImage)
-        if (color != Color.Transparent) {
-            onColorExtracted?.invoke(color)
-        }
-    }
-
-    val displayModel =
+    // Display request - uses standard cache strategy initially
+    // If refreshGeneration > 0, we bypass memory cache to show the new version from disk
+    val displayRequest =
         remember(imageUrl, refreshGeneration) {
-            if (refreshGeneration == 0) {
-                imageUrl
-            } else {
-                ImageRequest
-                    .Builder(context)
-                    .data(imageUrl)
-                    .memoryCachePolicy(CachePolicy.DISABLED)
-                    .diskCachePolicy(CachePolicy.ENABLED)
-                    .crossfade(THUMBNAIL_CROSSFADE_MILLIS)
-                    .build()
+            ImageRequest
+                .Builder(context)
+                .data(imageUrl)
+                .apply {
+                    if (refreshGeneration > 0) {
+                        memoryCachePolicy(CachePolicy.DISABLED)
+                    }
+                }.crossfade(THUMBNAIL_CROSSFADE_MILLIS)
+                .build()
+        }
+
+    // Background revalidation logic: Trust the HTTP protocol
+    LaunchedEffect(imageUrl) {
+        val result = imageLoader.execute(buildThumbnailValidationRequest(context, imageUrl))
+
+        if (result is SuccessResult && result.dataSource == DataSource.NETWORK) {
+            // DataSource.NETWORK means the server responded with 200 OK (not 304),
+            // so we have fresh image bytes on disk now.
+            invalidateThumbnailMemoryCache(imageLoader, imageUrl)
+            refreshGeneration += 1
+
+            // Update ambient color from the fresh bytes immediately
+            val color = extractColorFromImage(result.image)
+            if (color != Color.Transparent) {
+                onColorExtracted?.invoke(color)
+            }
+        } else if (result is SuccessResult && refreshGeneration == 0) {
+            // Initial load from cache (or first network fetch) - still update color
+            val color = extractColorFromImage(result.image)
+            if (color != Color.Transparent) {
+                onColorExtracted?.invoke(color)
             }
         }
-
-    LaunchedEffect(imageUrl) {
-        pendingValidation = null
-        val baselineEtag = readThumbnailDiskEtag(imageLoader, imageUrl)
-        val result = imageLoader.execute(buildThumbnailValidationRequest(context, imageUrl))
-        val success = result as? SuccessResult ?: return@LaunchedEffect
-        val freshEtag = readThumbnailDiskEtag(imageLoader, imageUrl)
-        if (
-            thumbnailContentChanged(
-                baselineEtag = baselineEtag,
-                freshEtag = freshEtag,
-                displayedContentHash = displayedContentHash,
-                validationImage = success.image,
-            )
-        ) {
-            applyThumbnailRefresh(success.image)
-        } else if (displayedContentHash == null) {
-            pendingValidation =
-                PendingThumbnailValidation(
-                    image = success.image,
-                    baselineEtag = baselineEtag,
-                    freshEtag = freshEtag,
-                )
-        }
     }
 
-    SubcomposeAsyncImage(
-        model = displayModel,
+    AsyncImage(
+        model = displayRequest,
         contentDescription = contentDescription,
         modifier = Modifier.fillMaxSize(),
         contentScale = ContentScale.Crop,
-        success = { state ->
-            LaunchedEffect(imageUrl, refreshGeneration) {
-                val contentHash = imageContentHash(state.result.image)
-                val pending = pendingValidation
-                if (pending != null) {
-                    if (
-                        thumbnailContentChanged(
-                            baselineEtag = pending.baselineEtag,
-                            freshEtag = pending.freshEtag,
-                            displayedContentHash = contentHash,
-                            validationImage = pending.image,
-                        )
-                    ) {
-                        applyThumbnailRefresh(pending.image)
-                    }
-                    pendingValidation = null
-                }
-                displayedContentHash = contentHash
+        onSuccess = { state ->
+            // Update color on success if we haven't already from revalidation
+            if (refreshGeneration == 0) {
                 val color = extractColorFromImage(state.result.image)
-                if (color != Color.Transparent && refreshGeneration == 0) {
+                if (color != Color.Transparent) {
                     onColorExtracted?.invoke(color)
                 }
             }
-            SubcomposeAsyncImageContent()
-        },
-        loading = {
-            if (refreshGeneration == 0) {
-                ThumbnailShimmer(modifier = Modifier.fillMaxSize())
-            }
-        },
-        error = {
-            ThumbnailError(modifier = Modifier.fillMaxSize())
         },
     )
 }
