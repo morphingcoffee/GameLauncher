@@ -33,7 +33,8 @@ import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 
 @Composable
 internal fun GameDetailPane(
-    game: GameCatalogEntry?,
+    games: List<GameCatalogEntry>,
+    selectedGameId: String?,
     isLoading: Boolean,
     errorMessage: String?,
     launchErrorMessage: String?,
@@ -67,51 +68,69 @@ internal fun GameDetailPane(
         Box(modifier = Modifier.matchParentSize().ambientGlow(ambientColor))
 
         AnimatedContent(
-            targetState = game?.id ?: "empty",
+            targetState = selectedGameId ?: "empty",
             modifier = Modifier.fillMaxSize(),
             transitionSpec = {
                 (
                     fadeIn(tween(150, easing = FastOutSlowInEasing)) +
-                        slideInHorizontally(tween(150, easing = FastOutSlowInEasing)) { it / 4 }
+                        slideInHorizontally(tween(150, easing = FastOutSlowInEasing)) { it }
                 ).togetherWith(
                     fadeOut(tween(150)) +
                         slideOutHorizontally(tween(150)) { -it / 4 },
                 )
             },
             label = "game_detail_pane",
-        ) { _ ->
+        ) { animatedGameId ->
+            val animatedGame = games.firstOrNull { it.id == animatedGameId }
+            val isActiveSelection = animatedGameId == selectedGameId
+
             when {
                 isLoading -> {
                     DetailMessage(text = "LOADING CATALOG...")
                 }
 
-                errorMessage != null && game == null -> {
+                errorMessage != null && games.isEmpty() -> {
                     DetailMessage(text = errorMessage.uppercase())
                 }
 
-                game == null -> {
+                animatedGame == null -> {
                     DetailMessage(text = "NO ENTRIES")
                 }
 
                 else -> {
                     GameDetailContent(
-                        game = game,
-                        displayVersion = displayVersion,
-                        displayBuild = displayBuild,
-                        versionHistory = versionHistory,
-                        isVersionPickerVisible = isVersionPickerVisible,
-                        isVersionHistoryLoading = isVersionHistoryLoading,
-                        isInstalledForDisplay = isInstalledForDisplay,
-                        isWebGame = isWebGame,
-                        isInstallStatePending = isInstallStatePending,
-                        isDownloading = isDownloading,
-                        isChargingLaunch = isChargingLaunch,
-                        canUninstall = canUninstall,
-                        isChargingUninstall = isChargingUninstall,
-                        isUninstalling = isUninstalling,
-                        onDiskSizeBytes = onDiskSizeBytes,
-                        launchErrorMessage = launchErrorMessage,
-                        ambientColor = ambientColor,
+                        game = animatedGame,
+                        displayVersion =
+                            if (isActiveSelection) {
+                                displayVersion
+                            } else {
+                                animatedGame.latestVersion
+                            },
+                        displayBuild =
+                            if (isActiveSelection) {
+                                displayBuild
+                            } else {
+                                animatedGame.buildForCurrentPlatform()
+                            },
+                        versionHistory = if (isActiveSelection) versionHistory else emptyList(),
+                        isVersionPickerVisible = isActiveSelection && isVersionPickerVisible,
+                        isVersionHistoryLoading = isActiveSelection && isVersionHistoryLoading,
+                        isInstalledForDisplay = isActiveSelection && isInstalledForDisplay,
+                        isWebGame =
+                            if (isActiveSelection) {
+                                isWebGame
+                            } else {
+                                PlatformKey.WEB in animatedGame.builds
+                            },
+                        isInstallStatePending = isActiveSelection && isInstallStatePending,
+                        isDownloading = isActiveSelection && isDownloading,
+                        isChargingLaunch = isActiveSelection && isChargingLaunch,
+                        canUninstall = isActiveSelection && canUninstall,
+                        isChargingUninstall = isActiveSelection && isChargingUninstall,
+                        isUninstalling = isActiveSelection && isUninstalling,
+                        onDiskSizeBytes = if (isActiveSelection) onDiskSizeBytes else null,
+                        launchErrorMessage = if (isActiveSelection) launchErrorMessage else null,
+                        ambientColor = if (isActiveSelection) ambientColor else Color.Transparent,
                         onVersionPickerToggled = onVersionPickerToggled,
                         onVersionSelected = onVersionSelected,
                         onDownloadClicked = onDownloadClicked,
@@ -120,7 +139,12 @@ internal fun GameDetailPane(
                         onLaunchChargeComplete = onLaunchChargeComplete,
                         onUninstallClicked = onUninstallClicked,
                         onUninstallChargeComplete = onUninstallChargeComplete,
-                        onAmbientColorExtracted = onAmbientColorExtracted,
+                        onAmbientColorExtracted =
+                            if (isActiveSelection) {
+                                onAmbientColorExtracted
+                            } else {
+                                { _, _ -> }
+                            },
                     )
                 }
             }
