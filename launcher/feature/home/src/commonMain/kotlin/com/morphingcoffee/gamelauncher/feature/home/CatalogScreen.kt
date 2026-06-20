@@ -131,7 +131,8 @@ fun CatalogScreenContent(
                 VerticalTerminalRule()
 
                 GameDetailPane(
-                    game = state.selectedGame,
+                    games = state.games,
+                    selectedGameId = state.selectedGameId,
                     isLoading = state.isLoading,
                     errorMessage = state.errorMessage,
                     launchErrorMessage = state.launchErrorMessage,
