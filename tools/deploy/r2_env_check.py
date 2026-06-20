@@ -238,13 +238,13 @@ def probe_write(
     checker.fail(f"{label} write", detail[0] if detail else "write failed")
 
 
-def probe_delete_denied(
+def probe_delete(
     checker: Checker,
     label: str,
     remote_name: str,
     bucket: str,
     key: str,
-) -> None:
+) -> bool:
     result = rclone_with_remote(
         remote_name,
         ["deletefile", remote_path(remote_name, bucket, key)],
@@ -252,9 +252,11 @@ def probe_delete_denied(
         text=True,
     )
     if result.returncode == 0:
-        checker.fail(f"{label} delete denied", f"delete succeeded for {key}")
-        return
-    checker.ok(f"{label} delete denied", key)
+        checker.ok(f"{label} delete", key)
+        return True
+    detail = (result.stderr or result.stdout or "delete failed").strip().splitlines()
+    checker.fail(f"{label} delete", detail[0] if detail else "delete failed")
+    return False
 
 
 def cleanup_probe(
@@ -306,10 +308,12 @@ def run_r2_probes(
         dry_run=True,
     )
 
+    surviving_keys: List[str] = []
     for key in created_keys:
-        probe_delete_denied(checker, label, remote_name, bucket, key)
+        if not probe_delete(checker, label, remote_name, bucket, key):
+            surviving_keys.append(key)
 
-    return created_keys
+    return surviving_keys
 
 
 def print_report(checker: Checker) -> None:
