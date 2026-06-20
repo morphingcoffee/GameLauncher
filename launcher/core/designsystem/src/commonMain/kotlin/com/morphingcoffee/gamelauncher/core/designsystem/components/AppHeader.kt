@@ -16,6 +16,7 @@ import com.morphingcoffee.gamelauncher.core.designsystem.TerminalRule
 fun AppHeader(
     appVersion: String,
     platformLabel: String,
+    showUpdateHint: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -33,6 +34,9 @@ fun AppHeader(
                 MonoLabel(text = "MC.GAME.LAUNCHER")
                 MonoLabel(text = "·", muted = true)
                 MonoLabel(text = "v$appVersion", muted = true)
+                if (showUpdateHint) {
+                    MonoLabel(text = "· UPDATE", accent = true)
+                }
             }
             MonoLabel(text = "sys:$platformLabel", muted = true)
         }

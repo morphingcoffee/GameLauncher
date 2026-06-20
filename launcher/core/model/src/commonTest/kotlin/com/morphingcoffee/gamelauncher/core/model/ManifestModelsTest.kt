@@ -18,7 +18,6 @@ class ManifestModelsTest {
         val raw =
             """
             {
-              "schema_version": 1,
               "launcher_minimum_version": "0.0.1",
               "games": [
                 {
@@ -44,7 +43,6 @@ class ManifestModelsTest {
 
         val manifest = json.decodeFromString<Manifest>(raw)
 
-        assertEquals(1, manifest.schemaVersion)
         assertEquals(1, manifest.games.size)
         assertEquals("cool_game", manifest.games.first().id)
         assertEquals("1.2.0", manifest.games.first().latestVersion)
@@ -63,7 +61,6 @@ class ManifestModelsTest {
         val raw =
             """
             {
-              "schema_version": 1,
               "launcher_minimum_version": "0.0.1",
               "games": [
                 {
@@ -164,7 +161,6 @@ class WebGameBuildTest {
         val raw =
             """
             {
-              "schema_version": 1,
               "launcher_minimum_version": "0.0.1",
               "games": [
                 {

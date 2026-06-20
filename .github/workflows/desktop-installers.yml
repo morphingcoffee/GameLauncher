@@ -31,6 +31,10 @@ on:
         description: Build Windows portable ZIP
         type: boolean
         default: true
+      publish_to_r2:
+        description: Publish prod launcher installers to R2 and patch manifests/manifest.json
+        type: boolean
+        default: false
 
 concurrency:
   group: desktop-installers-${{ github.workflow }}-${{ github.event.inputs.ref || github.ref }}
@@ -323,4 +327,109 @@ jobs:
           **Build:** `${{ env.BUILD_NUMBER }}` (artifact version `0.0.1-build<run>`).
 
           Downloaded games live in `%APPDATA%\GameLauncher` — deleting the portable folder does not remove them.
+          EOF
+
+  publish-launcher-r2:
+    name: Publish launcher to R2
+    if: github.event.inputs.publish_to_r2 == 'true'
+    needs:
+      - build-windows-msi
+      - build-windows-zip
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BUILD_NUMBER: ${{ github.run_number }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Grant execute permission for Gradle wrapper
+        run: chmod +x ./launcher/gradlew
+
+      - name: Resolve artifact version
+        working-directory: launcher
+        run: |
+          echo "ARTIFACT_VERSION=$(./gradlew -q :composeApp:printArtifactVersion --no-daemon -PbuildNumber="$BUILD_NUMBER")" >> "$GITHUB_ENV"
+
+      - name: Download Windows MSI artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: GameLauncher-windows-msi
+          path: artifacts/windows-msi
+
+      - name: Download Windows portable artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: GameLauncher-windows-portable
+          path: artifacts/windows-portable
+
+      - name: Stage prod launcher artifacts
+        run: |
+          set -euo pipefail
+          msi=$(find artifacts/windows-msi -name 'GameLauncher-*.msi' ! -name '*-dev*' | head -1)
+          zip=$(find artifacts/windows-portable -name 'GameLauncher-*.zip' ! -name '*-dev*' | head -1)
+          test -n "$msi"
+          test -n "$zip"
+          mkdir -p "r2_staging/launcher/releases/${ARTIFACT_VERSION}/windows-x64-msi"
+          mkdir -p "r2_staging/launcher/releases/${ARTIFACT_VERSION}/windows-x64-portable"
+          cp "$msi" "r2_staging/launcher/releases/${ARTIFACT_VERSION}/windows-x64-msi/"
+          cp "$zip" "r2_staging/launcher/releases/${ARTIFACT_VERSION}/windows-x64-portable/"
+
+      - name: Register launcher release in manifest
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_PUBLIC_CDN_BASE_URL: ${{ secrets.R2_PUBLIC_CDN_BASE_URL }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          python3 tools/deploy/register_launcher_release.py "$ARTIFACT_VERSION" \
+            --channel windows-x64-msi \
+            --channel windows-x64-portable
+
+      - name: Upload launcher blobs to R2
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_PUBLIC_CDN_BASE_URL: ${{ secrets.R2_PUBLIC_CDN_BASE_URL }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          python3 tools/deploy/r2_deploy.py --copy \
+            "./r2_staging/launcher/releases/${ARTIFACT_VERSION}/windows-x64-msi" \
+            "launcher/releases/${ARTIFACT_VERSION}/windows-x64-msi"
+          python3 tools/deploy/r2_deploy.py --copy \
+            "./r2_staging/launcher/releases/${ARTIFACT_VERSION}/windows-x64-portable" \
+            "launcher/releases/${ARTIFACT_VERSION}/windows-x64-portable"
+
+      - name: Publish manifest.json to R2
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_PUBLIC_CDN_BASE_URL: ${{ secrets.R2_PUBLIC_CDN_BASE_URL }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: python3 tools/deploy/r2_publish_manifest.py
+
+      - name: Publish summary
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ### Launcher R2 publish
+
+          Registered **${ARTIFACT_VERSION}** for \`windows-x64-msi\` and \`windows-x64-portable\`.
+          Updated \`manifests/manifest.json\` locally in the runner — commit and push that file to \`main\` to keep git in sync.
           EOF

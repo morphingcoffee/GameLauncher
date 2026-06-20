@@ -80,3 +80,4 @@ Do not rely on `Json { namingStrategy = … }` for wire models — explicit `@Se
 
 - Manifest field names: `gamelauncher-context` skill, `manifests/manifest.json`
 - Models live in `launcher/core/model/`
+- **Breaking wire changes:** read `launcher-minimum-version` skill before publishing

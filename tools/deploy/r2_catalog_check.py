@@ -389,10 +389,15 @@ def check_game(
 
 
 def check_manifest_structure(checker: CatalogChecker, manifest: Dict[str, Any]) -> List[Dict[str, Any]]:
-    if manifest.get("schema_version") != 1:
-        checker.warn("manifest", f"unexpected schema_version: {manifest.get('schema_version')!r}")
+    minimum = manifest.get("launcher_minimum_version")
+    if not isinstance(minimum, str) or not minimum.strip():
+        checker.warn("manifest", "launcher_minimum_version missing or empty")
     else:
-        checker.ok("manifest", "schema_version=1")
+        checker.ok("manifest", f"launcher_minimum_version={minimum!r}")
+
+    launcher = manifest.get("launcher")
+    if launcher is not None and not isinstance(launcher, dict):
+        checker.warn("manifest", "launcher must be an object when present")
 
     games = manifest.get("games")
     if not isinstance(games, list):

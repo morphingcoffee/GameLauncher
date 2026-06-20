@@ -6,10 +6,10 @@ import kotlinx.serialization.Transient
 
 @Serializable
 data class Manifest(
-    @SerialName("schema_version")
-    val schemaVersion: Int,
     @SerialName("launcher_minimum_version")
     val launcherMinimumVersion: String,
+    @SerialName("launcher")
+    val launcher: LauncherRelease? = null,
     @SerialName("games")
     val games: List<GameCatalogEntry>,
 )

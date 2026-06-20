@@ -5,6 +5,8 @@ import com.morphingcoffee.gamelauncher.core.model.GameBuild
 import com.morphingcoffee.gamelauncher.core.model.GameCatalogEntry
 import com.morphingcoffee.gamelauncher.core.model.GameVersionEntry
 import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
+import com.morphingcoffee.gamelauncher.core.model.LauncherUpdateEvaluation
+import com.morphingcoffee.gamelauncher.core.model.LauncherUpdateStatus
 import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 import com.morphingcoffee.gamelauncher.core.network.InstallState
 
@@ -34,6 +36,12 @@ sealed interface CatalogEvent {
     data object UninstallClicked : CatalogEvent
 
     data object UninstallChargeComplete : CatalogEvent
+
+    data object UpdateClicked : CatalogEvent
+
+    data object UpdateChargeComplete : CatalogEvent
+
+    data object GetLatestClicked : CatalogEvent
 
     data object OpenClicked : CatalogEvent
 
@@ -71,7 +79,21 @@ data class CatalogState(
     val contentAlpha: Float = 1f,
     val appVersion: String = LauncherMetadata.VERSION,
     val ambientColor: Color = Color.Transparent,
+    val updateEvaluation: LauncherUpdateEvaluation? = null,
+    val isUpdateDownloading: Boolean = false,
+    val isUpdateCharging: Boolean = false,
+    val updateErrorMessage: String? = null,
 ) {
+    val isUpdateGateActive: Boolean
+        get() =
+            updateEvaluation?.status == LauncherUpdateStatus.UpdateRequired ||
+                updateEvaluation?.status == LauncherUpdateStatus.ManualUpdateRequired
+
+    val showOptionalUpdateHint: Boolean
+        get() = updateEvaluation?.status == LauncherUpdateStatus.UpdateAvailable
+
+    val channelLatestVersion: String?
+        get() = updateEvaluation?.channelBuild?.version
     val selectedGame: GameCatalogEntry?
         get() = games.firstOrNull { it.id == selectedGameId }
 
@@ -129,4 +151,8 @@ data class CatalogState(
 
 sealed interface CatalogEffect {
     data object RequestFocusRoster : CatalogEffect
+
+    data class OpenUrl(
+        val url: String,
+    ) : CatalogEffect
 }

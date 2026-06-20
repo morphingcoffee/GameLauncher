@@ -20,7 +20,6 @@ class ManifestRepositoryTest {
             val manifestJson =
                 """
                 {
-                  "schema_version": 1,
                   "launcher_minimum_version": "0.0.1",
                   "games": [
                     {

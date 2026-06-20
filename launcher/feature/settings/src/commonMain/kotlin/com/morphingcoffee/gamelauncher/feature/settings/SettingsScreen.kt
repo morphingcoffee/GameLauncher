@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -11,13 +12,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherColors
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherSpacing
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherTheme
@@ -27,38 +26,53 @@ import com.morphingcoffee.gamelauncher.core.designsystem.components.MonoLabel
 import com.morphingcoffee.gamelauncher.core.designsystem.components.StatusBar
 import com.morphingcoffee.gamelauncher.core.designsystem.components.TerminalButton
 import com.morphingcoffee.gamelauncher.core.designsystem.components.TerminalLinkRow
-import com.morphingcoffee.gamelauncher.core.designsystem.platformClockText
 import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
-import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 import kotlinx.coroutines.delay
+import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
-fun SettingsScreen(onBack: () -> Unit) {
-    var state by remember {
-        mutableStateOf(
-            SettingsState(
-                platformLabel = formatPlatformLabel(PlatformKey.current()),
-            ),
-        )
+fun SettingsScreen(
+    onBack: () -> Unit,
+    viewModel: AboutViewModel = koinViewModel(),
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val uriHandler = LocalUriHandler.current
+
+    LaunchedEffect(Unit) {
+        viewModel.onEvent(AboutEvent.Started)
     }
 
     LaunchedEffect(Unit) {
         while (true) {
-            state = state.copy(clockText = platformClockText())
             delay(1_000)
+            viewModel.onEvent(AboutEvent.ClockTick)
+        }
+    }
+
+    LaunchedEffect(viewModel) {
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                is AboutEffect.OpenUrl -> uriHandler.openUri(effect.url)
+            }
         }
     }
 
     SettingsScreenContent(
         state = state,
         onBack = onBack,
+        onUpdateClicked = { viewModel.onEvent(AboutEvent.UpdateClicked) },
+        onUpdateChargeComplete = { viewModel.onEvent(AboutEvent.UpdateChargeComplete) },
+        onGetLatestClicked = { viewModel.onEvent(AboutEvent.GetLatestClicked) },
     )
 }
 
 @Composable
 fun SettingsScreenContent(
-    state: SettingsState,
+    state: AboutState,
     onBack: () -> Unit,
+    onUpdateClicked: () -> Unit = {},
+    onUpdateChargeComplete: () -> Unit = {},
+    onGetLatestClicked: () -> Unit = {},
 ) {
     val uriHandler = LocalUriHandler.current
 
@@ -72,6 +86,7 @@ fun SettingsScreenContent(
             AppHeader(
                 appVersion = state.appVersion,
                 platformLabel = state.platformLabel,
+                showUpdateHint = state.showUpdateButton,
             )
 
             Column(
@@ -89,6 +104,27 @@ fun SettingsScreenContent(
                     value = state.appVersion,
                 )
 
+                state.channelLatestVersion?.takeIf { state.showLatestRow }?.let { latest ->
+                    SettingsInfoRow(
+                        label = "LATEST",
+                        value = latest,
+                    )
+                }
+
+                state.updateErrorMessage?.let { message ->
+                    MonoLabel(text = message, accent = true)
+                }
+
+                if (state.showUpdateButton) {
+                    TerminalButton(
+                        label = "[ UPDATE ]",
+                        onClick = onUpdateClicked,
+                        charging = state.isUpdateCharging,
+                        onChargeComplete = onUpdateChargeComplete,
+                        enabled = !state.isUpdateDownloading,
+                    )
+                }
+
                 state.links.forEach { link ->
                     TerminalLinkRow(
                         label = link.label,
@@ -98,6 +134,11 @@ fun SettingsScreenContent(
                 }
 
                 TerminalButton(
+                    label = "[ GET LATEST ]",
+                    onClick = onGetLatestClicked,
+                )
+
+                TerminalButton(
                     label = "[ BACK ]",
                     onClick = onBack,
                     modifier = Modifier.padding(top = LauncherSpacing.Md),
@@ -105,8 +146,9 @@ fun SettingsScreenContent(
             }
 
             StatusBar(
-                statusText = "ABOUT",
+                statusText = if (state.isUpdateDownloading) "UPDATING" else "ABOUT",
                 clockText = state.clockText,
+                downloadProgress = state.downloadProgressFraction,
             )
         }
     }
@@ -118,7 +160,7 @@ private fun SettingsInfoRow(
     value: String,
     modifier: Modifier = Modifier,
 ) {
-    androidx.compose.foundation.layout.Row(
+    Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(LauncherSpacing.Md),
         verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
@@ -133,15 +175,6 @@ private fun SettingsInfoRow(
     }
 }
 
-private fun formatPlatformLabel(platformKey: String?): String =
-    when (platformKey) {
-        PlatformKey.WINDOWS_X64 -> "windows-x64"
-        PlatformKey.MACOS_ARM64 -> "macos-arm64"
-        PlatformKey.MACOS_X64 -> "macos-x64"
-        null -> "unknown"
-        else -> platformKey
-    }
-
 @Preview(
     name = "About",
     widthDp = 1280,
@@ -153,7 +186,7 @@ private fun SettingsScreenPreview() {
     LauncherTheme {
         SettingsScreenContent(
             state =
-                SettingsState(
+                AboutState(
                     appVersion = LauncherMetadata.VERSION,
                     platformLabel = "macos-arm64",
                     clockText = "12:34:56",

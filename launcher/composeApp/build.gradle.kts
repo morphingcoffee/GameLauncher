@@ -175,6 +175,12 @@ private fun jpackageWindowsMsiVersion(): String {
     return if (build != null) "1.0.$build" else "1.0.0"
 }
 
+private fun launcherMarketingVersion(): String =
+    (findProperty("launcherMarketingVersion") as String?)
+        ?.trim()
+        .takeUnless { it.isNullOrEmpty() }
+        ?: error("launcherMarketingVersion is not set in gradle.properties")
+
 compose.desktop {
     application {
         mainClass = "com.morphingcoffee.gamelauncher.MainKt"
@@ -186,7 +192,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi)
             packageName = desktopPackageName()
-            packageVersion = "0.0.1"
+            packageVersion = launcherMarketingVersion()
             description = "Curated-indie-game-launcher"
             vendor = "GameLauncher"
             copyright = "GameLauncher"

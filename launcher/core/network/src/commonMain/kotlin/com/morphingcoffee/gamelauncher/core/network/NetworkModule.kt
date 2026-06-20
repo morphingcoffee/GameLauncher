@@ -10,5 +10,7 @@ val networkModule =
         single { ManifestRepository(get()) }
         single { createGameLauncher() }
         single { createGameInstaller(get(named("download"))) }
+        single { createLauncherUpdateInstaller(get(named("download"))) }
+        single { LauncherUpdateRepository(get(), get()) }
         single<GameCatalogDataSource> { GameCatalogRepository(get(), get(), get()) }
     }

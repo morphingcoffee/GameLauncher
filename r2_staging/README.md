@@ -10,6 +10,7 @@ JSON catalog metadata lives in git under [`manifests/`](../manifests/) (`manifes
 r2_staging/
   games/{game_id}/v{version}/{platform}/game.zip
   assets/{game_id}/thumbnail.webp
+  launcher/releases/{artifact_version}/{channel}/GameLauncher-…
 ```
 
 The path under `r2_staging/` is the same as the R2 object key — copy local → remote with matching suffixes:
@@ -35,3 +36,13 @@ python3 tools/deploy/register_version.py krabs_v1 0.0.1 --platform windows-x64
 ```
 
 Scans `r2_staging/games/.../game.zip` for sha256 and sizes. See [`tools/deploy/README.md`](../tools/deploy/README.md).
+
+### Launcher self-update artifacts
+
+Stage prod installers under `r2_staging/launcher/releases/{version}/{channel}/`, then register:
+
+```bash
+python3 tools/deploy/register_launcher_release.py 0.0.1-build51 --channel windows-x64-msi
+```
+
+Channel keys: `windows-x64-msi`, `windows-x64-portable`, `macos-arm64-dmg`, `macos-x64-dmg`, `macos-*-zip`. Use `--bump-minimum` only for breaking changes — see `launcher-minimum-version` skill.

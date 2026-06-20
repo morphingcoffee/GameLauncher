@@ -1,6 +1,9 @@
 {
-  "schema_version": 1,
   "launcher_minimum_version": "0.0.1",
+  "launcher": {
+    "release_notes_url": "https://github.com/morphingcoffee/GameLauncher/releases",
+    "channels": {}
+  },
   "games": [
     {
       "id": "krabs_v1",
