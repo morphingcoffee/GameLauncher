@@ -38,7 +38,7 @@ Create **one** token in **Cloudflare → R2 → Manage R2 API Tokens**:
 
 Cloudflare static tokens are scoped to the **bucket**, not individual object prefixes. All deploy workflows and local tools share this token.
 
-Object Read & Write does not grant delete — a mistaken `rclone sync` cannot remove remote objects when delete is denied at the token level.
+Object Read & Write includes S3 delete for objects in the scoped bucket. Avoid accidental remote deletes by using `rclone copy` (`r2_deploy.py --copy`) instead of sync unless you explicitly pass `--allow-deletes`.
 
 Prefix-level scoping (e.g. `manifest.json` only vs `games/**`) requires [Cloudflare Temporary Credentials](https://developers.cloudflare.com/r2/api/temporary-credentials/) and is not implemented yet.
 
@@ -75,14 +75,14 @@ Re-run with `-U` after rotating a token; update **both** items.
 ## Test and upload
 
 ```bash
-# Preflight: env vars, credentials, bucket connectivity, no-delete check
+# Preflight: env vars, credentials, bucket read/write/delete connectivity
 python3 tools/deploy/r2_env_check.py
 
 # Quick auth smoke test (read + write only)
 python3 tools/deploy/r2_test_auth.py
 ```
 
-`r2_env_check.py` writes UUID-suffixed probes under `games/.gamelauncher-r2-probe/`. Cleanup is best-effort — when the token correctly lacks delete permission, probe objects remain until removed via the R2 dashboard.
+`r2_env_check.py` writes UUID-suffixed probes under `games/.gamelauncher-r2-probe/` and deletes them when the token allows delete.
 
 In CI, run **Actions → R2 env check → Run workflow** (see [`.github/workflows/r2-env-check.yml`](../.github/workflows/r2-env-check.yml)) after merge.
 
