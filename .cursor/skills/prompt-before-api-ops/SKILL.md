@@ -30,6 +30,16 @@ Mention when relevant: push triggers CI; subagents multiply token usage.
 
 Local file read/edit, grep/search, `git status` / `diff` / `log`, local builds/tests.
 
+**Project board Status updates** for an issue the user asked you to work on — run `./tools/dev/github-project-status.sh` (or equivalent GraphQL) **without asking**:
+
+| Trigger | Status |
+|---------|--------|
+| User asks to implement / fix issue **#N** | `In progress` — **before** any code changes |
+| PR opened with `Closes #N` | `In review` — same turn as PR creation |
+| PR merged for **#N** | `Done` |
+
+These are mandatory workflow steps per `github-task-creation` and `github-workflow` — not optional `gh` writes.
+
 ## Workflow
 
 1. State what you want to run and why.
