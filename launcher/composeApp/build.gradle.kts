@@ -221,6 +221,7 @@ compose.desktop {
                 shortcut = true
                 menuGroup = if (devBuild) "Game Launcher DEV" else "Game Launcher"
                 // Stable upgrade codes — never change after first public MSI release (prod vs dev are separate products).
+                // Keep in sync with LauncherInstallIdentity in :core:model.
                 upgradeUuid =
                     if (devBuild) {
                         "9e3b2c4d-6f5e-7a81-0c9d-1e2f3a4b5c6d"
