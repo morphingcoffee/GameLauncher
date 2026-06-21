@@ -118,6 +118,10 @@ jobs:
           cp "$msi" "r2_staging/launcher/releases/${ARTIFACT_VERSION}/windows-x64-msi/"
           cp "$zip" "r2_staging/launcher/releases/${ARTIFACT_VERSION}/windows-x64-portable/"
 
+      - name: Install rclone
+        run: |
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+
       - name: Publish launcher release
         env:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
