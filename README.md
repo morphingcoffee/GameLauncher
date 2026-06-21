@@ -99,10 +99,12 @@ pwsh ../tools/dev/package-windows-zip.ps1 -BuildNumber 1
 Desktop installers are built **on demand** via [`.github/workflows/desktop-installers.yml`](.github/workflows/desktop-installers.yml) — they do not run on every push or pull request.
 
 1. Open **Actions** → **Desktop installers** → **Run workflow**
-2. Choose branch (default `main`); toggle platforms and variants (labels are prefixed `[Prod deploy]`, `[Windows]`, `[macOS …]`)
+2. Choose branch (default `main`); **each checkbox = exactly one build job** (name matches the job in the run list)
 3. Download from the run → **Artifacts**
 
-**Minimal prod deploy (Windows self-update on R2):** enable `[Prod deploy]`, `[Windows] MSI`, `[Windows] portable ZIP`, and `[Windows prod]`; leave macOS and `[Windows dev]` unchecked. Commit the manifest change from the publish job afterward.
+**Default run (prod only):** four jobs — Windows MSI (prod), Windows portable ZIP (prod), macOS arm64 DMG (prod), macOS x64 DMG (prod). Dev checkboxes default off.
+
+**Windows prod R2 deploy:** also check **Publish to R2** (requires both Windows prod builds). Commit the manifest change from the publish job afterward.
 
 **macOS artifacts** are for manual download from Actions — this workflow does not upload macOS launcher builds to R2 yet.
 

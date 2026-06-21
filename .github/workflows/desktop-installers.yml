@@ -8,52 +8,50 @@ on:
         required: false
         default: main
 
-      # Prod deploy — Windows self-update on R2 (requires MSI + portable ZIP jobs below).
       publish_windows_prod_to_r2:
-        description: "[Prod deploy] Upload Windows prod MSI + portable ZIP to R2 and patch manifests/manifest.json"
+        description: "Publish to R2 — requires Windows MSI (prod) + portable ZIP (prod) checked below"
         type: boolean
         default: false
 
-      build_windows_msi:
-        description: "[Windows] MSI installer"
+      build_windows_msi_prod:
+        description: "Build Windows MSI (prod)"
         type: boolean
         default: true
 
-      build_windows_portable_zip:
-        description: "[Windows] Portable ZIP"
+      build_windows_msi_dev:
+        description: "Build Windows MSI (dev)"
+        type: boolean
+        default: false
+
+      build_windows_portable_prod:
+        description: "Build Windows portable ZIP (prod)"
         type: boolean
         default: true
 
-      build_windows_prod:
-        description: "[Windows prod] Live catalog, normal branding"
+      build_windows_portable_dev:
+        description: "Build Windows portable ZIP (dev)"
+        type: boolean
+        default: false
+
+      build_macos_arm64_dmg_prod:
+        description: "Build macOS Apple Silicon DMG (prod)"
         type: boolean
         default: true
 
-      build_windows_dev:
-        description: "[Windows dev] Fake catalog, Game Launcher DEV branding (local testing only)"
+      build_macos_arm64_dmg_dev:
+        description: "Build macOS Apple Silicon DMG (dev)"
+        type: boolean
+        default: false
+
+      build_macos_x64_dmg_prod:
+        description: "Build macOS Intel DMG (prod)"
         type: boolean
         default: true
 
-      # macOS — GitHub Actions artifacts only (not uploaded to R2 by this workflow).
-      build_macos_arm64:
-        description: "[macOS arm64] Apple Silicon — DMG"
+      build_macos_x64_dmg_dev:
+        description: "Build macOS Intel DMG (dev)"
         type: boolean
-        default: true
-
-      build_macos_x64:
-        description: "[macOS x64] Intel — DMG"
-        type: boolean
-        default: true
-
-      build_macos_prod:
-        description: "[macOS prod] Live catalog, normal title bar"
-        type: boolean
-        default: true
-
-      build_macos_dev:
-        description: "[macOS dev] Fake catalog, [DEV] title bar (local testing only)"
-        type: boolean
-        default: true
+        default: false
 
 concurrency:
   group: desktop-installers-${{ github.workflow }}-${{ github.event.inputs.ref || github.ref }}
@@ -70,33 +68,31 @@ jobs:
       - id: set-matrix
         run: |
           include='[]'
-          add_entries() {
+          add_entry() {
             local jdk_arch="$1"
             local compose_host="$2"
             local expected_arch="$3"
-            local timeout_minutes="$4"
-            if [ "${{ github.event.inputs.build_macos_prod }}" != "false" ]; then
-              include=$(echo "$include" | jq -c \
-                --arg jdk "$jdk_arch" \
-                --arg host "$compose_host" \
-                --arg expected "$expected_arch" \
-                --argjson timeout "$timeout_minutes" \
-                '. + [{"jdk_arch":$jdk,"compose_host":$host,"expected_arch":$expected,"variant":"prod","timeout_minutes":$timeout}]')
-            fi
-            if [ "${{ github.event.inputs.build_macos_dev }}" != "false" ]; then
-              include=$(echo "$include" | jq -c \
-                --arg jdk "$jdk_arch" \
-                --arg host "$compose_host" \
-                --arg expected "$expected_arch" \
-                --argjson timeout "$timeout_minutes" \
-                '. + [{"jdk_arch":$jdk,"compose_host":$host,"expected_arch":$expected,"variant":"dev","timeout_minutes":$timeout}]')
-            fi
+            local variant="$4"
+            local timeout_minutes="$5"
+            include=$(echo "$include" | jq -c \
+              --arg jdk "$jdk_arch" \
+              --arg host "$compose_host" \
+              --arg expected "$expected_arch" \
+              --arg variant "$variant" \
+              --argjson timeout "$timeout_minutes" \
+              '. + [{"jdk_arch":$jdk,"compose_host":$host,"expected_arch":$expected,"variant":$variant,"timeout_minutes":$timeout}]')
           }
-          if [ "${{ github.event.inputs.build_macos_arm64 }}" != "false" ]; then
-            add_entries arm64 macos-arm64 arm64 15
+          if [ "${{ github.event.inputs.build_macos_arm64_dmg_prod }}" != "false" ]; then
+            add_entry arm64 macos-arm64 arm64 prod 15
           fi
-          if [ "${{ github.event.inputs.build_macos_x64 }}" != "false" ]; then
-            add_entries x64 macos-x64 x86_64 20
+          if [ "${{ github.event.inputs.build_macos_arm64_dmg_dev }}" != "false" ]; then
+            add_entry arm64 macos-arm64 arm64 dev 15
+          fi
+          if [ "${{ github.event.inputs.build_macos_x64_dmg_prod }}" != "false" ]; then
+            add_entry x64 macos-x64 x86_64 prod 20
+          fi
+          if [ "${{ github.event.inputs.build_macos_x64_dmg_dev }}" != "false" ]; then
+            add_entry x64 macos-x64 x86_64 dev 20
           fi
           count=$(echo "$include" | jq 'length')
           echo "matrix={\"include\":${include}}" >> "$GITHUB_OUTPUT"
@@ -225,35 +221,31 @@ jobs:
       - id: set-matrix
         run: |
           include='[]'
-          add_entries() {
+          add_entry() {
             local format="$1"
             local script="$2"
-            local artifact_slug="$3"
-            local artifact_ext="$4"
-            if [ "${{ github.event.inputs.build_windows_prod }}" != "false" ]; then
-              include=$(echo "$include" | jq -c \
-                --arg format "$format" \
-                --arg script "$script" \
-                --arg variant "prod" \
-                --arg artifact_slug "$artifact_slug" \
-                --arg artifact_ext "$artifact_ext" \
-                '. + [{"format":$format,"script":$script,"variant":$variant,"artifact_slug":$artifact_slug,"artifact_ext":$artifact_ext}]')
-            fi
-            if [ "${{ github.event.inputs.build_windows_dev }}" != "false" ]; then
-              include=$(echo "$include" | jq -c \
-                --arg format "$format" \
-                --arg script "$script" \
-                --arg variant "dev" \
-                --arg artifact_slug "$artifact_slug" \
-                --arg artifact_ext "$artifact_ext" \
-                '. + [{"format":$format,"script":$script,"variant":$variant,"artifact_slug":$artifact_slug,"artifact_ext":$artifact_ext}]')
-            fi
+            local variant="$3"
+            local artifact_slug="$4"
+            local artifact_ext="$5"
+            include=$(echo "$include" | jq -c \
+              --arg format "$format" \
+              --arg script "$script" \
+              --arg variant "$variant" \
+              --arg artifact_slug "$artifact_slug" \
+              --arg artifact_ext "$artifact_ext" \
+              '. + [{"format":$format,"script":$script,"variant":$variant,"artifact_slug":$artifact_slug,"artifact_ext":$artifact_ext}]')
           }
-          if [ "${{ github.event.inputs.build_windows_msi }}" != "false" ]; then
-            add_entries msi package-windows-msi.ps1 msi msi
+          if [ "${{ github.event.inputs.build_windows_msi_prod }}" != "false" ]; then
+            add_entry msi package-windows-msi.ps1 prod msi msi
           fi
-          if [ "${{ github.event.inputs.build_windows_portable_zip }}" != "false" ]; then
-            add_entries "portable ZIP" package-windows-zip.ps1 portable zip
+          if [ "${{ github.event.inputs.build_windows_msi_dev }}" != "false" ]; then
+            add_entry msi package-windows-msi.ps1 dev msi msi
+          fi
+          if [ "${{ github.event.inputs.build_windows_portable_prod }}" != "false" ]; then
+            add_entry "portable ZIP" package-windows-zip.ps1 prod portable zip
+          fi
+          if [ "${{ github.event.inputs.build_windows_portable_dev }}" != "false" ]; then
+            add_entry "portable ZIP" package-windows-zip.ps1 dev portable zip
           fi
           count=$(echo "$include" | jq 'length')
           echo "matrix={\"include\":${include}}" >> "$GITHUB_OUTPUT"

@@ -139,7 +139,7 @@ python3 tools/deploy/r2_deploy.py --copy \
 python3 tools/deploy/r2_publish_manifest.py
 ```
 
-CI: **Actions → Desktop installers → Run workflow** with **`[Prod deploy] Upload Windows prod…`**, **`[Windows] MSI`**, **`[Windows] portable ZIP`**, and **`[Windows prod]`** enabled. Commit `manifests/manifest.json` from the publish job afterward.
+CI: **Actions → Desktop installers → Run workflow** — check **Publish to R2**, **Build Windows MSI (prod)**, and **Build Windows portable ZIP (prod)**. Commit `manifests/manifest.json` from the publish job afterward.
 
 ### Patch metadata on an existing version
 
