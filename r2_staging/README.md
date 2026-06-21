@@ -39,10 +39,18 @@ Scans `r2_staging/games/.../game.zip` for sha256 and sizes. See [`tools/deploy/R
 
 ### Launcher self-update artifacts
 
-Stage prod installers under `r2_staging/launcher/releases/{version}/{channel}/`, then register:
+Stage prod installers under `r2_staging/launcher/releases/{version}/{channel}/`, then publish:
+
+```bash
+python3 tools/deploy/publish_launcher_release.py 0.0.1-build51
+```
+
+Or register only (no R2/git):
 
 ```bash
 python3 tools/deploy/register_launcher_release.py 0.0.1-build51 --channel windows-x64-msi
 ```
 
 Channel keys: `windows-x64-msi`, `windows-x64-portable`, `macos-arm64-dmg`, `macos-x64-dmg`. Use `--bump-minimum` only for breaking changes — see `launcher-minimum-version` skill.
+
+CI: **Desktop installers** (build) → **Publish launcher release** (pass build run ID).

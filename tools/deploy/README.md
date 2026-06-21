@@ -125,11 +125,20 @@ git commit -m "Register krabs_v1 v0.0.1"
 
 Prod installers live under `r2_staging/launcher/releases/{artifact_version}/{channel}/`. Register patches the `launcher` block in `manifests/manifest.json` (per-channel `version`, sha256, CDN URLs). **`launcher_minimum_version`** is the forced-update floor — bump only with `--bump-minimum` on breaking changes; see [`launcher-minimum-version`](../../.cursor/skills/launcher-minimum-version/SKILL.md).
 
+**CI (two workflows):**
+
+1. **Desktop installers** — build only. Check **Build Windows MSI (prod)** and **Build Windows portable ZIP (prod)** (defaults on). Note the run ID from the URL.
+2. **Publish launcher release** — pass that run ID. Uploads to R2, commits and pushes `manifests/manifest.json`, publishes manifest.
+
+**Local:**
+
 ```bash
 # Stage prod MSI (example)
 mkdir -p r2_staging/launcher/releases/0.0.1-build51/windows-x64-msi
 cp GameLauncher-0.0.1-build51.msi r2_staging/launcher/releases/0.0.1-build51/windows-x64-msi/
 
+python3 tools/deploy/publish_launcher_release.py 0.0.1-build51
+# or register + r2_deploy + r2_publish_manifest separately:
 python3 tools/deploy/register_launcher_release.py 0.0.1-build51 --channel windows-x64-msi
 
 python3 tools/deploy/r2_deploy.py --copy \
@@ -139,7 +148,7 @@ python3 tools/deploy/r2_deploy.py --copy \
 python3 tools/deploy/r2_publish_manifest.py
 ```
 
-CI: **Actions → Desktop installers → Run workflow** — check **Publish to R2**, **Build Windows MSI (prod)**, and **Build Windows portable ZIP (prod)**. Commit `manifests/manifest.json` from the publish job afterward.
+`publish_launcher_release.py` runs register, blob upload, git commit/push, and manifest publish in one step.
 
 ### Patch metadata on an existing version
 
