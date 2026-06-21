@@ -104,9 +104,7 @@ Desktop installers are built **on demand** via [`.github/workflows/desktop-insta
 
 **Default run (prod only):** four build jobs — Windows MSI (prod), Windows portable ZIP (prod), macOS arm64 DMG (prod), macOS x64 DMG (prod). Dev checkboxes default off.
 
-**Publish to R2** is a separate workflow: **Actions → Publish launcher release** — pass the **run ID** from a successful Desktop installers run that built both Windows prod artifacts. That workflow uploads blobs, commits `manifests/manifest.json`, and publishes to R2.
-
-**macOS artifacts** are for manual download from Actions — Publish launcher release does not upload macOS builds yet.
+**Publish to R2** is a separate workflow: **Actions → Publish launcher release** — pass the **run ID** from a successful Desktop installers run that built all four default prod artifacts. That workflow uploads blobs, commits `manifests/manifest.json`, and publishes to R2.
 
 | Runner | Artifacts |
 |--------|-----------|
