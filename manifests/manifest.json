@@ -2,7 +2,24 @@
   "launcher_minimum_version": "0.0.1",
   "launcher": {
     "release_notes_url": "https://github.com/morphingcoffee/GameLauncher/releases",
-    "channels": {}
+    "channels": {
+      "windows-x64-msi": {
+        "version": "0.0.1-build65",
+        "artifact_type": "msi",
+        "released_at": "2026-06-21T07:33:19Z",
+        "download_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/launcher/releases/0.0.1-build65/windows-x64-msi/GameLauncher-0.0.1-build65.msi",
+        "file_size_bytes": 66367022,
+        "sha256": "117056b2c70a822eab788d5a95345cf1f747c4700387d2e8fa31f5786e2dbc44"
+      },
+      "windows-x64-portable": {
+        "version": "0.0.1-build65",
+        "artifact_type": "zip",
+        "released_at": "2026-06-21T07:33:20Z",
+        "download_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/launcher/releases/0.0.1-build65/windows-x64-portable/GameLauncher-0.0.1-build65.zip",
+        "file_size_bytes": 65718620,
+        "sha256": "5430086208f85687f8fa184d1b4d5efeb0d4008d851e62884ecd07ca731abaeb"
+      }
+    }
   },
   "games": [
     {
@@ -25,7 +42,7 @@
     {
       "id": "arcade_gym",
       "title": "Arcade Gym",
-      "description": "A game gym — a room with prototype mechanics to try and test.",
+      "description": "A game gym \u2014 a room with prototype mechanics to try and test.",
       "thumbnail_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/assets/arcade_gym/thumbnail.webp",
       "latest_version": "0.0.1",
       "versions_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/games/arcade_gym/versions.json",
@@ -42,7 +59,7 @@
     {
       "id": "game_gallery",
       "title": "Game Gallery",
-      "description": "Browser-based game prototypes gallery — opens in your default browser.",
+      "description": "Browser-based game prototypes gallery \u2014 opens in your default browser.",
       "thumbnail_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/assets/game_gallery/thumbnail.webp",
       "latest_version": "1.0.0",
       "versions_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/games/game_gallery/versions.json",
