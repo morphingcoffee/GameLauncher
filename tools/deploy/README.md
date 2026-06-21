@@ -128,7 +128,7 @@ Prod installers live under `r2_staging/launcher/releases/{artifact_version}/{cha
 **CI (two workflows):**
 
 1. **Desktop installers** — build only (default run builds all four prod installers). Note the run ID from the URL.
-2. **Publish launcher release** — pass that run ID. Uploads Windows MSI/portable and macOS arm64/x64 DMGs to R2, commits and pushes `manifests/manifest.json`, publishes manifest.
+2. **Publish launcher release** — pass that run ID. **Require all four prod channels** defaults on for a full release; turn it off to publish only artifacts from that run (e.g. Windows-only while testing). Uploads to R2, commits and pushes `manifests/manifest.json`, publishes manifest.
 
 **Local:**
 
