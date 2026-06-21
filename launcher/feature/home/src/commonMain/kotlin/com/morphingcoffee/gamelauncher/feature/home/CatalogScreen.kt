@@ -20,6 +20,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherTheme
 import com.morphingcoffee.gamelauncher.core.designsystem.components.AppHeader
+import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherUpdateSheet
+import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherUpdateSheetState
 import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherUpdateSignal
 import com.morphingcoffee.gamelauncher.core.designsystem.components.StatusBar
 import com.morphingcoffee.gamelauncher.core.designsystem.components.StatusBarAction
@@ -225,7 +227,7 @@ fun CatalogScreenContent(
         )
 
         LauncherUpdateSheet(
-            state = state,
+            state = state.toLauncherUpdateSheetState(),
             onDismiss = onLauncherUpdateSheetDismissed,
             onUpdateClicked = onUpdateClicked,
             onUpdateChargeComplete = onUpdateChargeComplete,
@@ -233,6 +235,18 @@ fun CatalogScreenContent(
         )
     }
 }
+
+private fun CatalogState.toLauncherUpdateSheetState(): LauncherUpdateSheetState =
+    LauncherUpdateSheetState(
+        visible = isLauncherUpdateSheetVisible,
+        appVersion = appVersion,
+        latestVersion = channelLatestVersion,
+        channelKey = updateEvaluation?.channelKey,
+        fileSizeBytes = updateEvaluation?.channelBuild?.fileSizeBytes,
+        errorMessage = updateErrorMessage,
+        isUpdateCharging = isUpdateCharging,
+        isUpdateDownloading = isUpdateDownloading,
+    )
 
 @Preview(
     name = "Catalog — mainframe",

@@ -1,4 +1,4 @@
-package com.morphingcoffee.gamelauncher.feature.home
+package com.morphingcoffee.gamelauncher.core.designsystem.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -6,24 +6,30 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherSpacing
-import com.morphingcoffee.gamelauncher.core.designsystem.components.DisplayTitle
-import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherUpdateDetails
-import com.morphingcoffee.gamelauncher.core.designsystem.components.TerminalButton
-import com.morphingcoffee.gamelauncher.core.designsystem.components.TerminalLinkRow
-import com.morphingcoffee.gamelauncher.core.designsystem.components.TerminalOverlay
+
+data class LauncherUpdateSheetState(
+    val visible: Boolean,
+    val appVersion: String,
+    val latestVersion: String?,
+    val channelKey: String?,
+    val fileSizeBytes: Long?,
+    val errorMessage: String?,
+    val isUpdateCharging: Boolean,
+    val isUpdateDownloading: Boolean,
+)
 
 @Composable
 fun LauncherUpdateSheet(
-    state: CatalogState,
+    state: LauncherUpdateSheetState,
     onDismiss: () -> Unit,
     onUpdateClicked: () -> Unit,
     onUpdateChargeComplete: () -> Unit,
     onReleaseNotesClicked: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (!state.isLauncherUpdateSheetVisible) return
+    if (!state.visible) return
 
-    val latestVersion = state.channelLatestVersion ?: return
+    val latestVersion = state.latestVersion ?: return
 
     TerminalOverlay(
         onDismiss = onDismiss,
@@ -34,9 +40,9 @@ fun LauncherUpdateSheet(
         LauncherUpdateDetails(
             currentVersion = state.appVersion,
             latestVersion = latestVersion,
-            channelKey = state.updateEvaluation?.channelKey,
-            fileSizeBytes = state.updateEvaluation?.channelBuild?.fileSizeBytes,
-            errorMessage = state.updateErrorMessage,
+            channelKey = state.channelKey,
+            fileSizeBytes = state.fileSizeBytes,
+            errorMessage = state.errorMessage,
         )
 
         TerminalButton(

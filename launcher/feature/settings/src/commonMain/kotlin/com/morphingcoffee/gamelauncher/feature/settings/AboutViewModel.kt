@@ -17,6 +17,7 @@ class AboutViewModel(
         initialState =
             AboutState(
                 platformLabel = formatPlatformLabel(PlatformKey.current()),
+                releasesUrl = launcherUpdateRepository.releasesUrl(),
             ),
     ) {
     init {
@@ -55,6 +56,7 @@ class AboutViewModel(
                     copy(
                         clockText = platformClockText(),
                         appVersion = LauncherMetadata.VERSION,
+                        releasesUrl = launcherUpdateRepository.releasesUrl(),
                         updateEvaluation = launcherUpdateRepository.evaluation.value,
                     )
                 }
@@ -64,15 +66,24 @@ class AboutViewModel(
                 updateState { copy(clockText = platformClockText()) }
             }
 
+            AboutEvent.LauncherUpdateSignalClicked -> {
+                if (!state.value.showLauncherUpdateSignal) return
+                updateState { copy(isLauncherUpdateSheetVisible = true) }
+            }
+
+            AboutEvent.LauncherUpdateSheetDismissed -> {
+                updateState { copy(isLauncherUpdateSheetVisible = false) }
+            }
+
             AboutEvent.UpdateClicked -> {
-                if (!state.value.showUpdateButton) return
+                if (!state.value.showLauncherUpdateSignal) return
                 if (state.value.isUpdateDownloading) return
                 updateState { copy(isUpdateCharging = true, updateErrorMessage = null) }
             }
 
             AboutEvent.UpdateChargeComplete -> downloadAndApplyUpdate()
 
-            AboutEvent.GetLatestClicked -> {
+            AboutEvent.ReleaseNotesClicked -> {
                 sendEffect(AboutEffect.OpenUrl(launcherUpdateRepository.releasesUrl()))
             }
         }
@@ -103,7 +114,12 @@ class AboutViewModel(
                         }
                     }
             } finally {
-                updateState { copy(isUpdateDownloading = false) }
+                updateState {
+                    copy(
+                        isUpdateDownloading = false,
+                        isLauncherUpdateSheetVisible = false,
+                    )
+                }
             }
         }
     }
