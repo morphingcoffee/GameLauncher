@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherSpacing
 import com.morphingcoffee.gamelauncher.core.designsystem.formatFileSize
+import com.morphingcoffee.gamelauncher.core.designsystem.formatLauncherVersionDelta
 
 @Composable
 fun LauncherUpdateDetails(
@@ -25,7 +26,7 @@ fun LauncherUpdateDetails(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(LauncherSpacing.Md),
     ) {
-        MonoLabel(text = "$currentVersion → $latestVersion")
+        MonoLabel(text = formatLauncherVersionDelta(currentVersion, latestVersion))
 
         val metadata =
             buildList {

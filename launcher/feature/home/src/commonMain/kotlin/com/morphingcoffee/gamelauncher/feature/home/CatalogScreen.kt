@@ -137,6 +137,7 @@ fun CatalogScreenContent(
                     if (state.showLauncherUpdateSignal && channelLatestVersion != null) {
                         {
                             LauncherUpdateSignal(
+                                currentVersion = state.appVersion,
                                 latestVersion = channelLatestVersion,
                                 onClick = onLauncherUpdateSignalClicked,
                             )

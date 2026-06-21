@@ -10,22 +10,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherSpacing
+import com.morphingcoffee.gamelauncher.core.designsystem.formatLauncherUpdateSignalLabel
 
 @Composable
 fun LauncherUpdateSignal(
+    currentVersion: String,
     latestVersion: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
-    val buildLabel = launcherBuildLabel(latestVersion)
     val label =
-        if (isHovered) {
-            "[ LAUNCHER ↑ $buildLabel ]"
-        } else {
-            "LAUNCHER ↑ $buildLabel"
-        }
+        formatLauncherUpdateSignalLabel(
+            currentVersion = currentVersion,
+            latestVersion = latestVersion,
+            isHovered = isHovered,
+        )
 
     Row(
         modifier =
@@ -42,14 +43,5 @@ fun LauncherUpdateSignal(
     ) {
         MonoLabel(text = "·", muted = true)
         MonoLabel(text = label, accent = true)
-    }
-}
-
-internal fun launcherBuildLabel(version: String): String {
-    val buildIndex = version.indexOf("-build")
-    return if (buildIndex >= 0) {
-        version.substring(buildIndex + 1)
-    } else {
-        version
     }
 }

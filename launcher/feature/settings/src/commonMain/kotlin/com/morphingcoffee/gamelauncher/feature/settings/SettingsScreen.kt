@@ -26,6 +26,7 @@ import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherUpda
 import com.morphingcoffee.gamelauncher.core.designsystem.components.StatusBar
 import com.morphingcoffee.gamelauncher.core.designsystem.components.TerminalButton
 import com.morphingcoffee.gamelauncher.core.designsystem.components.TerminalLinkRow
+import com.morphingcoffee.gamelauncher.core.designsystem.formatLauncherVersionInfoValue
 import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
 import kotlinx.coroutines.delay
 import org.koin.compose.viewmodel.koinViewModel
@@ -95,6 +96,7 @@ fun SettingsScreenContent(
                     if (state.showLauncherUpdateSignal && channelLatestVersion != null) {
                         {
                             LauncherUpdateSignal(
+                                currentVersion = state.appVersion,
                                 latestVersion = channelLatestVersion,
                                 onClick = onLauncherUpdateSignalClicked,
                             )
@@ -116,7 +118,7 @@ fun SettingsScreenContent(
 
                 LauncherUpdateInfoRow(
                     label = "VERSION",
-                    value = state.appVersion,
+                    value = formatLauncherVersionInfoValue(state.appVersion),
                 )
 
                 state.links.forEach { link ->
