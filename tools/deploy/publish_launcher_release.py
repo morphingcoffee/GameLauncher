@@ -14,9 +14,7 @@ from typing import List, Optional
 from catalog_layout import catalog_manifest_path, r2_launcher_release_staging_dir
 from r2_config import find_repo_root, load_env_file
 from register_game_version import ensure_git_author
-from register_launcher_release import die, register_launcher_release
-
-DEFAULT_CHANNELS = ("windows-x64-msi", "windows-x64-portable")
+from register_launcher_release import die, discover_channels, register_launcher_release
 
 
 def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
@@ -31,7 +29,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         "--channel",
         action="append",
         dest="channels",
-        help="Channel key to publish (repeatable). Default: windows-x64-msi and windows-x64-portable",
+        help="Channel key to publish (repeatable). Default: all non-empty staged channels for this version",
     )
     parser.add_argument(
         "--bump-minimum",
@@ -119,7 +117,12 @@ def main(argv: Optional[List[str]] = None) -> None:
     if not cdn_base:
         die("R2_PUBLIC_CDN_BASE_URL is required")
 
-    channels = args.channels or list(DEFAULT_CHANNELS)
+    channels = args.channels or discover_channels(repo_root, args.artifact_version)
+    if not channels:
+        die(
+            f"no staged launcher channels under r2_staging/launcher/releases/{args.artifact_version}/ "
+            "(pass --channel explicitly)",
+        )
     release_notes_url = os.environ.get(
         "LAUNCHER_RELEASE_NOTES_URL",
         "https://github.com/morphingcoffee/GameLauncher/releases",

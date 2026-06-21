@@ -13,6 +13,10 @@ on:
         description: Git ref to commit manifest changes to
         required: false
         default: main
+      require_all_channels:
+        description: Require all four prod channels (full cross-platform release)
+        type: boolean
+        default: true
       bump_minimum:
         description: Bump launcher_minimum_version (breaking manifest change)
         type: boolean
@@ -32,13 +36,14 @@ concurrency:
 
 jobs:
   publish:
-    name: Publish Windows prod launcher to R2
+    name: Publish prod launcher to R2
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Validate build workflow run
         env:
           BUILD_RUN_ID: ${{ github.event.inputs.build_workflow_run_id }}
+          REQUIRE_ALL_CHANNELS: ${{ github.event.inputs.require_all_channels }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
@@ -53,16 +58,43 @@ jobs:
             echo "Build workflow must succeed before publish (conclusion=${conclusion})"
             exit 1
           fi
+
           artifacts=$(gh api "repos/${{ github.repository }}/actions/runs/${BUILD_RUN_ID}/artifacts" --jq '.artifacts[].name')
-          for required in GameLauncher-windows-msi-prod GameLauncher-windows-portable-prod; do
-            if ! echo "$artifacts" | grep -qx "$required"; then
-              echo "Missing artifact from build run: ${required}"
-              echo "Available artifacts:"
-              echo "$artifacts"
+          echo "Artifacts in build run:"
+          echo "$artifacts"
+
+          prod_artifacts=(
+            GameLauncher-windows-msi-prod
+            GameLauncher-windows-portable-prod
+            GameLauncher-macos-arm64-prod
+            GameLauncher-macos-x64-prod
+          )
+
+          publish_channels=()
+          for artifact in "${prod_artifacts[@]}"; do
+            if echo "$artifacts" | grep -qx "$artifact"; then
+              case "$artifact" in
+                GameLauncher-windows-msi-prod) publish_channels+=("windows-x64-msi") ;;
+                GameLauncher-windows-portable-prod) publish_channels+=("windows-x64-portable") ;;
+                GameLauncher-macos-arm64-prod) publish_channels+=("macos-arm64-dmg") ;;
+                GameLauncher-macos-x64-prod) publish_channels+=("macos-x64-dmg") ;;
+              esac
+            elif [ "$REQUIRE_ALL_CHANNELS" = "true" ]; then
+              echo "Missing artifact from build run: ${artifact}"
+              echo "Uncheck require_all_channels to publish only the artifacts present."
               exit 1
             fi
           done
+
+          if [ "${#publish_channels[@]}" -eq 0 ]; then
+            echo "No prod launcher artifacts found in build run."
+            exit 1
+          fi
+
+          channels_csv=$(IFS=,; echo "${publish_channels[*]}")
+          echo "PUBLISH_CHANNELS=${channels_csv}" >> "$GITHUB_ENV"
           echo "BUILD_RUN_NUMBER=$(echo "$metadata" | jq -r .run_number)" >> "$GITHUB_ENV"
+          echo "Will publish channels: ${channels_csv}"
 
       - name: Checkout
         uses: actions/checkout@v7
@@ -91,6 +123,7 @@ jobs:
           echo "ARTIFACT_VERSION=$(./gradlew -q :composeApp:printArtifactVersion --no-daemon -PbuildNumber="$BUILD_RUN_NUMBER")" >> "$GITHUB_ENV"
 
       - name: Download Windows MSI (prod)
+        if: contains(env.PUBLISH_CHANNELS, 'windows-x64-msi')
         uses: actions/download-artifact@v6
         with:
           name: GameLauncher-windows-msi-prod
@@ -99,6 +132,7 @@ jobs:
           path: artifacts/windows-msi
 
       - name: Download Windows portable ZIP (prod)
+        if: contains(env.PUBLISH_CHANNELS, 'windows-x64-portable')
         uses: actions/download-artifact@v6
         with:
           name: GameLauncher-windows-portable-prod
@@ -106,17 +140,49 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: artifacts/windows-portable
 
+      - name: Download macOS arm64 DMG (prod)
+        if: contains(env.PUBLISH_CHANNELS, 'macos-arm64-dmg')
+        uses: actions/download-artifact@v6
+        with:
+          name: GameLauncher-macos-arm64-prod
+          run-id: ${{ github.event.inputs.build_workflow_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: artifacts/macos-arm64
+
+      - name: Download macOS x64 DMG (prod)
+        if: contains(env.PUBLISH_CHANNELS, 'macos-x64-dmg')
+        uses: actions/download-artifact@v6
+        with:
+          name: GameLauncher-macos-x64-prod
+          run-id: ${{ github.event.inputs.build_workflow_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: artifacts/macos-x64
+
       - name: Stage prod launcher artifacts
+        env:
+          PUBLISH_CHANNELS: ${{ env.PUBLISH_CHANNELS }}
         run: |
           set -euo pipefail
-          msi=$(find artifacts/windows-msi -name 'GameLauncher-*.msi' | head -1)
-          zip=$(find artifacts/windows-portable -name 'GameLauncher-*.zip' | head -1)
-          test -n "$msi"
-          test -n "$zip"
-          mkdir -p "r2_staging/launcher/releases/${ARTIFACT_VERSION}/windows-x64-msi"
-          mkdir -p "r2_staging/launcher/releases/${ARTIFACT_VERSION}/windows-x64-portable"
-          cp "$msi" "r2_staging/launcher/releases/${ARTIFACT_VERSION}/windows-x64-msi/"
-          cp "$zip" "r2_staging/launcher/releases/${ARTIFACT_VERSION}/windows-x64-portable/"
+          stage_channel() {
+            local src_dir="$1"
+            local channel="$2"
+            local pattern="$3"
+            if [[ ",${PUBLISH_CHANNELS}," != *,"${channel},"* ]]; then
+              return 0
+            fi
+            local file
+            file=$(find "$src_dir" -name "$pattern" | head -1)
+            if [ -z "$file" ]; then
+              echo "No file matching ${pattern} under ${src_dir}"
+              exit 1
+            fi
+            mkdir -p "r2_staging/launcher/releases/${ARTIFACT_VERSION}/${channel}"
+            cp "$file" "r2_staging/launcher/releases/${ARTIFACT_VERSION}/${channel}/"
+          }
+          stage_channel artifacts/windows-msi windows-x64-msi 'GameLauncher-*.msi'
+          stage_channel artifacts/windows-portable windows-x64-portable 'GameLauncher-*.zip'
+          stage_channel artifacts/macos-arm64 macos-arm64-dmg 'GameLauncher-*-macos-arm64.dmg'
+          stage_channel artifacts/macos-x64 macos-x64-dmg 'GameLauncher-*-macos-x64.dmg'
 
       - name: Install rclone
         run: |
@@ -140,13 +206,17 @@ jobs:
           "${args[@]}"
 
       - name: Publish summary
+        env:
+          PUBLISH_CHANNELS: ${{ env.PUBLISH_CHANNELS }}
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
           ### Launcher R2 publish
 
           Published **${ARTIFACT_VERSION}** from Desktop installers run \`${{ github.event.inputs.build_workflow_run_id }}\`.
 
-          Channels: \`windows-x64-msi\`, \`windows-x64-portable\`.
+          Channels: \`${PUBLISH_CHANNELS}\`.
+
+          Full release required: ${{ github.event.inputs.require_all_channels }}.
 
           Git push: ${{ github.event.inputs.skip_git_push == 'true' && 'skipped (--skip-git-push)' || 'manifest committed and pushed' }}.
           EOF
