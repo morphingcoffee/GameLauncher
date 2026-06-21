@@ -30,6 +30,20 @@ def r2_staging_assets_dir(repo_root: Path, game_id: str) -> Path:
     return repo_r2_staging_dir(repo_root) / "assets" / game_id
 
 
+def r2_launcher_release_staging_dir(repo_root: Path, version: str, channel: str) -> Path:
+    return (
+        repo_r2_staging_dir(repo_root)
+        / "launcher"
+        / "releases"
+        / version
+        / channel
+    )
+
+
+def r2_launcher_object_key(version: str, channel: str, filename: str) -> str:
+    return f"launcher/releases/{version}/{channel}/{filename}"
+
+
 def catalog_manifest_path(repo_root: Path) -> Path:
     return repo_root / "manifests" / "manifest.json"
 

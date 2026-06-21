@@ -99,19 +99,25 @@ pwsh ../tools/dev/package-windows-zip.ps1 -BuildNumber 1
 Desktop installers are built **on demand** via [`.github/workflows/desktop-installers.yml`](.github/workflows/desktop-installers.yml) — they do not run on every push or pull request.
 
 1. Open **Actions** → **Desktop installers** → **Run workflow**
-2. Choose branch (default `main`); toggle macOS, Windows MSI, or Windows portable ZIP independently
+2. Choose branch (default `main`); **each checkbox = exactly one build job** (name matches the job in the run list)
 3. Download from the run → **Artifacts**
+
+**Default run (prod only):** four build jobs — Windows MSI (prod), Windows portable ZIP (prod), macOS arm64 DMG (prod), macOS x64 DMG (prod). Dev checkboxes default off.
+
+**Publish to R2** is a separate workflow: **Actions → Publish launcher release** — pass the **run ID** from a successful Desktop installers run that built both Windows prod artifacts. That workflow uploads blobs, commits `manifests/manifest.json`, and publishes to R2.
+
+**macOS artifacts** are for manual download from Actions — Publish launcher release does not upload macOS builds yet.
 
 | Runner | Artifacts |
 |--------|-----------|
-| `macos-latest` (arm64 JDK) | `GameLauncher-{version}-macos-arm64.dmg`, `GameLauncher-{version}-macos-arm64.zip` |
-| `macos-latest` (x64 JDK) | `GameLauncher-{version}-macos-x64.dmg`, `GameLauncher-{version}-macos-x64.zip` |
-| `windows-latest` (MSI job) | `GameLauncher-{version}.msi` (artifact `GameLauncher-windows-msi-{version}`) |
-| `windows-latest` (ZIP job) | `GameLauncher-{version}.zip` (artifact `GameLauncher-{version}`) |
+| `macos-latest` (arm64 JDK) | `GameLauncher-{version}-macos-arm64.dmg` |
+| `macos-latest` (x64 JDK) | `GameLauncher-{version}-macos-x64.dmg` |
+| `windows-latest` (MSI, prod) | `GameLauncher-{version}.msi` |
+| `windows-latest` (portable ZIP, prod) | `GameLauncher-{version}.zip` |
 
 `{version}` is the marketing `packageVersion` (`0.0.1`) plus a CI build suffix when built via Actions: `0.0.1-build{run}` (see `printArtifactVersion` in [`launcher/composeApp/build.gradle.kts`](launcher/composeApp/build.gradle.kts)). macOS and Windows jobs from the same workflow run share `{run}` (`github.run_number` passed as `-PbuildNumber`).
 
-**macOS:** GitHub adds a quarantine flag. After download, run `xattr -cr GameLauncher.app` (or the app inside the mounted DMG), then open normally. Developer ID signing/notarization is tracked in [#9](https://github.com/morphingcoffee/GameLauncher/issues/9). CI embeds the build number in `CFBundleVersion`.
+**macOS:** GitHub adds a quarantine flag. After download, mount the DMG, then run `xattr -cr` on the copied `.app` before opening. Developer ID signing/notarization is tracked in [#9](https://github.com/morphingcoffee/GameLauncher/issues/9). CI embeds the build number in `CFBundleVersion`.
 
 **Windows MSI:** SmartScreen may warn about an unknown publisher — use **More info** → **Run anyway**. Authenticode signing is tracked in [#45](https://github.com/morphingcoffee/GameLauncher/issues/45).
 

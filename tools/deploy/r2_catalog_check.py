@@ -18,6 +18,7 @@ from catalog_layout import (
     git_versions_path,
     r2_versions_object_key,
 )
+from launcher_version import validate_launcher_artifact_version, validate_launcher_marketing_version
 from register_game_version import VALID_PLATFORMS, is_object_not_found
 from r2_config import R2Session, find_repo_root, load_env_file, remote_url, rclone_run
 
@@ -388,11 +389,54 @@ def check_game(
             checker.warn(scope, f"no git copy at {git_path.relative_to(repo_root)}")
 
 
-def check_manifest_structure(checker: CatalogChecker, manifest: Dict[str, Any]) -> List[Dict[str, Any]]:
-    if manifest.get("schema_version") != 1:
-        checker.warn("manifest", f"unexpected schema_version: {manifest.get('schema_version')!r}")
+def check_launcher_versions(checker: CatalogChecker, manifest: Dict[str, Any]) -> None:
+    minimum = manifest.get("launcher_minimum_version")
+    if not isinstance(minimum, str) or not minimum.strip():
+        checker.warn("manifest", "launcher_minimum_version missing or empty")
     else:
-        checker.ok("manifest", "schema_version=1")
+        try:
+            validate_launcher_marketing_version(minimum)
+        except ValueError as error:
+            checker.fail("manifest", f"launcher_minimum_version invalid: {error}")
+        else:
+            checker.ok("manifest", f"launcher_minimum_version={minimum!r}")
+
+    launcher = manifest.get("launcher")
+    if launcher is None:
+        return
+    if not isinstance(launcher, dict):
+        checker.warn("manifest", "launcher must be an object when present")
+        return
+
+    channels = launcher.get("channels")
+    if channels is None:
+        return
+    if not isinstance(channels, dict):
+        checker.fail("manifest", "launcher.channels must be an object")
+        return
+
+    for channel_key, channel_entry in sorted(channels.items()):
+        if not isinstance(channel_entry, dict):
+            checker.fail("manifest", f"launcher.channels[{channel_key!r}] must be an object")
+            continue
+        version = channel_entry.get("version")
+        if not isinstance(version, str) or not version.strip():
+            checker.fail("manifest", f"launcher.channels[{channel_key!r}].version missing or empty")
+            continue
+        try:
+            validate_launcher_artifact_version(version)
+        except ValueError as error:
+            checker.fail("manifest", f"launcher.channels[{channel_key!r}].version invalid: {error}")
+        else:
+            checker.ok("manifest", f"launcher.channels[{channel_key!r}].version={version!r}")
+
+
+def check_manifest_structure(checker: CatalogChecker, manifest: Dict[str, Any]) -> List[Dict[str, Any]]:
+    check_launcher_versions(checker, manifest)
+
+    launcher = manifest.get("launcher")
+    if launcher is not None and not isinstance(launcher, dict):
+        checker.warn("manifest", "launcher must be an object when present")
 
     games = manifest.get("games")
     if not isinstance(games, list):

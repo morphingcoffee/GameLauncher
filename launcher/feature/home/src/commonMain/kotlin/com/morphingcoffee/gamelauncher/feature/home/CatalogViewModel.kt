@@ -5,9 +5,14 @@ import androidx.lifecycle.viewModelScope
 import com.morphingcoffee.gamelauncher.core.architecture.MviViewModel
 import com.morphingcoffee.gamelauncher.core.designsystem.platformClockText
 import com.morphingcoffee.gamelauncher.core.logging.AppLog
+import com.morphingcoffee.gamelauncher.core.model.GameCatalogEntry
+import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
 import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 import com.morphingcoffee.gamelauncher.core.network.GameCatalogDataSource
 import com.morphingcoffee.gamelauncher.core.network.InstallState
+import com.morphingcoffee.gamelauncher.core.network.LAUNCHER_UPDATE_PROGRESS_ID
+import com.morphingcoffee.gamelauncher.core.network.LauncherUpdateRepository
+import com.morphingcoffee.gamelauncher.core.network.ManifestLoadResult
 import com.morphingcoffee.gamelauncher.core.network.SimulatedLaunchException
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.launchIn
@@ -16,6 +21,7 @@ import kotlinx.coroutines.launch
 
 class CatalogViewModel(
     private val gameCatalogRepository: GameCatalogDataSource,
+    private val launcherUpdateRepository: LauncherUpdateRepository,
 ) : MviViewModel<CatalogState, CatalogEvent, CatalogEffect>(
         initialState =
             CatalogState(
@@ -25,16 +31,22 @@ class CatalogViewModel(
     init {
         gameCatalogRepository.downloadProgress
             .onEach { progress ->
+                if (progress?.gameId == LAUNCHER_UPDATE_PROGRESS_ID) return@onEach
                 updateState {
                     if (progress == null) {
                         copy(
                             statusLabel =
-                                if (isChargingLaunch || isLaunching) {
+                                if (isChargingLaunch || isLaunching || isUpdateDownloading) {
                                     statusLabel
                                 } else {
                                     "READY"
                                 },
-                            downloadProgressFraction = null,
+                            downloadProgressFraction =
+                                if (isUpdateDownloading) {
+                                    downloadProgressFraction
+                                } else {
+                                    null
+                                },
                         )
                     } else {
                         val statusLabel =
@@ -46,6 +58,37 @@ class CatalogViewModel(
                         copy(
                             statusLabel = statusLabel,
                             downloadProgressFraction = progress.fraction,
+                        )
+                    }
+                }
+            }.launchIn(viewModelScope)
+
+        launcherUpdateRepository.downloadProgress
+            .onEach { progress ->
+                updateState {
+                    if (progress == null) {
+                        copy(
+                            downloadProgressFraction = if (isDownloading) downloadProgressFraction else null,
+                            isUpdateDownloading = false,
+                            statusLabel =
+                                if (isUpdateGateActive) {
+                                    "UPDATE REQUIRED"
+                                } else if (isDownloading) {
+                                    statusLabel
+                                } else {
+                                    "READY"
+                                },
+                        )
+                    } else {
+                        copy(
+                            downloadProgressFraction = progress.fraction,
+                            isUpdateDownloading = true,
+                            statusLabel =
+                                if (progress.fraction >= 1f) {
+                                    "APPLYING"
+                                } else {
+                                    "UPDATING"
+                                },
                         )
                     }
                 }
@@ -106,6 +149,18 @@ class CatalogViewModel(
                 AppLog.i("Catalog", "Uninstall charge complete for ${state.value.selectedGameId}")
                 uninstallSelectedGame()
             }
+
+            CatalogEvent.UpdateClicked -> {
+                if (!state.value.isUpdateGateActive) return
+                if (state.value.isUpdateDownloading) return
+                updateState { copy(isUpdateCharging = true, updateErrorMessage = null) }
+            }
+
+            CatalogEvent.UpdateChargeComplete -> downloadAndApplyUpdate()
+
+            CatalogEvent.GetLatestClicked -> {
+                sendEffect(CatalogEffect.OpenUrl(launcherUpdateRepository.releasesUrl()))
+            }
         }
     }
 
@@ -116,32 +171,116 @@ class CatalogViewModel(
                     isLoading = true,
                     errorMessage = null,
                     statusLabel = "LOADING",
+                    appVersion = LauncherMetadata.VERSION,
                 )
             }
 
-            gameCatalogRepository
-                .loadCatalog()
-                .onSuccess { games ->
-                    val selectedGameId = state.value.selectedGameId ?: games.firstOrNull()?.id
+            try {
+                val result = launcherUpdateRepository.loadAndRefresh()
+                val evaluation = launcherUpdateRepository.evaluation.value
+                updateState { copy(updateEvaluation = evaluation) }
+
+                if (state.value.isUpdateGateActive) {
                     updateState {
                         copy(
                             isLoading = false,
-                            games = games,
-                            selectedGameId = selectedGameId,
-                            statusLabel = "READY",
-                            errorMessage = null,
+                            statusLabel = "UPDATE REQUIRED",
                         )
                     }
-                    selectedGameId?.let { probeInstallState(it) }
-                }.onFailure { error ->
-                    updateState {
-                        copy(
-                            isLoading = false,
-                            errorMessage = error.message ?: "Failed to load catalog",
-                            statusLabel = "ERROR",
-                        )
+                    return@launch
+                }
+
+                when (result) {
+                    is ManifestLoadResult.Success -> {
+                        applyLoadedGames(result.manifest.games)
+                    }
+
+                    ManifestLoadResult.SkippedInDevBuild -> {
+                        gameCatalogRepository
+                            .loadCatalog()
+                            .onSuccess { games -> applyLoadedGames(games) }
+                            .onFailure { catalogError ->
+                                updateState {
+                                    copy(
+                                        isLoading = false,
+                                        errorMessage = catalogError.message ?: "Failed to load catalog",
+                                        statusLabel = "ERROR",
+                                    )
+                                }
+                            }
+                    }
+
+                    ManifestLoadResult.DecodeFailed -> {
+                        updateState {
+                            copy(
+                                isLoading = false,
+                                statusLabel = "UPDATE REQUIRED",
+                            )
+                        }
                     }
                 }
+            } catch (error: Throwable) {
+                ensureActive()
+                gameCatalogRepository
+                    .loadCatalog()
+                    .onSuccess { games -> applyLoadedGames(games) }
+                    .onFailure { catalogError ->
+                        updateState {
+                            copy(
+                                isLoading = false,
+                                errorMessage = catalogError.message ?: error.message ?: "Failed to load catalog",
+                                statusLabel = "ERROR",
+                            )
+                        }
+                    }
+            }
+        }
+    }
+
+    private fun applyLoadedGames(games: List<GameCatalogEntry>) {
+        val selectedGameId = state.value.selectedGameId ?: games.firstOrNull()?.id
+        updateState {
+            copy(
+                isLoading = false,
+                games = games,
+                selectedGameId = selectedGameId,
+                statusLabel = "READY",
+                errorMessage = null,
+            )
+        }
+        selectedGameId?.let { gameId ->
+            viewModelScope.launch { probeInstallState(gameId) }
+        }
+    }
+
+    private fun downloadAndApplyUpdate() {
+        viewModelScope.launch {
+            updateState {
+                copy(
+                    isUpdateCharging = false,
+                    isUpdateDownloading = true,
+                    updateErrorMessage = null,
+                )
+            }
+
+            try {
+                AppLog.i("Catalog", "Starting forced launcher update download")
+                launcherUpdateRepository
+                    .downloadAndApplyUpdate()
+                    .onSuccess {
+                        AppLog.i("Catalog", "Launcher update handoff complete")
+                    }.onFailure { error ->
+                        AppLog.e("Catalog", "Launcher update failed", error)
+                        updateState {
+                            copy(
+                                updateErrorMessage = error.message ?: "Update failed",
+                                statusLabel = "UPDATE REQUIRED",
+                            )
+                        }
+                    }
+            } finally {
+                updateState { copy(isUpdateDownloading = false) }
+            }
         }
     }
 

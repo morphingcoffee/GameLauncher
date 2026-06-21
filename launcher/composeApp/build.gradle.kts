@@ -175,6 +175,12 @@ private fun jpackageWindowsMsiVersion(): String {
     return if (build != null) "1.0.$build" else "1.0.0"
 }
 
+private fun launcherMarketingVersion(): String =
+    (findProperty("launcherMarketingVersion") as String?)
+        ?.trim()
+        .takeUnless { it.isNullOrEmpty() }
+        ?: error("launcherMarketingVersion is not set in gradle.properties")
+
 compose.desktop {
     application {
         mainClass = "com.morphingcoffee.gamelauncher.MainKt"
@@ -186,7 +192,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi)
             packageName = desktopPackageName()
-            packageVersion = "0.0.1"
+            packageVersion = launcherMarketingVersion()
             description = "Curated-indie-game-launcher"
             vendor = "GameLauncher"
             copyright = "GameLauncher"
@@ -215,6 +221,7 @@ compose.desktop {
                 shortcut = true
                 menuGroup = if (devBuild) "Game Launcher DEV" else "Game Launcher"
                 // Stable upgrade codes — never change after first public MSI release (prod vs dev are separate products).
+                // Keep in sync with LauncherInstallIdentity in :core:model.
                 upgradeUuid =
                     if (devBuild) {
                         "9e3b2c4d-6f5e-7a81-0c9d-1e2f3a4b5c6d"

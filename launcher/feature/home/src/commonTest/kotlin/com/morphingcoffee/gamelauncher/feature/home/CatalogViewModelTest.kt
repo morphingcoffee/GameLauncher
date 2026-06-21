@@ -9,6 +9,8 @@ import com.morphingcoffee.gamelauncher.core.network.DownloadProgress
 import com.morphingcoffee.gamelauncher.core.network.GameCatalogDataSource
 import com.morphingcoffee.gamelauncher.core.network.GameCatalogRepository
 import com.morphingcoffee.gamelauncher.core.network.InstallState
+import com.morphingcoffee.gamelauncher.core.network.LauncherUpdateInstaller
+import com.morphingcoffee.gamelauncher.core.network.LauncherUpdateRepository
 import com.morphingcoffee.gamelauncher.core.network.ManifestRepository
 import com.morphingcoffee.gamelauncher.core.network.createDownloadHttpClient
 import com.morphingcoffee.gamelauncher.core.network.createGameInstaller
@@ -37,7 +39,7 @@ class CatalogViewModelTest {
     fun started_loadsCatalogAndSelectsFirstGame() =
         runBlocking {
             val repository = createRepository(createManifestRepository(sampleManifestJson()))
-            val viewModel = CatalogViewModel(repository)
+            val viewModel = createCatalogViewModel(repository)
 
             viewModel.onEvent(CatalogEvent.Started)
             waitForLoadingToFinish(viewModel)
@@ -54,7 +56,7 @@ class CatalogViewModelTest {
     fun moveSelection_updatesSelectedGame() =
         runBlocking {
             val repository = createRepository(createManifestRepository(sampleManifestJson()))
-            val viewModel = CatalogViewModel(repository)
+            val viewModel = createCatalogViewModel(repository)
 
             viewModel.onEvent(CatalogEvent.Started)
             waitForLoadingToFinish(viewModel)
@@ -81,13 +83,14 @@ class CatalogViewModelTest {
                         json(Json { ignoreUnknownKeys = true })
                     }
                 }
+            val manifestRepository = ManifestRepository(client)
             val repository =
                 GameCatalogRepository(
-                    ManifestRepository(client),
+                    manifestRepository,
                     createGameLauncher(),
                     createGameInstaller(createDownloadHttpClient()),
                 )
-            val viewModel = CatalogViewModel(repository)
+            val viewModel = createCatalogViewModel(repository, manifestRepository)
 
             viewModel.onEvent(CatalogEvent.Started)
             waitForLoadingToFinish(viewModel)
@@ -146,7 +149,7 @@ class CatalogViewModelTest {
                             executablePath = legacyBuild.executablePath,
                         ),
                 )
-            val viewModel = CatalogViewModel(repository)
+            val viewModel = createCatalogViewModel(repository, legacyGameManifestJson(otherPlatformKey))
 
             viewModel.onEvent(CatalogEvent.Started)
             waitForLoadingToFinish(viewModel)
@@ -183,7 +186,7 @@ class CatalogViewModelTest {
                     build = build,
                     launchDelayMs = 100,
                 )
-            val viewModel = CatalogViewModel(repository)
+            val viewModel = createCatalogViewModel(repository)
 
             viewModel.onEvent(CatalogEvent.Started)
             waitForLoadingToFinish(viewModel)
@@ -205,7 +208,7 @@ class CatalogViewModelTest {
         runBlocking {
             val webUrl = "https://morphingcoffee.github.io/apps/games/"
             val repository = WebGameOpenDataSource(webUrl = webUrl)
-            val viewModel = CatalogViewModel(repository)
+            val viewModel = createCatalogViewModel(repository, webGameManifestJson(webUrl))
 
             viewModel.onEvent(CatalogEvent.Started)
             waitForLoadingToFinish(viewModel)
@@ -234,7 +237,7 @@ class CatalogViewModelTest {
                     webUrl = webUrl,
                     openResult = Result.failure(IllegalStateException("Browser unavailable")),
                 )
-            val viewModel = CatalogViewModel(repository)
+            val viewModel = createCatalogViewModel(repository, webGameManifestJson(webUrl))
 
             viewModel.onEvent(CatalogEvent.Started)
             waitForLoadingToFinish(viewModel)
@@ -267,7 +270,7 @@ class CatalogViewModelTest {
                             "https://example.com/alpha/versions.json" to 200,
                         ),
                 )
-            val viewModel = CatalogViewModel(repository)
+            val viewModel = createCatalogViewModel(repository)
 
             viewModel.onEvent(CatalogEvent.Started)
             waitForLoadingToFinish(viewModel)
@@ -287,7 +290,7 @@ class CatalogViewModelTest {
         runBlocking {
             val platformKey = PlatformKey.current() ?: return@runBlocking
             val repository = CountingDownloadDataSource(platformKey)
-            val viewModel = CatalogViewModel(repository)
+            val viewModel = createCatalogViewModel(repository)
 
             viewModel.onEvent(CatalogEvent.Started)
             waitForLoadingToFinish(viewModel)
@@ -314,7 +317,7 @@ class CatalogViewModelTest {
                         ),
                     delaysMs = mapOf("alpha" to 200),
                 )
-            val viewModel = CatalogViewModel(repository)
+            val viewModel = createCatalogViewModel(repository)
 
             viewModel.onEvent(CatalogEvent.Started)
             waitForLoadingToFinish(viewModel)
@@ -347,7 +350,7 @@ class CatalogViewModelTest {
                             "beta" to 0,
                         ),
                 )
-            val viewModel = CatalogViewModel(repository)
+            val viewModel = createCatalogViewModel(repository)
 
             viewModel.onEvent(CatalogEvent.Started)
             waitForLoadingToFinish(viewModel)
@@ -367,7 +370,7 @@ class CatalogViewModelTest {
                 createRepository(
                     createManifestRepository(sampleManifestJson()),
                 )
-            val viewModel = CatalogViewModel(repository)
+            val viewModel = createCatalogViewModel(repository)
 
             viewModel.onEvent(CatalogEvent.Started)
             waitForLoadingToFinish(viewModel)
@@ -420,7 +423,7 @@ class CatalogViewModelTest {
                             executablePath = build.executablePath,
                         ),
                 )
-            val viewModel = CatalogViewModel(repository)
+            val viewModel = createCatalogViewModel(repository)
 
             viewModel.onEvent(CatalogEvent.Started)
             waitForLoadingToFinish(viewModel)
@@ -443,7 +446,7 @@ class CatalogViewModelTest {
                     sha256 = "abc",
                 )
             val repository = UninstallTrackingDataSource(platformKey, build)
-            val viewModel = CatalogViewModel(repository)
+            val viewModel = createCatalogViewModel(repository)
 
             viewModel.onEvent(CatalogEvent.Started)
             waitForLoadingToFinish(viewModel)
@@ -471,7 +474,7 @@ class CatalogViewModelTest {
                     sha256 = "abc",
                 )
             val repository = UninstallTrackingDataSource(platformKey, build)
-            val viewModel = CatalogViewModel(repository)
+            val viewModel = createCatalogViewModel(repository)
 
             viewModel.onEvent(CatalogEvent.Started)
             waitForLoadingToFinish(viewModel)
@@ -507,7 +510,7 @@ class CatalogViewModelTest {
                     build = build,
                     uninstallDelayMs = 200,
                 )
-            val viewModel = CatalogViewModel(repository)
+            val viewModel = createCatalogViewModel(repository)
 
             viewModel.onEvent(CatalogEvent.Started)
             waitForLoadingToFinish(viewModel)
@@ -537,7 +540,7 @@ class CatalogViewModelTest {
                     build = build,
                     launchDelayMs = 500,
                 )
-            val viewModel = CatalogViewModel(repository)
+            val viewModel = createCatalogViewModel(repository)
 
             viewModel.onEvent(CatalogEvent.Started)
             waitForLoadingToFinish(viewModel)
@@ -557,7 +560,7 @@ class CatalogViewModelTest {
         runBlocking {
             val platformKey = PlatformKey.current() ?: return@runBlocking
             val repository = CountingDownloadDataSource(platformKey)
-            val viewModel = CatalogViewModel(repository)
+            val viewModel = createCatalogViewModel(repository)
 
             viewModel.onEvent(CatalogEvent.Started)
             waitForLoadingToFinish(viewModel)
@@ -589,7 +592,7 @@ class CatalogViewModelTest {
                     build = build,
                     uninstallDelayMs = 200,
                 )
-            val viewModel = CatalogViewModel(repository)
+            val viewModel = createCatalogViewModel(repository)
 
             viewModel.onEvent(CatalogEvent.Started)
             waitForLoadingToFinish(viewModel)
@@ -600,6 +603,37 @@ class CatalogViewModelTest {
             assertEquals("beta", viewModel.state.value.selectedGameId)
             assertEquals(InstallState.NotInstalled, viewModel.state.value.installState)
         }
+
+    private fun createCatalogViewModel(
+        gameCatalogRepository: GameCatalogDataSource,
+        manifestJson: String = sampleManifestJson(),
+    ): CatalogViewModel {
+        val manifestRepository = createManifestRepository(manifestJson)
+        return createCatalogViewModel(gameCatalogRepository, manifestRepository)
+    }
+
+    private fun createCatalogViewModel(
+        gameCatalogRepository: GameCatalogDataSource,
+        manifestRepository: ManifestRepository,
+    ): CatalogViewModel =
+        CatalogViewModel(
+            gameCatalogRepository = gameCatalogRepository,
+            launcherUpdateRepository =
+                LauncherUpdateRepository(
+                    manifestRepository = manifestRepository,
+                    updateInstaller = NoOpLauncherUpdateInstaller(),
+                ),
+        )
+
+    private class NoOpLauncherUpdateInstaller : LauncherUpdateInstaller {
+        private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
+        override val downloadProgress: StateFlow<DownloadProgress?> = _downloadProgress
+
+        override suspend fun downloadAndApply(
+            channelBuild: com.morphingcoffee.gamelauncher.core.model.LauncherChannelBuild,
+            versionLabel: String,
+        ): Result<Unit> = Result.success(Unit)
+    }
 
     private fun createRepository(manifestRepository: ManifestRepository): GameCatalogRepository =
         GameCatalogRepository(
@@ -1061,7 +1095,6 @@ class CatalogViewModelTest {
     private fun sampleManifestJson(): String =
         """
         {
-          "schema_version": 1,
           "launcher_minimum_version": "0.0.1",
           "games": [
             {
@@ -1093,6 +1126,54 @@ class CatalogViewModelTest {
                   "executable_path": "Game.app/Contents/MacOS/Game",
                   "file_size_bytes": 1024,
                   "sha256": "abc"
+                }
+              }
+            }
+          ]
+        }
+        """.trimIndent()
+
+    private fun legacyGameManifestJson(primaryPlatformKey: String): String =
+        """
+        {
+          "launcher_minimum_version": "0.0.1",
+          "games": [
+            {
+              "id": "legacy",
+              "title": "Legacy Platform",
+              "description": "Latest version is unavailable on this platform",
+              "latest_version": "2.0.0",
+              "versions_url": "https://example.com/legacy/versions.json",
+              "builds": {
+                "$primaryPlatformKey": {
+                  "download_url": "https://example.com/legacy.zip",
+                  "executable_path": "Game.app/Contents/MacOS/Game",
+                  "file_size_bytes": 1024,
+                  "sha256": "legacy-sha"
+                }
+              }
+            }
+          ]
+        }
+        """.trimIndent()
+
+    private fun webGameManifestJson(webUrl: String): String =
+        """
+        {
+          "launcher_minimum_version": "0.0.1",
+          "games": [
+            {
+              "id": "game-gallery",
+              "title": "Game Gallery",
+              "description": "Browser prototypes",
+              "latest_version": "1.0.0",
+              "versions_url": "https://example.com/game-gallery/versions.json",
+              "builds": {
+                "web": {
+                  "download_url": "$webUrl",
+                  "executable_path": "",
+                  "file_size_bytes": 0,
+                  "sha256": ""
                 }
               }
             }

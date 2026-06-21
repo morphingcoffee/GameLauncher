@@ -47,8 +47,19 @@ Git source of truth: [`manifests/manifest.json`](../../manifests/manifest.json).
 
 ```json
 {
-  "schema_version": 1,
   "launcher_minimum_version": "0.0.1",
+  "launcher": {
+    "release_notes_url": "https://github.com/morphingcoffee/GameLauncher/releases",
+    "channels": {
+      "windows-x64-msi": {
+        "version": "0.0.1-build51",
+        "artifact_type": "msi",
+        "download_url": "https://cdn.../launcher/releases/0.0.1-build51/windows-x64-msi/GameLauncher-0.0.1-build51.msi",
+        "file_size_bytes": 0,
+        "sha256": "..."
+      }
+    }
+  },
   "games": [{
     "id": "game_id",
     "title": "...",

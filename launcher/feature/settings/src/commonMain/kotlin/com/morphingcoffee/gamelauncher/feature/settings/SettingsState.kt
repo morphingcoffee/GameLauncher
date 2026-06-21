@@ -15,7 +15,7 @@ data class SettingsState(
     val links: List<SettingsLink> = defaultSettingsLinks(),
 )
 
-private fun defaultSettingsLinks(): List<SettingsLink> =
+internal fun defaultSettingsLinks(): List<SettingsLink> =
     listOf(
         SettingsLink(
             label = "AUTHOR",

@@ -38,6 +38,30 @@ object LibraryPaths {
 
     fun installRecordFile(gameId: String): String = path(gameDirectory(gameId), ".install_record.json")
 
+    fun launcherUpdatesDirectory(): String = path(rootDirectory(), "updates")
+
+    fun userDownloadsDirectory(): String {
+        val os =
+            System
+                .getProperty("os.name")
+                .lowercase()
+        return when {
+            "win" in os -> {
+                val userProfile =
+                    System.getenv("USERPROFILE")
+                        ?: error("USERPROFILE is not set")
+                path(userProfile, "Downloads")
+            }
+            "mac" in os || "darwin" in os -> {
+                val home =
+                    System.getProperty("user.home")
+                        ?: error("user.home is not set")
+                path(home, "Downloads")
+            }
+            else -> error("Unsupported operating system for downloads: $os")
+        }
+    }
+
     private fun path(vararg segments: String): String {
         require(segments.isNotEmpty()) { "path requires at least one segment" }
         return Paths.get(segments.first(), *segments.drop(1).toTypedArray()).toString()

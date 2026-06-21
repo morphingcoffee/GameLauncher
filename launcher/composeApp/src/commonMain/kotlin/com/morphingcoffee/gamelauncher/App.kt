@@ -27,9 +27,9 @@ import com.morphingcoffee.gamelauncher.feature.home.CatalogScreen
 import com.morphingcoffee.gamelauncher.feature.home.CatalogScreenContent
 import com.morphingcoffee.gamelauncher.feature.home.catalogPreviewState
 import com.morphingcoffee.gamelauncher.feature.logs.LogsScreen
+import com.morphingcoffee.gamelauncher.feature.settings.AboutState
 import com.morphingcoffee.gamelauncher.feature.settings.SettingsScreen
 import com.morphingcoffee.gamelauncher.feature.settings.SettingsScreenContent
-import com.morphingcoffee.gamelauncher.feature.settings.SettingsState
 import com.morphingcoffee.gamelauncher.feature.settings.StorageScreen
 import kotlinx.coroutines.flow.collectLatest
 
@@ -170,7 +170,7 @@ private fun AppSettingsPreview() {
     LauncherTheme {
         SettingsScreenContent(
             state =
-                SettingsState(
+                AboutState(
                     platformLabel = "macos-arm64",
                     clockText = "12:34:56",
                 ),

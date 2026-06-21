@@ -27,7 +27,7 @@ Exit `0` = no errors (warnings may still appear). Exit `1` = at least one error.
 
 | Layer | Checks |
 |-------|--------|
-| **manifest.json** | Loads from R2; `schema_version`, games array |
+| **manifest.json** | Loads from R2; `launcher_minimum_version`, optional `launcher` block, games array |
 | **Per game (catalog)** | `id`, `title`, `latest_version`, `versions_url`; inline `builds` metadata |
 | **versions.json** | Object exists on R2; `game_id` match; each version has `builds` |
 | **Build metadata** | `download_url`, `executable_path`, `file_size_bytes`, `sha256`; warns if `uncompressed_size_bytes` missing |

@@ -1,0 +1,148 @@
+name: Publish launcher release
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_workflow_run_id:
+        description: >
+          Run ID from a successful Desktop installers workflow
+          (numeric ID from the run URL, e.g. 12345678901)
+        required: true
+        type: string
+      ref:
+        description: Git ref to commit manifest changes to
+        required: false
+        default: main
+      bump_minimum:
+        description: Bump launcher_minimum_version (breaking manifest change)
+        type: boolean
+        default: false
+      skip_git_push:
+        description: Upload to R2 only — do not commit or push manifests/manifest.json
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: publish-launcher-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish Windows prod launcher to R2
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Validate build workflow run
+        env:
+          BUILD_RUN_ID: ${{ github.event.inputs.build_workflow_run_id }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          metadata=$(gh api "repos/${{ github.repository }}/actions/runs/${BUILD_RUN_ID}")
+          name=$(echo "$metadata" | jq -r .name)
+          conclusion=$(echo "$metadata" | jq -r .conclusion)
+          if [ "$name" != "Desktop installers" ]; then
+            echo "Expected 'Desktop installers' workflow, got: ${name}"
+            exit 1
+          fi
+          if [ "$conclusion" != "success" ]; then
+            echo "Build workflow must succeed before publish (conclusion=${conclusion})"
+            exit 1
+          fi
+          artifacts=$(gh api "repos/${{ github.repository }}/actions/runs/${BUILD_RUN_ID}/artifacts" --jq '.artifacts[].name')
+          for required in GameLauncher-windows-msi-prod GameLauncher-windows-portable-prod; do
+            if ! echo "$artifacts" | grep -qx "$required"; then
+              echo "Missing artifact from build run: ${required}"
+              echo "Available artifacts:"
+              echo "$artifacts"
+              exit 1
+            fi
+          done
+          echo "BUILD_RUN_NUMBER=$(echo "$metadata" | jq -r .run_number)" >> "$GITHUB_ENV"
+
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Grant execute permission for Gradle wrapper
+        run: chmod +x ./launcher/gradlew
+
+      - name: Resolve artifact version
+        working-directory: launcher
+        run: |
+          echo "ARTIFACT_VERSION=$(./gradlew -q :composeApp:printArtifactVersion --no-daemon -PbuildNumber="$BUILD_RUN_NUMBER")" >> "$GITHUB_ENV"
+
+      - name: Download Windows MSI (prod)
+        uses: actions/download-artifact@v6
+        with:
+          name: GameLauncher-windows-msi-prod
+          run-id: ${{ github.event.inputs.build_workflow_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: artifacts/windows-msi
+
+      - name: Download Windows portable ZIP (prod)
+        uses: actions/download-artifact@v6
+        with:
+          name: GameLauncher-windows-portable-prod
+          run-id: ${{ github.event.inputs.build_workflow_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: artifacts/windows-portable
+
+      - name: Stage prod launcher artifacts
+        run: |
+          set -euo pipefail
+          msi=$(find artifacts/windows-msi -name 'GameLauncher-*.msi' | head -1)
+          zip=$(find artifacts/windows-portable -name 'GameLauncher-*.zip' | head -1)
+          test -n "$msi"
+          test -n "$zip"
+          mkdir -p "r2_staging/launcher/releases/${ARTIFACT_VERSION}/windows-x64-msi"
+          mkdir -p "r2_staging/launcher/releases/${ARTIFACT_VERSION}/windows-x64-portable"
+          cp "$msi" "r2_staging/launcher/releases/${ARTIFACT_VERSION}/windows-x64-msi/"
+          cp "$zip" "r2_staging/launcher/releases/${ARTIFACT_VERSION}/windows-x64-portable/"
+
+      - name: Publish launcher release
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_PUBLIC_CDN_BASE_URL: ${{ secrets.R2_PUBLIC_CDN_BASE_URL }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          args=(python3 tools/deploy/publish_launcher_release.py "$ARTIFACT_VERSION")
+          if [ "${{ github.event.inputs.bump_minimum }}" = "true" ]; then
+            args+=(--bump-minimum)
+          fi
+          if [ "${{ github.event.inputs.skip_git_push }}" = "true" ]; then
+            args+=(--skip-git-push)
+          fi
+          "${args[@]}"
+
+      - name: Publish summary
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ### Launcher R2 publish
+
+          Published **${ARTIFACT_VERSION}** from Desktop installers run \`${{ github.event.inputs.build_workflow_run_id }}\`.
+
+          Channels: \`windows-x64-msi\`, \`windows-x64-portable\`.
+
+          Git push: ${{ github.event.inputs.skip_git_push == 'true' && 'skipped (--skip-git-push)' || 'manifest committed and pushed' }}.
+          EOF

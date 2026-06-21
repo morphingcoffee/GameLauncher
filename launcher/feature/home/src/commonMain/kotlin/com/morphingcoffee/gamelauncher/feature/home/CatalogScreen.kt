@@ -15,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherTheme
@@ -34,6 +35,7 @@ fun CatalogScreen(
     onOpenStorage: () -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val uriHandler = LocalUriHandler.current
     var requestRosterFocus by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -51,6 +53,7 @@ fun CatalogScreen(
         viewModel.effects.collect { effect ->
             when (effect) {
                 CatalogEffect.RequestFocusRoster -> requestRosterFocus = true
+                is CatalogEffect.OpenUrl -> uriHandler.openUri(effect.url)
             }
         }
     }
@@ -69,6 +72,9 @@ fun CatalogScreen(
         onLaunchChargeComplete = { viewModel.onEvent(CatalogEvent.LaunchChargeComplete) },
         onUninstallClicked = { viewModel.onEvent(CatalogEvent.UninstallClicked) },
         onUninstallChargeComplete = { viewModel.onEvent(CatalogEvent.UninstallChargeComplete) },
+        onUpdateClicked = { viewModel.onEvent(CatalogEvent.UpdateClicked) },
+        onUpdateChargeComplete = { viewModel.onEvent(CatalogEvent.UpdateChargeComplete) },
+        onGetLatestClicked = { viewModel.onEvent(CatalogEvent.GetLatestClicked) },
         onAmbientColorExtracted = { color, imageUrl ->
             viewModel.onEvent(CatalogEvent.AmbientColorExtracted(color, imageUrl))
         },
@@ -93,6 +99,9 @@ fun CatalogScreenContent(
     onLaunchChargeComplete: () -> Unit,
     onUninstallClicked: () -> Unit,
     onUninstallChargeComplete: () -> Unit,
+    onUpdateClicked: () -> Unit = {},
+    onUpdateChargeComplete: () -> Unit = {},
+    onGetLatestClicked: () -> Unit = {},
     onAmbientColorExtracted: (Color, String?) -> Unit,
     onRetryLoad: () -> Unit,
     onOpenAbout: () -> Unit = {},
@@ -116,6 +125,7 @@ fun CatalogScreenContent(
             AppHeader(
                 appVersion = state.appVersion,
                 platformLabel = formatPlatformLabel(state.platformKey),
+                showUpdateHint = state.showOptionalUpdateHint && !state.isUpdateGateActive,
             )
 
             Row(modifier = Modifier.weight(1f)) {
@@ -170,7 +180,7 @@ fun CatalogScreenContent(
                 downloadProgress = state.downloadProgressFraction,
                 actions =
                     buildList {
-                        if (LauncherMetadata.DEBUG_TOOLS_ENABLED) {
+                        if (LauncherMetadata.DEBUG_TOOLS_ENABLED && !state.isUpdateGateActive) {
                             add(
                                 StatusBarAction(
                                     label = "LOGS",
@@ -178,11 +188,20 @@ fun CatalogScreenContent(
                                 ),
                             )
                         }
-                        add(StatusBarAction(label = "STORAGE", onClick = onOpenStorage))
-                        add(StatusBarAction(label = "ABOUT", onClick = onOpenAbout))
+                        if (!state.isUpdateGateActive) {
+                            add(StatusBarAction(label = "STORAGE", onClick = onOpenStorage))
+                            add(StatusBarAction(label = "ABOUT", onClick = onOpenAbout))
+                        }
                     },
             )
         }
+
+        UpdateGateOverlay(
+            state = state,
+            onUpdateClicked = onUpdateClicked,
+            onUpdateChargeComplete = onUpdateChargeComplete,
+            onGetLatestClicked = onGetLatestClicked,
+        )
     }
 }
 

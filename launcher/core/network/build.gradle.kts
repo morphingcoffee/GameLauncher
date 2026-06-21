@@ -38,6 +38,11 @@ kotlin {
                 implementation(libs.ktor.client.cio)
             }
         }
+        val desktopTest by getting {
+            dependencies {
+                implementation(libs.kotlin.test)
+            }
+        }
         val commonTest by getting {
             dependencies {
                 implementation(libs.kotlin.test)
