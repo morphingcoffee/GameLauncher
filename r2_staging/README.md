@@ -45,4 +45,4 @@ Stage prod installers under `r2_staging/launcher/releases/{version}/{channel}/`,
 python3 tools/deploy/register_launcher_release.py 0.0.1-build51 --channel windows-x64-msi
 ```
 
-Channel keys: `windows-x64-msi`, `windows-x64-portable`, `macos-arm64-dmg`, `macos-x64-dmg`, `macos-*-zip`. Use `--bump-minimum` only for breaking changes — see `launcher-minimum-version` skill.
+Channel keys: `windows-x64-msi`, `windows-x64-portable`, `macos-arm64-dmg`, `macos-x64-dmg`. Use `--bump-minimum` only for breaking changes — see `launcher-minimum-version` skill.

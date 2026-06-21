@@ -29,15 +29,7 @@ actual object LauncherInstallChannel {
     actual fun resolveChannelKey(launcher: LauncherRelease?): String? {
         if (launcher == null) return null
         val preferred = detect() ?: return null
-        if (preferred in launcher.channels) return preferred
-
-        val platformKey = PlatformKey.current() ?: return null
-        val zipKey = LauncherChannelKey.macosZip(platformKey)
-        if (zipKey != null && zipKey in launcher.channels) {
-            return zipKey
-        }
-
-        return null
+        return preferred.takeIf { it in launcher.channels }
     }
 
     private fun isWindowsMsiInstall(): Boolean {

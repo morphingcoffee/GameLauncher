@@ -29,8 +29,6 @@ CHANNEL_ARTIFACT_TYPES: Dict[str, str] = {
     "windows-x64-portable": "zip",
     "macos-arm64-dmg": "dmg",
     "macos-x64-dmg": "dmg",
-    "macos-arm64-zip": "zip",
-    "macos-x64-zip": "zip",
 }
 
 

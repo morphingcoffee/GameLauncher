@@ -37,13 +37,6 @@ object LauncherChannelKey {
             PlatformKey.MACOS_X64 -> "macos-x64-dmg"
             else -> null
         }
-
-    fun macosZip(platformKey: String): String? =
-        when (platformKey) {
-            PlatformKey.MACOS_ARM64 -> "macos-arm64-zip"
-            PlatformKey.MACOS_X64 -> "macos-x64-zip"
-            else -> null
-        }
 }
 
 enum class LauncherUpdateStatus {

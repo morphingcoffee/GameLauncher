@@ -15,23 +15,33 @@ on:
         default: false
 
       build_windows_msi:
-        description: "[Windows] MSI installer — always builds prod + dev MSIs (required for prod deploy)"
+        description: "[Windows] MSI installer"
         type: boolean
         default: true
 
       build_windows_portable_zip:
-        description: "[Windows] Portable ZIP — always builds prod + dev ZIPs (required for prod deploy)"
+        description: "[Windows] Portable ZIP"
+        type: boolean
+        default: true
+
+      build_windows_prod:
+        description: "[Windows prod] Live catalog, normal branding"
+        type: boolean
+        default: true
+
+      build_windows_dev:
+        description: "[Windows dev] Fake catalog, Game Launcher DEV branding (local testing only)"
         type: boolean
         default: true
 
       # macOS — GitHub Actions artifacts only (not uploaded to R2 by this workflow).
       build_macos_arm64:
-        description: "[macOS arm64] Apple Silicon — DMG + ZIP"
+        description: "[macOS arm64] Apple Silicon — DMG"
         type: boolean
         default: true
 
       build_macos_x64:
-        description: "[macOS x64] Intel — DMG + ZIP"
+        description: "[macOS x64] Intel — DMG"
         type: boolean
         default: true
 
@@ -169,7 +179,7 @@ jobs:
       - name: Ad-hoc sign app bundle (${{ matrix.variant }})
         run: codesign --force --deep --sign - "composeApp/build/compose/binaries/main/app/${APP_PACKAGE_NAME}.app"
 
-      - name: Create DMG and ZIP (${{ matrix.variant }})
+      - name: Create DMG (${{ matrix.variant }})
         run: |
           hdiutil create \
             -volname "$DMG_VOLUME_NAME" \
@@ -177,17 +187,11 @@ jobs:
             -ov -format UDZO \
             "GameLauncher-${ARTIFACT_VERSION}-${{ matrix.compose_host }}.dmg"
 
-          ditto -c -k --keepParent \
-            "composeApp/build/compose/binaries/main/app/${APP_PACKAGE_NAME}.app" \
-            "GameLauncher-${ARTIFACT_VERSION}-${{ matrix.compose_host }}.zip"
-
-      - name: Upload macOS artifacts (${{ matrix.variant }})
+      - name: Upload macOS DMG (${{ matrix.variant }})
         uses: actions/upload-artifact@v7
         with:
           name: GameLauncher-${{ matrix.compose_host }}-${{ matrix.variant }}
-          path: |
-            launcher/GameLauncher-${{ env.ARTIFACT_VERSION }}-${{ matrix.compose_host }}.dmg
-            launcher/GameLauncher-${{ env.ARTIFACT_VERSION }}-${{ matrix.compose_host }}.zip
+          path: launcher/GameLauncher-${{ env.ARTIFACT_VERSION }}-${{ matrix.compose_host }}.dmg
           if-no-files-found: error
 
       - name: macOS install notes (${{ matrix.variant }})
@@ -204,20 +208,72 @@ jobs:
           GitHub adds a quarantine flag to downloaded files. After downloading:
 
           \`\`\`bash
-          xattr -cr GameLauncher.app   # if using the zip
-          # or, for the DMG: mount it, then run the same on the copied .app
+          xattr -cr /Volumes/"$DMG_VOLUME_NAME"/${APP_PACKAGE_NAME}.app
+          # or after copying the app out of the mounted DMG
           \`\`\`
 
           Then open **Game Launcher** normally. Build **${{ env.BUILD_NUMBER }}** is embedded in \`CFBundleVersion\`. Full Developer ID signing and notarization are planned later ([#9](https://github.com/morphingcoffee/GameLauncher/issues/9)).
           EOF
 
-  build-windows-msi:
-    name: Windows (MSI)
-    if: github.event.inputs.build_windows_msi != 'false'
+  windows-matrix:
+    name: Windows matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has_targets: ${{ steps.set-matrix.outputs.has_targets }}
+    steps:
+      - id: set-matrix
+        run: |
+          include='[]'
+          add_entries() {
+            local format="$1"
+            local script="$2"
+            local artifact_slug="$3"
+            local artifact_ext="$4"
+            if [ "${{ github.event.inputs.build_windows_prod }}" != "false" ]; then
+              include=$(echo "$include" | jq -c \
+                --arg format "$format" \
+                --arg script "$script" \
+                --arg variant "prod" \
+                --arg artifact_slug "$artifact_slug" \
+                --arg artifact_ext "$artifact_ext" \
+                '. + [{"format":$format,"script":$script,"variant":$variant,"artifact_slug":$artifact_slug,"artifact_ext":$artifact_ext}]')
+            fi
+            if [ "${{ github.event.inputs.build_windows_dev }}" != "false" ]; then
+              include=$(echo "$include" | jq -c \
+                --arg format "$format" \
+                --arg script "$script" \
+                --arg variant "dev" \
+                --arg artifact_slug "$artifact_slug" \
+                --arg artifact_ext "$artifact_ext" \
+                '. + [{"format":$format,"script":$script,"variant":$variant,"artifact_slug":$artifact_slug,"artifact_ext":$artifact_ext}]')
+            fi
+          }
+          if [ "${{ github.event.inputs.build_windows_msi }}" != "false" ]; then
+            add_entries msi package-windows-msi.ps1 msi msi
+          fi
+          if [ "${{ github.event.inputs.build_windows_portable_zip }}" != "false" ]; then
+            add_entries "portable ZIP" package-windows-zip.ps1 portable zip
+          fi
+          count=$(echo "$include" | jq 'length')
+          echo "matrix={\"include\":${include}}" >> "$GITHUB_OUTPUT"
+          if [ "$count" -gt 0 ]; then
+            echo "has_targets=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_targets=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-windows:
+    name: Windows ${{ matrix.format }} (${{ matrix.variant }})
+    needs: windows-matrix
+    if: needs.windows-matrix.outputs.has_targets == 'true'
     runs-on: windows-latest
     timeout-minutes: 15
     env:
       BUILD_NUMBER: ${{ github.run_number }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.windows-matrix.outputs.matrix) }}
     defaults:
       run:
         working-directory: launcher
@@ -234,9 +290,8 @@ jobs:
           java-version: 17
           cache: gradle
 
-      # JDK 17 jpackage needs WiX 3.x candle/light. package-windows-msi.ps1 prefers
-      # composeApp/build/wix311 from Gradle; skip relying on the runner image WiX 3.14.
       - name: Verify WiX Toolset
+        if: matrix.script == 'package-windows-msi.ps1'
         shell: pwsh
         run: |
           if (-not (Get-Command candle.exe -ErrorAction SilentlyContinue)) {
@@ -245,105 +300,51 @@ jobs:
             Write-Host "Pre-Gradle candle.exe: $((Get-Command candle.exe).Source)"
           }
 
-      - name: Package prod MSI
+      - name: Package ${{ matrix.format }} (${{ matrix.variant }})
         shell: pwsh
-        run: ..\tools\dev\package-windows-msi.ps1
+        run: |
+          $args = @()
+          if ("${{ matrix.variant }}" -eq "dev") {
+            $args += "-Dev"
+          }
+          if ($args.Count -gt 0) {
+            ..\tools\dev\${{ matrix.script }} @args
+          } else {
+            ..\tools\dev\${{ matrix.script }}
+          }
         working-directory: launcher
 
-      - name: Package dev MSI
-        shell: pwsh
-        run: ..\tools\dev\package-windows-msi.ps1 -Dev
-        working-directory: launcher
-
-      - name: Upload Windows MSI
+      - name: Upload Windows ${{ matrix.format }} (${{ matrix.variant }})
         uses: actions/upload-artifact@v7
         with:
-          name: GameLauncher-windows-msi
-          path: launcher/GameLauncher-*.msi
+          name: GameLauncher-windows-${{ matrix.artifact_slug }}-${{ matrix.variant }}
+          path: launcher/GameLauncher-*.${{ matrix.artifact_ext }}
           if-no-files-found: error
 
-      - name: Windows MSI install notes
+      - name: Windows install notes (${{ matrix.format }}, ${{ matrix.variant }})
         shell: bash
         run: |
-          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
-          ### Windows MSI
+          variant_note="Production build uses the live catalog."
+          if [ "${{ matrix.variant }}" = "dev" ]; then
+            variant_note="Dev build ships fake catalog data."
+            if [ "${{ matrix.script }}" = "package-windows-msi.ps1" ]; then
+              variant_note="${variant_note} Installs to a separate Start Menu group (**Game Launcher DEV**)."
+            fi
+          fi
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ### Windows ${{ matrix.format }} (${{ matrix.variant }})
 
-          Artifact includes **prod** and **dev** (`-dev` in filename) installers. Dev builds use fake catalog data and a separate Start Menu group (**Game Launcher DEV**).
+          ${variant_note}
 
-          Run the installer. Windows SmartScreen may warn about an unknown publisher — choose **More info** → **Run anyway**. Authenticode signing is tracked in [#45](https://github.com/morphingcoffee/GameLauncher/issues/45).
-
-          **After install:** search Start for **Game Launcher**; a desktop shortcut is created by default.
-
-          **Build:** `${{ env.BUILD_NUMBER }}` (MSI product version `1.0.<build>`).
-
-          **Upgrades:** install a newer CI MSI over an existing install. If you installed an older MSI built *before* [#37](https://github.com/morphingcoffee/GameLauncher/issues/37), uninstall once from Settings → Apps first.
-
-          Downloaded games live in `%APPDATA%\GameLauncher` — uninstalling the launcher does not remove them.
-          EOF
-
-  build-windows-zip:
-    name: Windows (portable ZIP)
-    if: github.event.inputs.build_windows_portable_zip != 'false'
-    runs-on: windows-latest
-    timeout-minutes: 15
-    env:
-      BUILD_NUMBER: ${{ github.run_number }}
-    defaults:
-      run:
-        working-directory: launcher
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ github.event.inputs.ref || github.ref }}
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: 17
-          cache: gradle
-
-      - name: Package prod portable ZIP
-        shell: pwsh
-        run: ..\tools\dev\package-windows-zip.ps1
-        working-directory: launcher
-
-      - name: Package dev portable ZIP
-        shell: pwsh
-        run: ..\tools\dev\package-windows-zip.ps1 -Dev
-        working-directory: launcher
-
-      - name: Upload Windows portable ZIP
-        uses: actions/upload-artifact@v7
-        with:
-          name: GameLauncher-windows-portable
-          path: launcher/GameLauncher-*.zip
-          if-no-files-found: error
-
-      - name: Windows ZIP install notes
-        shell: bash
-        run: |
-          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
-          ### Windows portable ZIP
-
-          Artifact includes **prod** and **dev** (`-dev` in filename) portable folders. Dev builds use fake catalog data.
-
-          Unzip and run `GameLauncher.exe` (prod) or `GameLauncherDev.exe` (dev) inside the versioned folder. No Start Menu entry or installer wizard.
-
-          **Upgrade:** replace the extracted folder with a newer ZIP.
-
-          **Build:** `${{ env.BUILD_NUMBER }}` (artifact version `0.0.1-build<run>`).
-
-          Downloaded games live in `%APPDATA%\GameLauncher` — deleting the portable folder does not remove them.
+          Build **${{ env.BUILD_NUMBER }}**.
           EOF
 
   publish-launcher-r2:
     name: Publish Windows prod launcher to R2
     if: github.event.inputs.publish_windows_prod_to_r2 == 'true'
     needs:
-      - build-windows-msi
-      - build-windows-zip
+      - windows-matrix
+      - build-windows
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -374,23 +375,23 @@ jobs:
         run: |
           echo "ARTIFACT_VERSION=$(./gradlew -q :composeApp:printArtifactVersion --no-daemon -PbuildNumber="$BUILD_NUMBER")" >> "$GITHUB_ENV"
 
-      - name: Download Windows MSI artifact
+      - name: Download Windows MSI (prod)
         uses: actions/download-artifact@v6
         with:
-          name: GameLauncher-windows-msi
+          name: GameLauncher-windows-msi-prod
           path: artifacts/windows-msi
 
-      - name: Download Windows portable artifact
+      - name: Download Windows portable ZIP (prod)
         uses: actions/download-artifact@v6
         with:
-          name: GameLauncher-windows-portable
+          name: GameLauncher-windows-portable-prod
           path: artifacts/windows-portable
 
       - name: Stage prod launcher artifacts
         run: |
           set -euo pipefail
-          msi=$(find artifacts/windows-msi -name 'GameLauncher-*.msi' ! -name '*-dev*' | head -1)
-          zip=$(find artifacts/windows-portable -name 'GameLauncher-*.zip' ! -name '*-dev*' | head -1)
+          msi=$(find artifacts/windows-msi -name 'GameLauncher-*.msi' | head -1)
+          zip=$(find artifacts/windows-portable -name 'GameLauncher-*.zip' | head -1)
           test -n "$msi"
           test -n "$zip"
           mkdir -p "r2_staging/launcher/releases/${ARTIFACT_VERSION}/windows-x64-msi"
