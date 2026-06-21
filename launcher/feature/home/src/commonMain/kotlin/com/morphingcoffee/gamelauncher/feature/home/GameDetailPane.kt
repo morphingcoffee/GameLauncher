@@ -44,6 +44,7 @@ internal fun GameDetailPane(
     isVersionPickerVisible: Boolean,
     isVersionHistoryLoading: Boolean,
     isInstalledForDisplay: Boolean,
+    gameUpdateAvailable: Boolean,
     isWebGame: Boolean,
     isInstallStatePending: Boolean,
     isDownloading: Boolean,
@@ -116,6 +117,7 @@ internal fun GameDetailPane(
                         isVersionPickerVisible = isActiveSelection && isVersionPickerVisible,
                         isVersionHistoryLoading = isActiveSelection && isVersionHistoryLoading,
                         isInstalledForDisplay = isActiveSelection && isInstalledForDisplay,
+                        gameUpdateAvailable = isActiveSelection && gameUpdateAvailable,
                         isWebGame =
                             if (isActiveSelection) {
                                 isWebGame
@@ -161,6 +163,7 @@ private fun GameDetailContent(
     isVersionPickerVisible: Boolean,
     isVersionHistoryLoading: Boolean,
     isInstalledForDisplay: Boolean,
+    gameUpdateAvailable: Boolean,
     isWebGame: Boolean,
     isInstallStatePending: Boolean,
     isDownloading: Boolean,
@@ -250,6 +253,33 @@ private fun GameDetailContent(
                 }
 
                 isInstallStatePending -> Unit
+
+                gameUpdateAvailable -> {
+                    TerminalButton(
+                        label = "UPDATE",
+                        onClick = onDownloadClicked,
+                        enabled = !isDownloading,
+                        modifier = Modifier.padding(top = LauncherSpacing.Lg),
+                    )
+                    if (isInstalledForDisplay) {
+                        TerminalButton(
+                            label = "LAUNCH",
+                            onClick = onLaunchClicked,
+                            charging = isChargingLaunch,
+                            onChargeComplete = onLaunchChargeComplete,
+                            enabled = !isChargingUninstall && !isUninstalling && !isDownloading,
+                            modifier = Modifier.padding(top = LauncherSpacing.Sm),
+                        )
+                        TerminalButton(
+                            label = "UNINSTALL",
+                            onClick = onUninstallClicked,
+                            enabled = canUninstall,
+                            charging = isChargingUninstall,
+                            onChargeComplete = onUninstallChargeComplete,
+                            modifier = Modifier.padding(top = LauncherSpacing.Sm),
+                        )
+                    }
+                }
 
                 isInstalledForDisplay -> {
                     TerminalButton(

@@ -22,6 +22,8 @@ import com.morphingcoffee.gamelauncher.core.designsystem.LauncherSpacing
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherTheme
 import com.morphingcoffee.gamelauncher.core.designsystem.components.AppHeader
 import com.morphingcoffee.gamelauncher.core.designsystem.components.DisplayTitle
+import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherUpdateDetails
+import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherUpdateSignal
 import com.morphingcoffee.gamelauncher.core.designsystem.components.MonoLabel
 import com.morphingcoffee.gamelauncher.core.designsystem.components.StatusBar
 import com.morphingcoffee.gamelauncher.core.designsystem.components.TerminalButton
@@ -75,6 +77,7 @@ fun SettingsScreenContent(
     onGetLatestClicked: () -> Unit = {},
 ) {
     val uriHandler = LocalUriHandler.current
+    val channelLatestVersion = state.channelLatestVersion
 
     Box(
         modifier =
@@ -86,7 +89,17 @@ fun SettingsScreenContent(
             AppHeader(
                 appVersion = state.appVersion,
                 platformLabel = state.platformLabel,
-                showUpdateHint = state.showUpdateButton,
+                launcherUpdateSlot =
+                    if (state.showUpdateButton && channelLatestVersion != null) {
+                        {
+                            LauncherUpdateSignal(
+                                latestVersion = channelLatestVersion,
+                                onClick = onUpdateClicked,
+                            )
+                        }
+                    } else {
+                        null
+                    },
             )
 
             Column(
@@ -99,29 +112,26 @@ fun SettingsScreenContent(
             ) {
                 DisplayTitle(text = "About")
 
-                SettingsInfoRow(
-                    label = "VERSION",
-                    value = state.appVersion,
-                )
-
-                state.channelLatestVersion?.takeIf { state.showLatestRow }?.let { latest ->
-                    SettingsInfoRow(
-                        label = "LATEST",
-                        value = latest,
+                if (state.showUpdateButton && channelLatestVersion != null) {
+                    LauncherUpdateDetails(
+                        currentVersion = state.appVersion,
+                        latestVersion = channelLatestVersion,
+                        channelKey = state.updateEvaluation?.channelKey,
+                        fileSizeBytes = state.updateEvaluation?.channelBuild?.fileSizeBytes,
+                        errorMessage = state.updateErrorMessage,
                     )
-                }
 
-                state.updateErrorMessage?.let { message ->
-                    MonoLabel(text = message, accent = true)
-                }
-
-                if (state.showUpdateButton) {
                     TerminalButton(
-                        label = "[ UPDATE ]",
+                        label = "UPDATE LAUNCHER",
                         onClick = onUpdateClicked,
                         charging = state.isUpdateCharging,
                         onChargeComplete = onUpdateChargeComplete,
                         enabled = !state.isUpdateDownloading,
+                    )
+                } else {
+                    SettingsInfoRow(
+                        label = "VERSION",
+                        value = state.appVersion,
                     )
                 }
 
@@ -146,7 +156,11 @@ fun SettingsScreenContent(
             }
 
             StatusBar(
-                statusText = if (state.isUpdateDownloading) "UPDATING" else "ABOUT",
+                statusText =
+                    when {
+                        state.isUpdateDownloading -> "LAUNCHER · UPDATING"
+                        else -> "ABOUT"
+                    },
                 clockText = state.clockText,
                 downloadProgress = state.downloadProgressFraction,
             )

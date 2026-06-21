@@ -16,8 +16,8 @@ import com.morphingcoffee.gamelauncher.core.designsystem.TerminalRule
 fun AppHeader(
     appVersion: String,
     platformLabel: String,
-    showUpdateHint: Boolean = false,
     modifier: Modifier = Modifier,
+    launcherUpdateSlot: (@Composable () -> Unit)? = null,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         TerminalRule()
@@ -34,11 +34,14 @@ fun AppHeader(
                 MonoLabel(text = "MC.GAME.LAUNCHER")
                 MonoLabel(text = "·", muted = true)
                 MonoLabel(text = "v$appVersion", muted = true)
-                if (showUpdateHint) {
-                    MonoLabel(text = "· UPDATE", accent = true)
-                }
             }
-            MonoLabel(text = "sys:$platformLabel", muted = true)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(LauncherSpacing.Sm),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                launcherUpdateSlot?.invoke()
+                MonoLabel(text = "sys:$platformLabel", muted = true)
+            }
         }
         TerminalRule()
     }

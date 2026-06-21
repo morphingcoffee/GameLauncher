@@ -4,18 +4,16 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherColors
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherSpacing
 import com.morphingcoffee.gamelauncher.core.designsystem.components.DisplayTitle
+import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherUpdateDetails
 import com.morphingcoffee.gamelauncher.core.designsystem.components.MonoLabel
 import com.morphingcoffee.gamelauncher.core.designsystem.components.TerminalButton
 import com.morphingcoffee.gamelauncher.core.model.LauncherUpdateStatus
@@ -37,6 +35,7 @@ fun UpdateGateOverlay(
                 ?.channelBuild
                 ?.downloadUrl
                 ?.isNotBlank() == true
+    val latestVersion = state.channelLatestVersion
 
     Box(
         modifier =
@@ -53,10 +52,10 @@ fun UpdateGateOverlay(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(LauncherSpacing.Lg),
         ) {
-            DisplayTitle(text = "UPDATE REQUIRED")
+            DisplayTitle(text = "LAUNCHER UPDATE REQUIRED")
 
             MonoLabel(
-                text = "This launcher version is no longer supported.",
+                text = "This launcher build is below the minimum supported version.",
                 muted = true,
             )
 
@@ -67,28 +66,24 @@ fun UpdateGateOverlay(
                 )
             }
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(LauncherSpacing.Md),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                GateInfoRow(label = "VERSION", value = state.appVersion)
-                state.channelLatestVersion?.let { latest ->
-                    GateInfoRow(label = "LATEST", value = latest)
+            if (latestVersion != null) {
+                LauncherUpdateDetails(
+                    currentVersion = state.appVersion,
+                    latestVersion = latestVersion,
+                    channelKey = state.updateEvaluation?.channelKey,
+                    fileSizeBytes = state.updateEvaluation?.channelBuild?.fileSizeBytes,
+                    errorMessage = state.updateErrorMessage,
+                )
+            } else {
+                state.updateErrorMessage?.let { message ->
+                    MonoLabel(text = message, accent = true)
                 }
-            }
-
-            state.updateEvaluation?.channelKey?.let { channelKey ->
-                GateInfoRow(label = "CHANNEL", value = channelKey)
-            }
-
-            state.updateErrorMessage?.let { message ->
-                MonoLabel(text = message, accent = true)
             }
 
             when {
                 showInAppUpdate -> {
                     TerminalButton(
-                        label = "[ UPDATE ]",
+                        label = "UPDATE LAUNCHER",
                         onClick = onUpdateClicked,
                         charging = state.isUpdateCharging,
                         onChargeComplete = onUpdateChargeComplete,
@@ -111,26 +106,5 @@ fun UpdateGateOverlay(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun GateInfoRow(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(LauncherSpacing.Md),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        MonoLabel(
-            text = label,
-            muted = true,
-            modifier = Modifier.width(72.dp),
-        )
-        MonoLabel(text = "·")
-        MonoLabel(text = value)
     }
 }

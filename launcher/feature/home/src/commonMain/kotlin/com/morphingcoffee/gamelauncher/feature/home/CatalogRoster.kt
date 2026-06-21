@@ -30,6 +30,7 @@ import com.morphingcoffee.gamelauncher.core.navigation.DebugNavigation
 internal fun CatalogRoster(
     games: List<GameCatalogEntry>,
     selectedGameId: String?,
+    gameIdsWithUpdate: Set<String> = emptySet(),
     onGameSelected: (String) -> Unit,
     onMoveSelection: (Int) -> Unit,
     requestFocus: Boolean,
@@ -87,6 +88,7 @@ internal fun CatalogRoster(
                     title = game.title,
                     isSelected = game.id == selectedGameId,
                     isAvailable = game.isAvailableOnCurrentPlatform(),
+                    hasUpdateAvailable = game.id in gameIdsWithUpdate,
                     availablePlatformKeys = game.builds.keys,
                     currentPlatformKey =
                         if (game.isWebGame()) {
