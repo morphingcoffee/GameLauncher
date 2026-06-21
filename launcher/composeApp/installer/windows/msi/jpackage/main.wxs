@@ -100,7 +100,22 @@
     <WixVariable Id="WixUIBannerBmp" Value="installer-banner.bmp" />
     <WixVariable Id="WixUIDialogBmp" Value="installer-dialog.bmp" />
 
-    <UIRef Id="JpUI"/>
+    <!-- Interactive install: optional "Launch …" checkbox on Finish (checked by default). -->
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch $(var.JpAppName)" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXCHECKED" Value="1" />
+    <Property Id="WixShellExecTarget" Value="[INSTALLDIR]$(var.JpAppName).exe" />
+    <CustomAction Id="LaunchApplication"
+                  BinaryKey="WixCA"
+                  DllEntry="WixShellExec"
+                  Impersonate="yes" />
+
+    <UI>
+      <UIRef Id="JpUI"/>
+      <Publish Dialog="ExitDialog"
+               Control="Finish"
+               Event="DoAction"
+               Value="LaunchApplication">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed</Publish>
+    </UI>
 
     <InstallExecuteSequence>
       <Custom Action="JpSetARPINSTALLLOCATION" After="CostFinalize">Not Installed</Custom>
@@ -124,6 +139,8 @@
       <Custom Action="JpDisallowDowngrade" After="FindRelatedProducts">JP_DOWNGRADABLE_FOUND</Custom>
       <?endif?>
       <RemoveExistingProducts Before="CostInitialize"/>
+      <!-- Passive/silent in-app updates: no Finish dialog — launch when install completes. -->
+      <Custom Action="LaunchApplication" After="InstallFinalize">(UILevel &lt; 5) AND NOT REMOVE</Custom>
     </InstallExecuteSequence>
 
   </Product>

@@ -11,13 +11,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherSpacing
 import com.morphingcoffee.gamelauncher.core.designsystem.TerminalRule
+import com.morphingcoffee.gamelauncher.core.designsystem.formatLauncherHeaderVersion
 
 @Composable
 fun AppHeader(
     appVersion: String,
     platformLabel: String,
-    showUpdateHint: Boolean = false,
     modifier: Modifier = Modifier,
+    launcherUpdateSlot: (@Composable () -> Unit)? = null,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         TerminalRule()
@@ -33,12 +34,20 @@ fun AppHeader(
             Row(horizontalArrangement = Arrangement.spacedBy(LauncherSpacing.Sm)) {
                 MonoLabel(text = "MC.GAME.LAUNCHER")
                 MonoLabel(text = "·", muted = true)
-                MonoLabel(text = "v$appVersion", muted = true)
-                if (showUpdateHint) {
-                    MonoLabel(text = "· UPDATE", accent = true)
+                val versionLabels = formatLauncherHeaderVersion(appVersion)
+                MonoLabel(text = versionLabels.marketingLabel, muted = true)
+                versionLabels.buildLabel?.let { buildLabel ->
+                    MonoLabel(text = "·", muted = true)
+                    MonoLabel(text = buildLabel, muted = true)
                 }
             }
-            MonoLabel(text = "sys:$platformLabel", muted = true)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(LauncherSpacing.Sm),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                launcherUpdateSlot?.invoke()
+                MonoLabel(text = "sys:$platformLabel", muted = true)
+            }
         }
         TerminalRule()
     }

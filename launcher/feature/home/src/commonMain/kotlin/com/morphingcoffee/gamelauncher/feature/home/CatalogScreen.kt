@@ -20,6 +20,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherTheme
 import com.morphingcoffee.gamelauncher.core.designsystem.components.AppHeader
+import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherUpdateSheet
+import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherUpdateSheetState
+import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherUpdateSignal
 import com.morphingcoffee.gamelauncher.core.designsystem.components.StatusBar
 import com.morphingcoffee.gamelauncher.core.designsystem.components.StatusBarAction
 import com.morphingcoffee.gamelauncher.core.designsystem.components.VerticalTerminalRule
@@ -74,6 +77,8 @@ fun CatalogScreen(
         onUninstallChargeComplete = { viewModel.onEvent(CatalogEvent.UninstallChargeComplete) },
         onUpdateClicked = { viewModel.onEvent(CatalogEvent.UpdateClicked) },
         onUpdateChargeComplete = { viewModel.onEvent(CatalogEvent.UpdateChargeComplete) },
+        onLauncherUpdateSignalClicked = { viewModel.onEvent(CatalogEvent.LauncherUpdateSignalClicked) },
+        onLauncherUpdateSheetDismissed = { viewModel.onEvent(CatalogEvent.LauncherUpdateSheetDismissed) },
         onGetLatestClicked = { viewModel.onEvent(CatalogEvent.GetLatestClicked) },
         onAmbientColorExtracted = { color, imageUrl ->
             viewModel.onEvent(CatalogEvent.AmbientColorExtracted(color, imageUrl))
@@ -101,6 +106,8 @@ fun CatalogScreenContent(
     onUninstallChargeComplete: () -> Unit,
     onUpdateClicked: () -> Unit = {},
     onUpdateChargeComplete: () -> Unit = {},
+    onLauncherUpdateSignalClicked: () -> Unit = {},
+    onLauncherUpdateSheetDismissed: () -> Unit = {},
     onGetLatestClicked: () -> Unit = {},
     onAmbientColorExtracted: (Color, String?) -> Unit,
     onRetryLoad: () -> Unit,
@@ -112,6 +119,7 @@ fun CatalogScreenContent(
         animationSpec = tween(durationMillis = 200),
         label = "catalog_content_alpha",
     )
+    val channelLatestVersion = state.channelLatestVersion
 
     Box(modifier = Modifier.fillMaxSize()) {
         ShaderBackground(modifier = Modifier.fillMaxSize())
@@ -125,13 +133,28 @@ fun CatalogScreenContent(
             AppHeader(
                 appVersion = state.appVersion,
                 platformLabel = formatPlatformLabel(state.platformKey),
-                showUpdateHint = state.showOptionalUpdateHint && !state.isUpdateGateActive,
+                launcherUpdateSlot =
+                    if (state.showLauncherUpdateSignal && channelLatestVersion != null) {
+                        {
+                            LauncherUpdateSignal(
+                                currentVersion = state.appVersion,
+                                latestVersion = channelLatestVersion,
+                                onClick = onLauncherUpdateSignalClicked,
+                            )
+                        }
+                    } else {
+                        null
+                    },
             )
 
             Row(modifier = Modifier.weight(1f)) {
                 CatalogRoster(
                     games = state.games,
                     selectedGameId = state.selectedGameId,
+                    gameIdsWithUpdate =
+                        state.games
+                            .mapNotNull { game -> game.id.takeIf { state.gameHasUpdate(it) } }
+                            .toSet(),
                     onGameSelected = onGameSelected,
                     onMoveSelection = onMoveSelection,
                     requestFocus = requestRosterFocus,
@@ -152,6 +175,7 @@ fun CatalogScreenContent(
                     isVersionPickerVisible = state.isVersionPickerVisible,
                     isVersionHistoryLoading = state.isVersionHistoryLoading,
                     isInstalledForDisplay = state.isInstalledForDisplay,
+                    gameUpdateAvailable = state.gameUpdateAvailable,
                     isWebGame = state.isWebGame,
                     isInstallStatePending = state.isInstallStatePending,
                     isDownloading = state.isDownloading,
@@ -202,8 +226,28 @@ fun CatalogScreenContent(
             onUpdateChargeComplete = onUpdateChargeComplete,
             onGetLatestClicked = onGetLatestClicked,
         )
+
+        LauncherUpdateSheet(
+            state = state.toLauncherUpdateSheetState(),
+            onDismiss = onLauncherUpdateSheetDismissed,
+            onUpdateClicked = onUpdateClicked,
+            onUpdateChargeComplete = onUpdateChargeComplete,
+            onReleaseNotesClicked = onGetLatestClicked,
+        )
     }
 }
+
+private fun CatalogState.toLauncherUpdateSheetState(): LauncherUpdateSheetState =
+    LauncherUpdateSheetState(
+        visible = isLauncherUpdateSheetVisible,
+        appVersion = appVersion,
+        latestVersion = channelLatestVersion,
+        channelKey = updateEvaluation?.channelKey,
+        fileSizeBytes = updateEvaluation?.channelBuild?.fileSizeBytes,
+        errorMessage = updateErrorMessage,
+        isUpdateCharging = isUpdateCharging,
+        isUpdateDownloading = isUpdateDownloading,
+    )
 
 @Preview(
     name = "Catalog — mainframe",

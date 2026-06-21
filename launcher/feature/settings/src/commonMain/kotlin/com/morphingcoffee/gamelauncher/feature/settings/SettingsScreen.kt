@@ -4,28 +4,29 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherColors
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherSpacing
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherTheme
 import com.morphingcoffee.gamelauncher.core.designsystem.components.AppHeader
 import com.morphingcoffee.gamelauncher.core.designsystem.components.DisplayTitle
-import com.morphingcoffee.gamelauncher.core.designsystem.components.MonoLabel
+import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherUpdateInfoRow
+import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherUpdateSheet
+import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherUpdateSheetState
+import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherUpdateSignal
 import com.morphingcoffee.gamelauncher.core.designsystem.components.StatusBar
 import com.morphingcoffee.gamelauncher.core.designsystem.components.TerminalButton
 import com.morphingcoffee.gamelauncher.core.designsystem.components.TerminalLinkRow
+import com.morphingcoffee.gamelauncher.core.designsystem.formatLauncherVersionInfoValue
 import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
 import kotlinx.coroutines.delay
 import org.koin.compose.viewmodel.koinViewModel
@@ -60,9 +61,11 @@ fun SettingsScreen(
     SettingsScreenContent(
         state = state,
         onBack = onBack,
+        onLauncherUpdateSignalClicked = { viewModel.onEvent(AboutEvent.LauncherUpdateSignalClicked) },
+        onLauncherUpdateSheetDismissed = { viewModel.onEvent(AboutEvent.LauncherUpdateSheetDismissed) },
         onUpdateClicked = { viewModel.onEvent(AboutEvent.UpdateClicked) },
         onUpdateChargeComplete = { viewModel.onEvent(AboutEvent.UpdateChargeComplete) },
-        onGetLatestClicked = { viewModel.onEvent(AboutEvent.GetLatestClicked) },
+        onReleaseNotesClicked = { viewModel.onEvent(AboutEvent.ReleaseNotesClicked) },
     )
 }
 
@@ -70,11 +73,14 @@ fun SettingsScreen(
 fun SettingsScreenContent(
     state: AboutState,
     onBack: () -> Unit,
+    onLauncherUpdateSignalClicked: () -> Unit = {},
+    onLauncherUpdateSheetDismissed: () -> Unit = {},
     onUpdateClicked: () -> Unit = {},
     onUpdateChargeComplete: () -> Unit = {},
-    onGetLatestClicked: () -> Unit = {},
+    onReleaseNotesClicked: () -> Unit = {},
 ) {
     val uriHandler = LocalUriHandler.current
+    val channelLatestVersion = state.channelLatestVersion
 
     Box(
         modifier =
@@ -86,7 +92,18 @@ fun SettingsScreenContent(
             AppHeader(
                 appVersion = state.appVersion,
                 platformLabel = state.platformLabel,
-                showUpdateHint = state.showUpdateButton,
+                launcherUpdateSlot =
+                    if (state.showLauncherUpdateSignal && channelLatestVersion != null) {
+                        {
+                            LauncherUpdateSignal(
+                                currentVersion = state.appVersion,
+                                latestVersion = channelLatestVersion,
+                                onClick = onLauncherUpdateSignalClicked,
+                            )
+                        }
+                    } else {
+                        null
+                    },
             )
 
             Column(
@@ -99,31 +116,10 @@ fun SettingsScreenContent(
             ) {
                 DisplayTitle(text = "About")
 
-                SettingsInfoRow(
+                LauncherUpdateInfoRow(
                     label = "VERSION",
-                    value = state.appVersion,
+                    value = formatLauncherVersionInfoValue(state.appVersion),
                 )
-
-                state.channelLatestVersion?.takeIf { state.showLatestRow }?.let { latest ->
-                    SettingsInfoRow(
-                        label = "LATEST",
-                        value = latest,
-                    )
-                }
-
-                state.updateErrorMessage?.let { message ->
-                    MonoLabel(text = message, accent = true)
-                }
-
-                if (state.showUpdateButton) {
-                    TerminalButton(
-                        label = "[ UPDATE ]",
-                        onClick = onUpdateClicked,
-                        charging = state.isUpdateCharging,
-                        onChargeComplete = onUpdateChargeComplete,
-                        enabled = !state.isUpdateDownloading,
-                    )
-                }
 
                 state.links.forEach { link ->
                     TerminalLinkRow(
@@ -133,10 +129,13 @@ fun SettingsScreenContent(
                     )
                 }
 
-                TerminalButton(
-                    label = "[ GET LATEST ]",
-                    onClick = onGetLatestClicked,
-                )
+                if (state.releasesUrl.isNotBlank()) {
+                    TerminalLinkRow(
+                        label = "RELEASES",
+                        linkText = "github.com/morphingcoffee/GameLauncher/releases",
+                        onClick = { uriHandler.openUri(state.releasesUrl) },
+                    )
+                }
 
                 TerminalButton(
                     label = "[ BACK ]",
@@ -146,34 +145,37 @@ fun SettingsScreenContent(
             }
 
             StatusBar(
-                statusText = if (state.isUpdateDownloading) "UPDATING" else "ABOUT",
+                statusText =
+                    when {
+                        state.isUpdateDownloading -> "LAUNCHER · UPDATING"
+                        else -> "ABOUT"
+                    },
                 clockText = state.clockText,
                 downloadProgress = state.downloadProgressFraction,
             )
         }
+
+        LauncherUpdateSheet(
+            state = state.toLauncherUpdateSheetState(),
+            onDismiss = onLauncherUpdateSheetDismissed,
+            onUpdateClicked = onUpdateClicked,
+            onUpdateChargeComplete = onUpdateChargeComplete,
+            onReleaseNotesClicked = onReleaseNotesClicked,
+        )
     }
 }
 
-@Composable
-private fun SettingsInfoRow(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(LauncherSpacing.Md),
-        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-    ) {
-        MonoLabel(
-            text = label,
-            muted = true,
-            modifier = Modifier.width(72.dp),
-        )
-        MonoLabel(text = "·")
-        MonoLabel(text = value)
-    }
-}
+private fun AboutState.toLauncherUpdateSheetState(): LauncherUpdateSheetState =
+    LauncherUpdateSheetState(
+        visible = isLauncherUpdateSheetVisible,
+        appVersion = appVersion,
+        latestVersion = channelLatestVersion,
+        channelKey = updateEvaluation?.channelKey,
+        fileSizeBytes = updateEvaluation?.channelBuild?.fileSizeBytes,
+        errorMessage = updateErrorMessage,
+        isUpdateCharging = isUpdateCharging,
+        isUpdateDownloading = isUpdateDownloading,
+    )
 
 @Preview(
     name = "About",
@@ -190,6 +192,7 @@ private fun SettingsScreenPreview() {
                     appVersion = LauncherMetadata.VERSION,
                     platformLabel = "macos-arm64",
                     clockText = "12:34:56",
+                    releasesUrl = "https://github.com/morphingcoffee/GameLauncher/releases",
                 ),
             onBack = {},
         )

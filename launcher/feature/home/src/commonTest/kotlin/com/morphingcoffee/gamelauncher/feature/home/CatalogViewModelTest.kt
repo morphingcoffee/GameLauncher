@@ -4,11 +4,13 @@ import androidx.compose.ui.graphics.Color
 import com.morphingcoffee.gamelauncher.core.model.GameBuild
 import com.morphingcoffee.gamelauncher.core.model.GameCatalogEntry
 import com.morphingcoffee.gamelauncher.core.model.GameVersionEntry
+import com.morphingcoffee.gamelauncher.core.model.LauncherUpdateStatus
 import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 import com.morphingcoffee.gamelauncher.core.network.DownloadProgress
 import com.morphingcoffee.gamelauncher.core.network.GameCatalogDataSource
 import com.morphingcoffee.gamelauncher.core.network.GameCatalogRepository
 import com.morphingcoffee.gamelauncher.core.network.InstallState
+import com.morphingcoffee.gamelauncher.core.network.LAUNCHER_UPDATE_PROGRESS_ID
 import com.morphingcoffee.gamelauncher.core.network.LauncherUpdateInstaller
 import com.morphingcoffee.gamelauncher.core.network.LauncherUpdateRepository
 import com.morphingcoffee.gamelauncher.core.network.ManifestRepository
@@ -604,6 +606,65 @@ class CatalogViewModelTest {
             assertEquals(InstallState.NotInstalled, viewModel.state.value.installState)
         }
 
+    @Test
+    fun launcherUpdateSignalClicked_opensSheetWhenUpdateAvailable() =
+        runBlocking {
+            val repository = createRepository(createManifestRepository(manifestWithLauncherUpdateJson()))
+            val viewModel = createCatalogViewModel(repository, manifestWithLauncherUpdateJson())
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+
+            val evaluation = viewModel.state.value.updateEvaluation
+            if (evaluation?.status != LauncherUpdateStatus.UpdateAvailable) return@runBlocking
+
+            viewModel.onEvent(CatalogEvent.LauncherUpdateSignalClicked)
+            assertTrue(viewModel.state.value.isLauncherUpdateSheetVisible)
+        }
+
+    @Test
+    fun updateClicked_startsChargeWhenOptionalUpdateAvailable() =
+        runBlocking {
+            val repository = createRepository(createManifestRepository(manifestWithLauncherUpdateJson()))
+            val viewModel = createCatalogViewModel(repository, manifestWithLauncherUpdateJson())
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+
+            if (viewModel.state.value.updateEvaluation
+                    ?.status != LauncherUpdateStatus.UpdateAvailable
+            ) {
+                return@runBlocking
+            }
+
+            viewModel.onEvent(CatalogEvent.UpdateClicked)
+            assertTrue(viewModel.state.value.isUpdateCharging)
+        }
+
+    @Test
+    fun launcherDownloadProgress_usesNamespacedStatusLabel() =
+        runBlocking {
+            val installer = RecordingLauncherUpdateInstaller()
+            val repository = createRepository(createManifestRepository(sampleManifestJson()))
+            val viewModel =
+                createCatalogViewModel(
+                    gameCatalogRepository = repository,
+                    manifestRepository = createManifestRepository(sampleManifestJson()),
+                    updateInstaller = installer,
+                )
+
+            installer.emit(
+                DownloadProgress(
+                    gameId = LAUNCHER_UPDATE_PROGRESS_ID,
+                    bytesDownloaded = 50,
+                    totalBytes = 100,
+                ),
+            )
+            delay(50)
+
+            assertEquals("LAUNCHER · UPDATING", viewModel.state.value.statusLabel)
+        }
+
     private fun createCatalogViewModel(
         gameCatalogRepository: GameCatalogDataSource,
         manifestJson: String = sampleManifestJson(),
@@ -615,15 +676,30 @@ class CatalogViewModelTest {
     private fun createCatalogViewModel(
         gameCatalogRepository: GameCatalogDataSource,
         manifestRepository: ManifestRepository,
+        updateInstaller: LauncherUpdateInstaller = NoOpLauncherUpdateInstaller(),
     ): CatalogViewModel =
         CatalogViewModel(
             gameCatalogRepository = gameCatalogRepository,
             launcherUpdateRepository =
                 LauncherUpdateRepository(
                     manifestRepository = manifestRepository,
-                    updateInstaller = NoOpLauncherUpdateInstaller(),
+                    updateInstaller = updateInstaller,
                 ),
         )
+
+    private class RecordingLauncherUpdateInstaller : LauncherUpdateInstaller {
+        private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
+        override val downloadProgress: StateFlow<DownloadProgress?> = _downloadProgress
+
+        fun emit(progress: DownloadProgress?) {
+            _downloadProgress.value = progress
+        }
+
+        override suspend fun downloadAndApply(
+            channelBuild: com.morphingcoffee.gamelauncher.core.model.LauncherChannelBuild,
+            versionLabel: String,
+        ): Result<Unit> = Result.success(Unit)
+    }
 
     private class NoOpLauncherUpdateInstaller : LauncherUpdateInstaller {
         private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
@@ -1174,6 +1250,70 @@ class CatalogViewModelTest {
                   "executable_path": "",
                   "file_size_bytes": 0,
                   "sha256": ""
+                }
+              }
+            }
+          ]
+        }
+        """.trimIndent()
+
+    private fun manifestWithLauncherUpdateJson(): String =
+        """
+        {
+          "launcher_minimum_version": "0.0.1",
+          "launcher": {
+            "release_notes_url": "https://github.com/morphingcoffee/GameLauncher/releases",
+            "channels": {
+              "windows-x64-msi": {
+                "version": "0.0.1-build99",
+                "artifact_type": "msi",
+                "download_url": "https://cdn.example/launcher.msi",
+                "file_size_bytes": 100,
+                "sha256": "abc"
+              },
+              "windows-x64-portable": {
+                "version": "0.0.1-build99",
+                "artifact_type": "zip",
+                "download_url": "https://cdn.example/launcher.zip",
+                "file_size_bytes": 100,
+                "sha256": "abc"
+              },
+              "macos-arm64-dmg": {
+                "version": "0.0.1-build99",
+                "artifact_type": "dmg",
+                "download_url": "https://cdn.example/launcher-arm64.dmg",
+                "file_size_bytes": 100,
+                "sha256": "abc"
+              },
+              "macos-x64-dmg": {
+                "version": "0.0.1-build99",
+                "artifact_type": "dmg",
+                "download_url": "https://cdn.example/launcher-x64.dmg",
+                "file_size_bytes": 100,
+                "sha256": "abc"
+              }
+            }
+          },
+          "games": [
+            {
+              "id": "alpha",
+              "title": "Alpha Build",
+              "description": "Preview",
+              "thumbnail_url": "https://example.com/alpha.webp",
+              "latest_version": "0.0.1",
+              "versions_url": "https://example.com/alpha/versions.json",
+              "builds": {
+                "macos-arm64": {
+                  "download_url": "https://example.com/alpha.zip",
+                  "executable_path": "Game.app/Contents/MacOS/Game",
+                  "file_size_bytes": 1024,
+                  "sha256": "abc"
+                },
+                "windows-x64": {
+                  "download_url": "https://example.com/alpha.zip",
+                  "executable_path": "Game.exe",
+                  "file_size_bytes": 1024,
+                  "sha256": "abc"
                 }
               }
             }

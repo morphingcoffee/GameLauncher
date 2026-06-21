@@ -194,10 +194,7 @@ private class LauncherUpdateInstallerImpl(
                 exitProcess(0)
             }
             "zip" -> {
-                if (!Desktop.isDesktopSupported()) {
-                    error("Desktop API is not supported on this platform")
-                }
-                Desktop.getDesktop().open(destination.parentFile)
+                revealDownloadedFile(destination)
             }
             else -> {
                 if (Desktop.isDesktopSupported()) {
@@ -206,6 +203,27 @@ private class LauncherUpdateInstallerImpl(
                     error("Unsupported update artifact type: $artifactType")
                 }
             }
+        }
+    }
+
+    private fun revealDownloadedFile(destination: File) {
+        val os = System.getProperty("os.name").lowercase()
+        when {
+            "win" in os -> {
+                ProcessBuilder("explorer.exe", "/select,${destination.absolutePath}").start()
+            }
+            "mac" in os || "darwin" in os -> {
+                ProcessBuilder("open", "-R", destination.absolutePath).start()
+            }
+            Desktop.isDesktopSupported() -> {
+                val parent = destination.parentFile
+                if (parent != null) {
+                    Desktop.getDesktop().open(parent)
+                } else {
+                    Desktop.getDesktop().open(destination)
+                }
+            }
+            else -> error("Desktop API is not supported on this platform")
         }
     }
 

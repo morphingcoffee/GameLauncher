@@ -38,6 +38,7 @@ internal fun RosterItem(
     title: String,
     isSelected: Boolean,
     isAvailable: Boolean,
+    hasUpdateAvailable: Boolean = false,
     availablePlatformKeys: Set<String>,
     currentPlatformKey: String?,
     onClick: () -> Unit,
@@ -124,6 +125,9 @@ internal fun RosterItem(
                     text = title,
                     modifier = Modifier.padding(start = LauncherSpacing.Sm).weight(1f),
                 )
+                if (hasUpdateAvailable) {
+                    MonoLabel(text = "↑", accent = true)
+                }
                 if (isSelected) {
                     MonoLabel(text = "▸", accent = true)
                 }

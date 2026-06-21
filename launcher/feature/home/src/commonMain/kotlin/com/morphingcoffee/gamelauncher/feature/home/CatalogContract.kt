@@ -8,6 +8,7 @@ import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
 import com.morphingcoffee.gamelauncher.core.model.LauncherUpdateEvaluation
 import com.morphingcoffee.gamelauncher.core.model.LauncherUpdateStatus
 import com.morphingcoffee.gamelauncher.core.model.PlatformKey
+import com.morphingcoffee.gamelauncher.core.model.VersionComparator
 import com.morphingcoffee.gamelauncher.core.network.InstallState
 
 sealed interface CatalogEvent {
@@ -40,6 +41,10 @@ sealed interface CatalogEvent {
     data object UpdateClicked : CatalogEvent
 
     data object UpdateChargeComplete : CatalogEvent
+
+    data object LauncherUpdateSignalClicked : CatalogEvent
+
+    data object LauncherUpdateSheetDismissed : CatalogEvent
 
     data object GetLatestClicked : CatalogEvent
 
@@ -80,9 +85,11 @@ data class CatalogState(
     val appVersion: String = LauncherMetadata.VERSION,
     val ambientColor: Color = Color.Transparent,
     val updateEvaluation: LauncherUpdateEvaluation? = null,
+    val isLauncherUpdateSheetVisible: Boolean = false,
     val isUpdateDownloading: Boolean = false,
     val isUpdateCharging: Boolean = false,
     val updateErrorMessage: String? = null,
+    val installStatesByGameId: Map<String, InstallState> = emptyMap(),
 ) {
     val isUpdateGateActive: Boolean
         get() =
@@ -91,6 +98,18 @@ data class CatalogState(
 
     val showOptionalUpdateHint: Boolean
         get() = updateEvaluation?.status == LauncherUpdateStatus.UpdateAvailable
+
+    val showLauncherUpdateSignal: Boolean
+        get() = showOptionalUpdateHint && !isUpdateGateActive
+
+    val canTriggerLauncherUpdate: Boolean
+        get() =
+            when (updateEvaluation?.status) {
+                LauncherUpdateStatus.UpdateAvailable,
+                LauncherUpdateStatus.UpdateRequired,
+                -> updateEvaluation.channelBuild?.downloadUrl?.isNotBlank() == true
+                else -> false
+            }
 
     val channelLatestVersion: String?
         get() = updateEvaluation?.channelBuild?.version
@@ -147,6 +166,16 @@ data class CatalogState(
                 !isChargingLaunch &&
                 !isUninstalling &&
                 !isChargingUninstall
+
+    val gameUpdateAvailable: Boolean
+        get() = selectedGameId?.let(::gameHasUpdate) == true
+
+    fun gameHasUpdate(gameId: String): Boolean {
+        val game = games.firstOrNull { it.id == gameId } ?: return false
+        if (PlatformKey.WEB in game.builds) return false
+        val installed = installStatesByGameId[gameId] as? InstallState.Installed ?: return false
+        return VersionComparator.isLessThan(installed.version, game.latestVersion)
+    }
 }
 
 sealed interface CatalogEffect {

@@ -51,9 +51,9 @@ class CatalogViewModel(
                     } else {
                         val statusLabel =
                             if (progress.fraction >= 1f) {
-                                "EXTRACTING"
+                                "GAME · EXTRACTING"
                             } else {
-                                "DOWNLOADING"
+                                "GAME · DOWNLOADING"
                             }
                         copy(
                             statusLabel = statusLabel,
@@ -61,6 +61,11 @@ class CatalogViewModel(
                         )
                     }
                 }
+            }.launchIn(viewModelScope)
+
+        launcherUpdateRepository.evaluation
+            .onEach { evaluation ->
+                updateState { copy(updateEvaluation = evaluation) }
             }.launchIn(viewModelScope)
 
         launcherUpdateRepository.downloadProgress
@@ -72,7 +77,7 @@ class CatalogViewModel(
                             isUpdateDownloading = false,
                             statusLabel =
                                 if (isUpdateGateActive) {
-                                    "UPDATE REQUIRED"
+                                    "LAUNCHER · UPDATE REQUIRED"
                                 } else if (isDownloading) {
                                     statusLabel
                                 } else {
@@ -85,9 +90,9 @@ class CatalogViewModel(
                             isUpdateDownloading = true,
                             statusLabel =
                                 if (progress.fraction >= 1f) {
-                                    "APPLYING"
+                                    "LAUNCHER · APPLYING"
                                 } else {
-                                    "UPDATING"
+                                    "LAUNCHER · UPDATING"
                                 },
                         )
                     }
@@ -151,12 +156,21 @@ class CatalogViewModel(
             }
 
             CatalogEvent.UpdateClicked -> {
-                if (!state.value.isUpdateGateActive) return
+                if (!state.value.canTriggerLauncherUpdate) return
                 if (state.value.isUpdateDownloading) return
                 updateState { copy(isUpdateCharging = true, updateErrorMessage = null) }
             }
 
             CatalogEvent.UpdateChargeComplete -> downloadAndApplyUpdate()
+
+            CatalogEvent.LauncherUpdateSignalClicked -> {
+                if (!state.value.showOptionalUpdateHint) return
+                updateState { copy(isLauncherUpdateSheetVisible = true) }
+            }
+
+            CatalogEvent.LauncherUpdateSheetDismissed -> {
+                updateState { copy(isLauncherUpdateSheetVisible = false) }
+            }
 
             CatalogEvent.GetLatestClicked -> {
                 sendEffect(CatalogEffect.OpenUrl(launcherUpdateRepository.releasesUrl()))
@@ -184,7 +198,7 @@ class CatalogViewModel(
                     updateState {
                         copy(
                             isLoading = false,
-                            statusLabel = "UPDATE REQUIRED",
+                            statusLabel = "LAUNCHER · UPDATE REQUIRED",
                         )
                     }
                     return@launch
@@ -214,7 +228,7 @@ class CatalogViewModel(
                         updateState {
                             copy(
                                 isLoading = false,
-                                statusLabel = "UPDATE REQUIRED",
+                                statusLabel = "LAUNCHER · UPDATE REQUIRED",
                             )
                         }
                     }
@@ -251,6 +265,11 @@ class CatalogViewModel(
         selectedGameId?.let { gameId ->
             viewModelScope.launch { probeInstallState(gameId) }
         }
+        games.forEach { game ->
+            if (game.id != selectedGameId) {
+                viewModelScope.launch { probeInstallState(game.id) }
+            }
+        }
     }
 
     private fun downloadAndApplyUpdate() {
@@ -264,7 +283,7 @@ class CatalogViewModel(
             }
 
             try {
-                AppLog.i("Catalog", "Starting forced launcher update download")
+                AppLog.i("Catalog", "Starting launcher update download")
                 launcherUpdateRepository
                     .downloadAndApplyUpdate()
                     .onSuccess {
@@ -274,12 +293,17 @@ class CatalogViewModel(
                         updateState {
                             copy(
                                 updateErrorMessage = error.message ?: "Update failed",
-                                statusLabel = "UPDATE REQUIRED",
+                                statusLabel =
+                                    if (isUpdateGateActive) {
+                                        "LAUNCHER · UPDATE REQUIRED"
+                                    } else {
+                                        statusLabel
+                                    },
                             )
                         }
                     }
             } finally {
-                updateState { copy(isUpdateDownloading = false) }
+                updateState { copy(isUpdateDownloading = false, isLauncherUpdateSheetVisible = false) }
             }
         }
     }
@@ -377,8 +401,16 @@ class CatalogViewModel(
     private fun probeInstallState(gameId: String) {
         viewModelScope.launch {
             val installState = gameCatalogRepository.getInstallState(gameId)
-            if (state.value.selectedGameId != gameId) return@launch
-            updateState { copy(installState = installState) }
+            val isSelected = state.value.selectedGameId == gameId
+            updateState {
+                val withCache = copy(installStatesByGameId = installStatesByGameId + (gameId to installState))
+                if (!isSelected) {
+                    withCache
+                } else {
+                    withCache.copy(installState = installState)
+                }
+            }
+            if (!isSelected) return@launch
             if (installState is InstallState.Installed && state.value.displayVersion == installState.version) {
                 probeOnDiskSize(gameId)
             } else {
@@ -398,8 +430,13 @@ class CatalogViewModel(
 
     private fun downloadSelectedVersion() {
         val game = state.value.selectedGame ?: return
-        val build = state.value.displayBuild ?: return
-        val version = state.value.displayVersion
+        val version =
+            if (state.value.gameUpdateAvailable) {
+                game.latestVersion
+            } else {
+                state.value.displayVersion
+            }
+        val build = resolveBuildForVersion(game, version) ?: return
         if (version.isBlank()) return
         if (state.value.isDownloading) return
 
@@ -409,7 +446,8 @@ class CatalogViewModel(
             copy(
                 isDownloading = true,
                 launchErrorMessage = null,
-                statusLabel = "DOWNLOADING",
+                statusLabel = if (gameUpdateAvailable) "GAME · UPDATING" else "GAME · DOWNLOADING",
+                selectedVersion = if (gameUpdateAvailable) game.latestVersion else selectedVersion,
             )
         }
 
@@ -583,6 +621,7 @@ class CatalogViewModel(
                         updateState {
                             copy(
                                 installState = InstallState.NotInstalled,
+                                installStatesByGameId = installStatesByGameId + (gameId to InstallState.NotInstalled),
                                 onDiskSizeBytes = null,
                                 statusLabel = "READY",
                                 launchErrorMessage = null,
@@ -604,6 +643,22 @@ class CatalogViewModel(
                     updateState { copy(isUninstalling = false) }
                 }
             }
+        }
+    }
+
+    private fun resolveBuildForVersion(
+        game: GameCatalogEntry,
+        version: String,
+    ): com.morphingcoffee.gamelauncher.core.model.GameBuild? {
+        state.value.versionHistory
+            .firstOrNull { it.version == version }
+            ?.buildForCurrentPlatform()
+            ?.let { return it }
+
+        return if (version == game.latestVersion) {
+            game.buildForCurrentPlatform()
+        } else {
+            null
         }
     }
 }
