@@ -6,6 +6,8 @@ description: >-
   architecture, manifest handling, or any implementation phase.
 ---
 
+> **Sync:** If you change manifest schema, module map, or implementation phases below, update the briefing section in [`AGENTS.md`](../../AGENTS.md) at the repo root.
+
 # GameLauncher Context
 
 ## Repository
