@@ -87,6 +87,37 @@
           "sha256": ""
         }
       }
+    },
+    {
+      "id": "evening_news",
+      "title": "Evening News",
+      "description": "Tune a hidden CRT transmission \u2014 scrub knobs to clear static and lock the signal.",
+      "thumbnail_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/assets/evening_news/thumbnail.webp",
+      "latest_version": "0.1.0",
+      "versions_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/games/evening_news/versions.json",
+      "builds": {
+        "windows-x64": {
+          "file_size_bytes": 39399978,
+          "uncompressed_size_bytes": 110618300,
+          "sha256": "4111ddd7be5884a0f5e21451403a05b2fe0616704d4d082623f16835d32fc873",
+          "executable_path": "01_evening_news.exe",
+          "download_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/games/evening_news/v0.1.0/windows-x64/game.zip"
+        },
+        "macos-arm64": {
+          "file_size_bytes": 61628673,
+          "uncompressed_size_bytes": 172379466,
+          "sha256": "4869389da4642c101cd2a895af203b15bf903bd175d93695f9cd3e6efc1ac001",
+          "executable_path": "01_evening_news.app/Contents/MacOS/01 Evening News",
+          "download_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/games/evening_news/v0.1.0/macos-arm64/game.zip"
+        },
+        "macos-x64": {
+          "file_size_bytes": 61628673,
+          "uncompressed_size_bytes": 172379466,
+          "sha256": "4869389da4642c101cd2a895af203b15bf903bd175d93695f9cd3e6efc1ac001",
+          "executable_path": "01_evening_news.app/Contents/MacOS/01 Evening News",
+          "download_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/games/evening_news/v0.1.0/macos-x64/game.zip"
+        }
+      }
     }
   ]
 }

@@ -1,0 +1,14 @@
+{
+  "released_at": "2026-07-07",
+  "platforms": {
+    "windows-x64": {
+      "executable_path": "01_evening_news.exe"
+    },
+    "macos-arm64": {
+      "executable_path": "01_evening_news.app/Contents/MacOS/01 Evening News"
+    },
+    "macos-x64": {
+      "executable_path": "01_evening_news.app/Contents/MacOS/01 Evening News"
+    }
+  }
+}
