@@ -39,23 +39,6 @@
   },
   "games": [
     {
-      "id": "krabs_v1",
-      "title": "KrabzV1",
-      "description": "Whatever",
-      "thumbnail_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/assets/krabs_v1/thumbnail.webp",
-      "latest_version": "0.0.1",
-      "versions_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/games/krabs_v1/versions.json",
-      "builds": {
-        "windows-x64": {
-          "executable_path": "Pushing.exe",
-          "file_size_bytes": 51147291,
-          "uncompressed_size_bytes": 129640467,
-          "sha256": "cf34895e3110e408d2621cd4cd72b250f6651458ff62064ecb0a9ef92611195f",
-          "download_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/games/krabs_v1/v0.0.1/windows-x64/game.zip"
-        }
-      }
-    },
-    {
       "id": "arcade_gym",
       "title": "Arcade Gym",
       "description": "A game gym \u2014 a room with prototype mechanics to try and test.",
