@@ -2,6 +2,33 @@
   "game_id": "evening_news",
   "versions": [
     {
+      "version": "0.2.0",
+      "released_at": "2026-07-10",
+      "builds": {
+        "windows-x64": {
+          "file_size_bytes": 46733421,
+          "uncompressed_size_bytes": 119703868,
+          "sha256": "0e95b632e206ba0512c8f828e55d842e993762e8d7182b14f3e70c9acf6ce6a8",
+          "executable_path": "01_evening_news.exe",
+          "download_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/games/evening_news/v0.2.0/windows-x64/game.zip"
+        },
+        "macos-arm64": {
+          "file_size_bytes": 69083412,
+          "uncompressed_size_bytes": 181465034,
+          "sha256": "d33036b1aaea8ec71f9acffd35c09baed3819d17f1667f0aad6750228dd5b469",
+          "executable_path": "01_evening_news.app/Contents/MacOS/01 Evening News",
+          "download_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/games/evening_news/v0.2.0/macos-arm64/game.zip"
+        },
+        "macos-x64": {
+          "file_size_bytes": 69083412,
+          "uncompressed_size_bytes": 181465034,
+          "sha256": "d33036b1aaea8ec71f9acffd35c09baed3819d17f1667f0aad6750228dd5b469",
+          "executable_path": "01_evening_news.app/Contents/MacOS/01 Evening News",
+          "download_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/games/evening_news/v0.2.0/macos-x64/game.zip"
+        }
+      }
+    },
+    {
       "version": "0.1.0",
       "released_at": "2026-07-07",
       "builds": {
