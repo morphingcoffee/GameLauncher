@@ -32,7 +32,7 @@ GameLauncher/
 | Requirement | Notes |
 |-------------|--------|
 | **JDK 25 (Temurin)** | Required for Compose Desktop, CI, and native packaging (`jpackage`). Kotlin/Java **bytecode target stays 17**. Verify with `java -version` (CI uses Temurin 25). |
-| **Android SDK (API 37)** | Needed for `./gradlew build` because modules keep an Android KMP library target for Compose previews (`compileSdk` 37 required by CMP 1.12 AndroidX deps). Point `ANDROID_HOME` at the SDK, or set `sdk.dir` in `launcher/local.properties` (gitignored). |
+| **Android SDK (API 37.0)** | Needed for `./gradlew build` / Android Studio sync — install **Android SDK Platform 37.0** (SDK Manager). CMP 1.12 AndroidX deps require `compileSdk` 37 with `minorApiLevel = 0` (package dir `platforms/android-37.0`). Point `ANDROID_HOME` at the SDK, or set `sdk.dir` in `launcher/local.properties` (gitignored). |
 | **Python 3** | Stdlib only — used by deploy tooling unit tests and offline catalog validation. |
 | **Git** | To clone the repository. |
 

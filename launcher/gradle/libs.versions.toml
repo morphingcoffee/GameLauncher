@@ -12,7 +12,9 @@ savedstate = "1.4.0"
 agp = "9.1.0"
 # compileSdk 37 is required by Compose/AndroidX artifacts pulled by CMP 1.12.0-beta03.
 # AGP 9.1.0's documented ceiling is 36 — see android.suppressUnsupportedCompileSdk in gradle.properties.
+# Platform package is platforms;android-37.0 (not android-37) — use minorApiLevel = 0 in module DSL.
 android-compileSdk = "37"
+android-compileSdkMinor = "0"
 android-minSdk = "26"
 android-targetSdk = "36"
 ktlint-plugin = "14.2.0"

@@ -31,11 +31,8 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK platform 37
-        run: |
-          sdkmanager "platforms;android-37.0" "build-tools;36.0.0"
-          # AGP looks for platforms/android-37; the SDK package installs as android-37.0.
-          ln -sfn android-37.0 "$ANDROID_HOME/platforms/android-37"
+      - name: Install Android SDK platform 37.0
+        run: sdkmanager "platforms;android-37.0" "build-tools;36.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4

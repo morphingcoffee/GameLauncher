@@ -11,10 +11,19 @@ plugins {
 kotlin {
     android {
         namespace = "com.morphingcoffee.gamelauncher.feature.home"
-        compileSdk =
-            libs.versions.android.compileSdk
-                .get()
-                .toInt()
+        compileSdk {
+            version =
+                release(
+                    libs.versions.android.compileSdk
+                        .get()
+                        .toInt(),
+                ) {
+                    minorApiLevel =
+                        libs.versions.android.compileSdkMinor
+                            .get()
+                            .toInt()
+                }
+        }
         minSdk =
             libs.versions.android.minSdk
                 .get()
