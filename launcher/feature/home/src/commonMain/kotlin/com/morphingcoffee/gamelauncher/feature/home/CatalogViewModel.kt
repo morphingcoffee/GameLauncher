@@ -298,13 +298,14 @@ class CatalogViewModel(
                         ensureActive()
                         if (generation != catalogProbeGeneration) return@launch
                         val gameGeneration = gameProbeGeneration[gameId] ?: 0
-                        val installState = gameCatalogRepository.getInstallState(gameId)
+                        val probedInstallState = gameCatalogRepository.getInstallState(gameId)
+                        ensureActive()
                         if (generation != catalogProbeGeneration) return@launch
                         if ((gameProbeGeneration[gameId] ?: 0) != gameGeneration) {
                             pendingStartupProbeIds = pendingStartupProbeIds - gameId
                             continue
                         }
-                        publishInstallState(gameId, installState)
+                        publishInstallState(gameId, probedInstallState)
                         pendingStartupProbeIds = pendingStartupProbeIds - gameId
                     }
                 } finally {
@@ -466,27 +467,49 @@ class CatalogViewModel(
         val gameGeneration = (gameProbeGeneration[gameId] ?: 0) + 1
         gameProbeGeneration[gameId] = gameGeneration
         viewModelScope.launch {
-            val installState = gameCatalogRepository.getInstallState(gameId)
+            val probedInstallState = gameCatalogRepository.getInstallState(gameId)
             if ((gameProbeGeneration[gameId] ?: 0) != gameGeneration) return@launch
-            publishInstallState(gameId, installState)
+            publishInstallState(gameId, probedInstallState)
         }
+    }
+
+    private fun markInstalledAfterDownload(
+        gameId: String,
+        version: String,
+        executablePath: String,
+    ) {
+        // Invalidate any in-flight startup/refresh probe for this game, then publish the known
+        // install result immediately so CTA/cache cannot stay stuck on the pre-download NotInstalled.
+        val gameGeneration = (gameProbeGeneration[gameId] ?: 0) + 1
+        gameProbeGeneration[gameId] = gameGeneration
+        pendingStartupProbeIds = pendingStartupProbeIds - gameId
+        publishInstallState(
+            gameId,
+            InstallState.Installed(
+                version = version,
+                executablePath = executablePath,
+            ),
+        )
     }
 
     private fun publishInstallState(
         gameId: String,
-        installState: InstallState,
+        probedInstallState: InstallState,
     ) {
         val isSelected = state.value.selectedGameId == gameId
         updateState {
-            val withCache = copy(installStatesByGameId = installStatesByGameId + (gameId to installState))
+            val withCache =
+                copy(installStatesByGameId = installStatesByGameId + (gameId to probedInstallState))
             if (!isSelected) {
                 withCache
             } else {
-                withCache.copy(installState = installState)
+                withCache.copy(installState = probedInstallState)
             }
         }
         if (!isSelected) return
-        if (installState is InstallState.Installed && state.value.displayVersion == installState.version) {
+        if (probedInstallState is InstallState.Installed &&
+            state.value.displayVersion == probedInstallState.version
+        ) {
             probeOnDiskSize(gameId)
         } else {
             updateState { copy(onDiskSizeBytes = null) }
@@ -534,26 +557,36 @@ class CatalogViewModel(
                         version = versionAtStart,
                         build = build,
                     )
-                if (state.value.selectedGameId != gameId || state.value.displayVersion != versionAtStart) {
-                    return@launch
-                }
                 result
                     .onSuccess {
                         AppLog.i("Catalog", "Install complete for $gameId version $versionAtStart")
-                        refreshInstallState(gameId)
-                        updateState {
-                            copy(
-                                statusLabel = "READY",
-                                launchErrorMessage = null,
-                            )
+                        // Publish the known install result immediately (same pattern as uninstall success).
+                        // Relying only on async refresh can leave a stale NotInstalled cache that selection
+                        // now reuses, so the detail CTA stays on DOWNLOAD.
+                        markInstalledAfterDownload(
+                            gameId = gameId,
+                            version = versionAtStart,
+                            executablePath = build.executablePath,
+                        )
+                        if (state.value.selectedGameId == gameId) {
+                            updateState {
+                                copy(
+                                    statusLabel = "READY",
+                                    launchErrorMessage = null,
+                                )
+                            }
                         }
                     }.onFailure { error ->
                         AppLog.e("Catalog", "Install failed for $gameId version $versionAtStart", error)
-                        updateState {
-                            copy(
-                                statusLabel = "ERROR",
-                                launchErrorMessage = error.message,
-                            )
+                        if (state.value.selectedGameId == gameId &&
+                            state.value.displayVersion == versionAtStart
+                        ) {
+                            updateState {
+                                copy(
+                                    statusLabel = "ERROR",
+                                    launchErrorMessage = error.message,
+                                )
+                            }
                         }
                     }
             } finally {

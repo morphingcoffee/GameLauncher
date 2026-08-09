@@ -903,6 +903,124 @@ class CatalogViewModelTest {
             )
         }
 
+    @Test
+    fun downloadComplete_marksInstalledEvenIfProbeStillReturnsNotInstalled() =
+        runBlocking {
+            val previousOs = System.getProperty("os.name")
+            val previousArch = System.getProperty("os.arch")
+            System.setProperty("os.name", "Mac OS X")
+            System.setProperty("os.arch", "aarch64")
+            try {
+                val platformKey = PlatformKey.current()
+                assertEquals(PlatformKey.MACOS_ARM64, platformKey)
+                val build =
+                    GameBuild(
+                        downloadUrl = "https://example.com/alpha.zip",
+                        executablePath = "Game.app/Contents/MacOS/Game",
+                        fileSizeBytes = 1024,
+                        sha256 = "abc",
+                    )
+                val repository =
+                    DownloadCompletesButProbeStaysNotInstalledDataSource(
+                        platformKey = platformKey!!,
+                        build = build,
+                    )
+                val viewModel = createCatalogViewModel(repository, macGameManifestJson())
+
+                viewModel.onEvent(CatalogEvent.Started)
+                waitForLoadingToFinish(viewModel)
+                waitUntil {
+                    viewModel.state.value.installState == InstallState.NotInstalled
+                }
+
+                viewModel.onEvent(CatalogEvent.DownloadClicked)
+                waitUntil { viewModel.state.value.isInstalledForDisplay }
+
+                assertEquals(
+                    InstallState.Installed(
+                        version = "0.0.1",
+                        executablePath = build.executablePath,
+                    ),
+                    viewModel.state.value.installState,
+                )
+                assertFalse(viewModel.state.value.isDownloading)
+            } finally {
+                if (previousOs != null) {
+                    System.setProperty("os.name", previousOs)
+                } else {
+                    System.clearProperty("os.name")
+                }
+                if (previousArch != null) {
+                    System.setProperty("os.arch", previousArch)
+                } else {
+                    System.clearProperty("os.arch")
+                }
+            }
+        }
+
+    @Test
+    fun downloadComplete_afterSelectionMoved_updatesCacheForReturnSelection() =
+        runBlocking {
+            val previousOs = System.getProperty("os.name")
+            val previousArch = System.getProperty("os.arch")
+            System.setProperty("os.name", "Mac OS X")
+            System.setProperty("os.arch", "aarch64")
+            try {
+                val platformKey = PlatformKey.current()
+                assertEquals(PlatformKey.MACOS_ARM64, platformKey)
+                val build =
+                    GameBuild(
+                        downloadUrl = "https://example.com/alpha.zip",
+                        executablePath = "Game.app/Contents/MacOS/Game",
+                        fileSizeBytes = 1024,
+                        sha256 = "abc",
+                    )
+                val repository =
+                    DelayedDownloadDataSource(
+                        platformKey = platformKey!!,
+                        build = build,
+                        downloadDelayMs = 150,
+                    )
+                val viewModel = createCatalogViewModel(repository, twoMacGamesManifestJson())
+
+                viewModel.onEvent(CatalogEvent.Started)
+                waitForLoadingToFinish(viewModel)
+                waitUntil {
+                    viewModel.state.value.installState == InstallState.NotInstalled
+                }
+
+                viewModel.onEvent(CatalogEvent.DownloadClicked)
+                delay(30)
+                viewModel.onEvent(CatalogEvent.MoveSelection(1))
+                waitUntil { !viewModel.state.value.isDownloading || viewModel.state.value.selectedGameId == "beta" }
+                delay(200)
+
+                assertEquals(
+                    InstallState.Installed(
+                        version = "0.0.1",
+                        executablePath = build.executablePath,
+                    ),
+                    viewModel.state.value.installStatesByGameId["alpha"],
+                )
+
+                viewModel.onEvent(CatalogEvent.MoveSelection(-1))
+                delay(50)
+                assertEquals("alpha", viewModel.state.value.selectedGameId)
+                assertTrue(viewModel.state.value.isInstalledForDisplay)
+            } finally {
+                if (previousOs != null) {
+                    System.setProperty("os.name", previousOs)
+                } else {
+                    System.clearProperty("os.name")
+                }
+                if (previousArch != null) {
+                    System.setProperty("os.arch", previousArch)
+                } else {
+                    System.clearProperty("os.arch")
+                }
+            }
+        }
+
     private fun createCatalogViewModel(
         gameCatalogRepository: GameCatalogDataSource,
         manifestJson: String = sampleManifestJson(),
@@ -1416,6 +1534,113 @@ class CatalogViewModelTest {
         override suspend fun uninstallAllGames(): Result<Unit> = Result.success(Unit)
     }
 
+    private class DownloadCompletesButProbeStaysNotInstalledDataSource(
+        private val platformKey: String,
+        private val build: GameBuild,
+    ) : GameCatalogDataSource {
+        private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
+        override val downloadProgress: StateFlow<DownloadProgress?> = _downloadProgress
+
+        override suspend fun loadCatalog(): Result<List<GameCatalogEntry>> =
+            Result.success(
+                listOf(
+                    GameCatalogEntry(
+                        id = "alpha",
+                        title = "Alpha Build",
+                        description = "Preview",
+                        latestVersion = "0.0.1",
+                        versionsUrl = "https://example.com/alpha/versions.json",
+                        builds = mapOf(platformKey to build),
+                    ),
+                ),
+            )
+
+        override suspend fun fetchVersionHistory(versionsUrl: String): Result<List<GameVersionEntry>> =
+            Result.success(emptyList())
+
+        override suspend fun downloadAndInstall(
+            gameId: String,
+            version: String,
+            build: GameBuild,
+        ): Result<Unit> {
+            delay(40)
+            return Result.success(Unit)
+        }
+
+        override suspend fun getInstallState(gameId: String): InstallState = InstallState.NotInstalled
+
+        override suspend fun uninstallGame(gameId: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun getOnDiskSizeBytes(gameId: String): Long? = null
+
+        override suspend fun launchGame(
+            gameId: String,
+            displayTitle: String,
+        ): Result<Unit> = Result.success(Unit)
+
+        override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun uninstallAllGames(): Result<Unit> = Result.success(Unit)
+    }
+
+    private class DelayedDownloadDataSource(
+        private val platformKey: String,
+        private val build: GameBuild,
+        private val downloadDelayMs: Long,
+    ) : GameCatalogDataSource {
+        private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
+        override val downloadProgress: StateFlow<DownloadProgress?> = _downloadProgress
+
+        override suspend fun loadCatalog(): Result<List<GameCatalogEntry>> =
+            Result.success(
+                listOf(
+                    GameCatalogEntry(
+                        id = "alpha",
+                        title = "Alpha Build",
+                        description = "Preview",
+                        latestVersion = "0.0.1",
+                        versionsUrl = "https://example.com/alpha/versions.json",
+                        builds = mapOf(platformKey to build),
+                    ),
+                    GameCatalogEntry(
+                        id = "beta",
+                        title = "Beta Showcase",
+                        description = "Preview",
+                        latestVersion = "0.0.1",
+                        versionsUrl = "https://example.com/beta/versions.json",
+                        builds = mapOf(platformKey to build),
+                    ),
+                ),
+            )
+
+        override suspend fun fetchVersionHistory(versionsUrl: String): Result<List<GameVersionEntry>> =
+            Result.success(emptyList())
+
+        override suspend fun downloadAndInstall(
+            gameId: String,
+            version: String,
+            build: GameBuild,
+        ): Result<Unit> {
+            delay(downloadDelayMs)
+            return Result.success(Unit)
+        }
+
+        override suspend fun getInstallState(gameId: String): InstallState = InstallState.NotInstalled
+
+        override suspend fun uninstallGame(gameId: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun getOnDiskSizeBytes(gameId: String): Long? = null
+
+        override suspend fun launchGame(
+            gameId: String,
+            displayTitle: String,
+        ): Result<Unit> = Result.success(Unit)
+
+        override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun uninstallAllGames(): Result<Unit> = Result.success(Unit)
+    }
+
     private class UninstallTrackingDataSource(
         private val platformKey: String,
         private val build: GameBuild,
@@ -1648,6 +1873,69 @@ class CatalogViewModelTest {
               "latest_version": "0.0.1",
               "versions_url": "https://example.com/gamma/versions.json",
               "builds": {}
+            }
+          ]
+        }
+        """.trimIndent()
+
+    private fun macGameManifestJson(): String =
+        """
+        {
+          "launcher_minimum_version": "0.0.1",
+          "games": [
+            {
+              "id": "alpha",
+              "title": "Alpha Build",
+              "description": "Preview",
+              "latest_version": "0.0.1",
+              "versions_url": "https://example.com/alpha/versions.json",
+              "builds": {
+                "macos-arm64": {
+                  "download_url": "https://example.com/alpha.zip",
+                  "executable_path": "Game.app/Contents/MacOS/Game",
+                  "file_size_bytes": 1024,
+                  "sha256": "abc"
+                }
+              }
+            }
+          ]
+        }
+        """.trimIndent()
+
+    private fun twoMacGamesManifestJson(): String =
+        """
+        {
+          "launcher_minimum_version": "0.0.1",
+          "games": [
+            {
+              "id": "alpha",
+              "title": "Alpha Build",
+              "description": "Preview",
+              "latest_version": "0.0.1",
+              "versions_url": "https://example.com/alpha/versions.json",
+              "builds": {
+                "macos-arm64": {
+                  "download_url": "https://example.com/alpha.zip",
+                  "executable_path": "Game.app/Contents/MacOS/Game",
+                  "file_size_bytes": 1024,
+                  "sha256": "abc"
+                }
+              }
+            },
+            {
+              "id": "beta",
+              "title": "Beta Showcase",
+              "description": "Preview",
+              "latest_version": "0.0.1",
+              "versions_url": "https://example.com/beta/versions.json",
+              "builds": {
+                "macos-arm64": {
+                  "download_url": "https://example.com/beta.zip",
+                  "executable_path": "Game.app/Contents/MacOS/Game",
+                  "file_size_bytes": 1024,
+                  "sha256": "abc"
+                }
+              }
             }
           ]
         }
