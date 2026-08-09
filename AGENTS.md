@@ -39,9 +39,9 @@ Kotlin Multiplatform + Compose Multiplatform (desktop JVM), Ktor Client, kotlinx
 ## Architecture
 
 - **MVI:** `MviViewModel` in `:core:architecture`; features expose `State` / `Event` / `Effect`.
-- **DI:** Koin 4.2 + compiler plugin; `@KoinApplication` in `:composeApp`.
-- **Navigation:** Navigation 3; `AppDestination : NavKey` in `:core:navigation`.
-- **Modules:** `:composeApp`, `:core:architecture`, `:core:designsystem`, `:core:model`, `:core:navigation`, `:feature:home`, `:feature:settings`.
+- **DI:** Koin 4.2 + compiler plugin; `@KoinApplication` in `:composeApp` (`compileSafety = false` there for cross-module ViewModels; features may enable it).
+- **Navigation:** Navigation 3; `AppDestination : NavKey` — `Home`, `Settings`, `Storage`, `Logs`.
+- **Modules:** `:composeApp`, `:core:architecture`, `:core:designsystem`, `:core:model`, `:core:navigation`, `:core:network` (catalog/install/launch/self-update), `:core:logging`, `:core:telemetry`, `:feature:home`, `:feature:settings`, `:feature:logs`.
 
 ## Guardrails
 
