@@ -6,7 +6,13 @@ description: >-
   architecture, manifest handling, or any implementation phase.
 ---
 
-> **Sync:** If you change manifest schema, module map, or implementation phases below, update the briefing section in [`AGENTS.md`](../../AGENTS.md) at the repo root.
+> **Sync (trigger-based — keep skills brief; READMEs hold depth):**
+>
+> 1. **Default for most code work:** load this skill / `AGENTS.md` only. Do **not** re-read root / deploy / staging READMEs unless the task is docs, onboarding, packaging/CI, or R2/deploy.
+> 2. **Module map / destinations / architecture claims change** (new/removed Gradle module, new `AppDestination`, install/launch ownership moves): in the same PR update `settings.gradle.kts` truth → this skill’s Architecture bullets → [`AGENTS.md`](../../../AGENTS.md) Architecture bullets → root README architecture section (diagram/table only if the module picture changed).
+> 3. **Deploy entrypoints / channel names / publish safety rules change:** update [`tools/deploy/README.md`](../../../tools/deploy/README.md) (canonical). Touch [`r2_staging/README.md`](../../../r2_staging/README.md) only if layout prefixes change. Update this skill / [`AGENTS.md`](../../../AGENTS.md) only if a one-line pointer or channel name in the briefing becomes wrong — do not paste recipes into skills.
+> 4. **README prose/examples/link fixes only:** no skill / [`AGENTS.md`](../../../AGENTS.md) churn.
+> 5. Never duplicate long command recipes into skills.
 
 # GameLauncher Context
 
@@ -22,7 +28,7 @@ description: >-
 | `launcher/` | KMP desktop app (Gradle root — `composeApp`, `core/*`, `feature/*`) |
 | `manifests/` | Catalog manifest (`manifest.json`) — git source of truth, CI deploys to R2 |
 | `manifests/games/{id}/` | Version history (`versions.json`) and release overrides — git source of truth |
-| `r2_staging/` | Gitignored local mirror of R2 `games/` and `assets/` prefixes (see `r2_staging/README.md`) |
+| `r2_staging/` | Gitignored local mirror of R2 `games/`, `assets/`, and `launcher/releases/` prefixes (see `r2_staging/README.md`) |
 | `tools/deploy/` | Cloudflare R2 upload scripts — see `tools/deploy/README.md` |
 | `tools/dev/` | Repo tooling (secret scan, GitHub PAT helpers) |
 | `.github/` | CI workflows |
@@ -45,7 +51,7 @@ Remote static JSON — catalog on startup, per-game version history on demand.
 
 ### Catalog (`manifest.json`)
 
-Git source of truth: [`manifests/manifest.json`](../../manifests/manifest.json). Deployed to R2 on push to `main`.
+Git source of truth: [`manifests/manifest.json`](../../../manifests/manifest.json). Deployed to R2 on push to `main`.
 
 ```json
 {
@@ -117,12 +123,12 @@ Subdirs: `downloads/`, `games/{gameId}/`
 - Overrides via env: `GAME_LAUNCHER_MANIFEST_URL` (see `.env.example`)
 - Secrets: macOS Keychain only (`security`); see `secret-hygiene` — never in project config files
 
-## Architecture (Stage 1)
+## Architecture
 
 - **MVI:** lightweight `MviViewModel` in `:core:architecture`; features expose `State` / `Event` / `Effect`
-- **DI:** Koin 4.2 + Compiler Plugin 1.0.2 (`compileSafety = true` in features; `:composeApp` keeps `compileSafety = false` for cross-module ViewModels — Koin #2404); `@KoinApplication` aggregator in `:composeApp`
-- **Navigation:** Navigation 3; typed `AppDestination : NavKey` in `:core:navigation`
-- **Modules:** `:composeApp`, `:core:architecture`, `:core:designsystem`, `:core:model`, `:core:navigation`, `:feature:home`
+- **DI:** Koin 4.2 + Compiler Plugin 1.0.2 (`compileSafety` enabled in feature modules that use it; `:composeApp` keeps `compileSafety = false` for cross-module ViewModels — Koin #2404); `@KoinApplication` aggregator in `:composeApp`
+- **Navigation:** Navigation 3; typed `AppDestination : NavKey` — `Home`, `Settings`, `Storage`, `Logs`
+- **Modules:** `:composeApp`, `:core:architecture`, `:core:designsystem`, `:core:model`, `:core:navigation`, `:core:network` (catalog/install/launch/self-update — no `:core:library`), `:core:logging`, `:core:telemetry`, `:feature:home`, `:feature:settings`, `:feature:logs`
 
 ## Implementation phases
 
