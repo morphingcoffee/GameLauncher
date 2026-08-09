@@ -16,15 +16,22 @@ Deterministic Compose Desktop visual regression tests for GameLauncher.
 | Surface size | 1280×800, density 1.0, fontScale 1.0 |
 | Suite location | `:composeApp` `desktopTest` |
 
-## Why macOS arm64 only (not Linux / Windows)
+## Why one canonical host (macOS arm64 today)
 
-Cross-host goldens are intentionally unsupported for this suite:
+1. **Supported product platforms are Windows + macOS.** `PlatformKey.current()` returns `null` on Linux because Linux is not a launcher target — catalog availability UI therefore differs on Linux CI agents even with identical fixtures.
+2. **Pixel-exact Skia rasterization** can still differ by OS even with bundled OFL fonts.
 
-1. **Platform-dependent UI tree.** Catalog roster / detail and model helpers call `PlatformKey.current()` (and `isAvailableOnCurrentPlatform()` / `buildForCurrentPlatform()`). On Linux that returns `null`, so availability chips, dimmed rows, and action affordances differ from macOS even with identical fixture JSON.
-2. **Pixel-exact rasterization.** Even with bundled OFL fonts, Skia text AA / subpixel shaping can differ by OS. A single canonical host keeps diffs meaningful.
-3. **Follow-up (optional):** thread an explicit platform key through composition and accept a small per-channel tolerance — still prefer one CI host for baselines.
+Ubuntu `ci.yml` `allTests` still runs `:composeApp:desktopTest`; golden cases **skip** unless the host matches `CanonicalGoldenHost` (macOS arm64 today). Authoritative check: [`.github/workflows/ui-goldens.yml`](../.github/workflows/ui-goldens.yml).
 
-Ubuntu `ci.yml` `allTests` still runs `:composeApp:desktopTest`, but golden cases **skip** unless the host is macOS arm64 (`Assume.assumeTrue`). The dedicated workflow [`.github/workflows/ui-goldens.yml`](../.github/workflows/ui-goldens.yml) is the authoritative check.
+### Switching to Linux later
+
+Possible, but not a flip of `runs-on` alone:
+
+1. Prefer **injecting platform into composition** (stop reading `PlatformKey.current()` inside catalog UI / `buildForCurrentPlatform()` for render paths) so the tree is fixture-controlled.
+2. Change `CanonicalGoldenHost` in `GoldenHost.kt` and `runs-on` in `ui-goldens.yml`.
+3. Regenerate **all** baselines on the new host (`-PupdateGolden` / workflow bootstrap) and commit them.
+
+Until (1) lands, Linux goldens would still encode “platform unavailable” for native builds unless fixtures only use `web` builds.
 
 ## What is covered
 
@@ -45,13 +52,13 @@ Fixtures pin clock, app version, platform label, sizes, and set `thumbnailUrl = 
 | Role | Path |
 |------|------|
 | Baselines (committed) | `launcher/composeApp/screenshots/golden/<name>.png` |
-| Actual (build) | `launcher/composeApp/build/screenshots/actual/` |
-| Diff (build) | `launcher/composeApp/build/screenshots/diff/` |
+| Actual (gitignored) | `launcher/composeApp/screenshots/actual/` |
+| Diff (gitignored) | `launcher/composeApp/screenshots/diff/` |
 | Test fonts (OFL) | `launcher/composeApp/src/desktopTest/resources/fonts/` |
 
 ## Run / regenerate
 
-From a **macOS arm64** machine (or Actions `macos-15`):
+Canonical host only (macOS arm64 / Actions `macos-15`):
 
 ```bash
 source launcher/scripts/ensure-host-gradle-home.sh
@@ -64,10 +71,12 @@ Rewrite baselines:
 ./gradlew -p launcher :composeApp:desktopTest -PupdateGolden
 ```
 
-Or: Actions → **UI goldens** → Run workflow → `update_golden=true` → download the artifact → copy PNGs into `launcher/composeApp/screenshots/golden/` → commit.
+**CI bootstrap:** if `golden/*.png` is empty, `ui-goldens.yml` runs with `-PupdateGolden`, uploads the `screenshots/` artifact, and fails on purpose until those PNGs are committed.
 
-Baselines regenerated on a non-macOS-arm64 host are **invalid** and will fail CI.
+Manual regenerate: Actions → **UI goldens** → Run workflow → `update_golden=true` → download artifact → commit `golden/*.png`.
+
+Baselines regenerated on a non-canonical host are **invalid**.
 
 ## Comparator
 
-Hand-rolled PNG compare (ImageIO): fail on size mismatch; ignore per-channel deltas ≤ 2; fail when more than **0.1%** of pixels differ. Missing baselines fail with regenerate instructions (never auto-create unless `-PupdateGolden`).
+Hand-rolled PNG compare (ImageIO): fail on size mismatch; ignore per-channel deltas ≤ 2; fail when more than **0.1%** of pixels differ. Missing baselines fail with regenerate instructions (never auto-create unless `-PupdateGolden` / CI bootstrap).

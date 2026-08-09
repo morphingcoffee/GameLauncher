@@ -110,27 +110,37 @@ kotlin {
 }
 
 val updateGoldenProperty = providers.gradleProperty("updateGolden")
-val goldenDirPath =
+val goldenDirFile =
     layout.projectDirectory
         .dir("screenshots/golden")
         .asFile
-        .absolutePath
-val screenshotDirProvider =
-    layout.buildDirectory
+val screenshotsRootDir =
+    layout.projectDirectory
         .dir("screenshots")
-        .map { it.asFile.absolutePath }
+        .asFile
 
-tasks.named<Test>("desktopTest") {
-    systemProperty("gamelauncher.golden.dir", goldenDirPath)
-    systemProperty("gamelauncher.screenshot.dir", screenshotDirProvider)
+// KMP registers desktopTest lazily — configure via withType so props always attach.
+tasks.withType<Test>().configureEach {
+    if (name != "desktopTest") return@configureEach
+
+    // Eager absolute paths under projectDir (actual/diff are siblings of golden/).
+    systemProperty("gamelauncher.golden.dir", goldenDirFile.absolutePath)
     systemProperty(
         "gamelauncher.updateGolden",
         updateGoldenProperty
             .map { "true" }
             .orElse("false"),
     )
-    // Goldens write PNGs under build/; keep task outputs discoverable for CI artifacts.
-    outputs.dir(layout.buildDirectory.dir("screenshots"))
+
+    testLogging {
+        events("passed", "skipped", "failed")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        showStackTraces = true
+        showStandardStreams = true
+    }
+
+    // Keep CI artifact paths stable even when the task fails.
+    outputs.dir(screenshotsRootDir)
 }
 
 dependencies {

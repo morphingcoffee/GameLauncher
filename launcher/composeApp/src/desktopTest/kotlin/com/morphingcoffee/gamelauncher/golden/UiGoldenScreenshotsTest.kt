@@ -12,7 +12,7 @@ import kotlin.test.Test
 /**
  * Visual regression goldens for stateless screen content.
  *
- * Canonical host: macOS arm64 (`macos-15`). Other hosts skip via [assumeCanonicalGoldenHost].
+ * Canonical host: [CanonicalGoldenHost] (macOS arm64 / `macos-15` today). Other hosts skip.
  * Regenerate: `./gradlew -p launcher :composeApp:desktopTest -PupdateGolden`
  */
 class UiGoldenScreenshotsTest {

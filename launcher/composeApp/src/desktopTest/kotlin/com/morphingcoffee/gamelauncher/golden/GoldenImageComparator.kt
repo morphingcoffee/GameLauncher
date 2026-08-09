@@ -4,13 +4,16 @@ import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
 import kotlin.math.abs
-import kotlin.test.assertTrue
 import kotlin.test.fail
 
 private const val PER_CHANNEL_TOLERANCE = 2
 private const val MAX_DIFF_FRACTION = 0.001 // 0.1%
 
 internal object GoldenPaths {
+    /**
+     * Baseline directory from Gradle (`gamelauncher.golden.dir`).
+     * Actual/diff are siblings: `…/actual`, `…/diff` (gitignored).
+     */
     val goldenDir: File
         get() =
             File(
@@ -18,18 +21,11 @@ internal object GoldenPaths {
                     ?: error("Missing system property gamelauncher.golden.dir"),
             )
 
-    val screenshotRoot: File
-        get() =
-            File(
-                System.getProperty("gamelauncher.screenshot.dir")
-                    ?: error("Missing system property gamelauncher.screenshot.dir"),
-            )
-
     val actualDir: File
-        get() = screenshotRoot.resolve("actual")
+        get() = goldenDir.resolveSibling("actual")
 
     val diffDir: File
-        get() = screenshotRoot.resolve("diff")
+        get() = goldenDir.resolveSibling("diff")
 
     val updateGolden: Boolean
         get() =
@@ -47,21 +43,26 @@ internal fun assertMatchesGolden(
     GoldenPaths.goldenDir.mkdirs()
 
     val actualFile = GoldenPaths.actualDir.resolve("$name.png")
-    ImageIO.write(actual, "png", actualFile)
+    check(ImageIO.write(actual, "png", actualFile)) {
+        "Failed to write actual screenshot: ${actualFile.absolutePath}"
+    }
 
     val expectedFile = GoldenPaths.goldenDir.resolve("$name.png")
     if (GoldenPaths.updateGolden) {
-        ImageIO.write(actual, "png", expectedFile)
+        check(ImageIO.write(actual, "png", expectedFile)) {
+            "Failed to write golden baseline: ${expectedFile.absolutePath}"
+        }
+        println("Updated golden baseline: ${expectedFile.absolutePath}")
         return
     }
 
     if (!expectedFile.isFile) {
         fail(
             "Missing golden baseline for '$name' at ${expectedFile.absolutePath}.\n" +
-                "Generate on the canonical host (macOS arm64 / GitHub Actions macos-15):\n" +
+                "Generate on the canonical host (${CanonicalGoldenHost.LABEL}):\n" +
                 "  ./gradlew -p launcher :composeApp:desktopTest -PupdateGolden\n" +
-                "or dispatch the ui-goldens workflow with update_golden=true and commit the " +
-                "downloaded PNGs under launcher/composeApp/screenshots/golden/.\n" +
+                "or let CI bootstrap (empty golden/*.png) / workflow_dispatch update_golden=true, " +
+                "then commit PNGs under launcher/composeApp/screenshots/golden/.\n" +
                 "Actual image written to ${actualFile.absolutePath}",
         )
     }
@@ -93,7 +94,6 @@ internal fun assertMatchesGolden(
                 differing++
                 diffImage.setRGB(x, y, 0xFFFF0000.toInt())
             } else {
-                // Dim expected pixel so the red highlights stay readable.
                 val dim =
                     (e and 0x00FFFFFF) or
                         (((e ushr 24) and 0xFF) / 3 shl 24)
@@ -105,7 +105,9 @@ internal fun assertMatchesGolden(
     val fraction = differing.toDouble() / totalPixels.toDouble()
     if (fraction > MAX_DIFF_FRACTION) {
         val diffFile = GoldenPaths.diffDir.resolve("$name.png")
-        ImageIO.write(diffImage, "png", diffFile)
+        check(ImageIO.write(diffImage, "png", diffFile)) {
+            "Failed to write diff image: ${diffFile.absolutePath}"
+        }
         fail(
             "Golden mismatch for '$name': " +
                 "$differing / $totalPixels pixels differ " +
@@ -115,8 +117,6 @@ internal fun assertMatchesGolden(
                 "diff=${diffFile.absolutePath}",
         )
     }
-
-    assertTrue(true)
 }
 
 private fun pixelsDiffer(
