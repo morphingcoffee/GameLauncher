@@ -102,9 +102,35 @@ kotlin {
                 implementation(libs.kotlin.test)
                 implementation(libs.kotlinx.coroutines.test)
                 implementation(project(":core:designsystem"))
+                // Compose Desktop UI test + JUnit4 (runDesktopComposeUiTest / captureToImage).
+                implementation(libs.compose.ui.test.junit4.desktop)
             }
         }
     }
+}
+
+val updateGoldenProperty = providers.gradleProperty("updateGolden")
+val goldenDirPath =
+    layout.projectDirectory
+        .dir("screenshots/golden")
+        .asFile
+        .absolutePath
+val screenshotDirProvider =
+    layout.buildDirectory
+        .dir("screenshots")
+        .map { it.asFile.absolutePath }
+
+tasks.named<Test>("desktopTest") {
+    systemProperty("gamelauncher.golden.dir", goldenDirPath)
+    systemProperty("gamelauncher.screenshot.dir", screenshotDirProvider)
+    systemProperty(
+        "gamelauncher.updateGolden",
+        updateGoldenProperty
+            .map { "true" }
+            .orElse("false"),
+    )
+    // Goldens write PNGs under build/; keep task outputs discoverable for CI artifacts.
+    outputs.dir(layout.buildDirectory.dir("screenshots"))
 }
 
 dependencies {

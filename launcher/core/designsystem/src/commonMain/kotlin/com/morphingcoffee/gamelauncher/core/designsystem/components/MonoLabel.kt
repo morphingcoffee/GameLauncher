@@ -1,5 +1,6 @@
 package com.morphingcoffee.gamelauncher.core.designsystem.components
 
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -7,7 +8,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherColors
-import com.morphingcoffee.gamelauncher.core.designsystem.LauncherTypography
 
 @Composable
 fun MonoLabel(
@@ -15,7 +15,7 @@ fun MonoLabel(
     modifier: Modifier = Modifier,
     muted: Boolean = false,
     accent: Boolean = false,
-    style: TextStyle = LauncherTypography.bodyMedium,
+    style: TextStyle = MaterialTheme.typography.bodyMedium,
     maxLines: Int = 1,
 ) {
     val color =
@@ -42,7 +42,7 @@ fun RuleText(
     MonoLabel(
         text = text.uppercase(),
         modifier = modifier,
-        style = LauncherTypography.labelSmall,
+        style = MaterialTheme.typography.labelSmall,
     )
 }
 
@@ -51,7 +51,7 @@ fun DisplayTitle(
     text: String,
     modifier: Modifier = Modifier,
     color: Color = LauncherColors.OnBackground,
-    style: TextStyle = LauncherTypography.displayLarge,
+    style: TextStyle = MaterialTheme.typography.displayLarge,
 ) {
     Text(
         text = text.uppercase(),

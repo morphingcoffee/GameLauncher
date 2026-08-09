@@ -27,6 +27,7 @@ internal fun DrawScope.drawCurvedSegmentLabel(
     innerRadius: Float,
     outerRadius: Float,
     segmentColor: Color,
+    fontFamily: FontFamily = FontFamily.Monospace,
 ) {
     val label = curvedSegmentLabel(layout.segment.label, outerRadius)
     if (label.isEmpty()) return
@@ -36,7 +37,7 @@ internal fun DrawScope.drawCurvedSegmentLabel(
     val charStyle =
         TextStyle(
             color = Color.White.copy(alpha = 0.94f),
-            fontFamily = FontFamily.Monospace,
+            fontFamily = fontFamily,
             fontSize = (9f * scale).sp,
             fontWeight = FontWeight.Medium,
             letterSpacing = (1.4f * scale).sp,
