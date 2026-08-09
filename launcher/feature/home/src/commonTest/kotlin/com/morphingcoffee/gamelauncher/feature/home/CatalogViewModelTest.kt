@@ -664,6 +664,245 @@ class CatalogViewModelTest {
             assertEquals("LAUNCHER · UPDATING", viewModel.state.value.statusLabel)
         }
 
+    @Test
+    fun startupInstallProbe_isSequentialSelectedFirstAndIncremental() =
+        runBlocking {
+            val repository =
+                TrackingInstallStateDataSource(
+                    installStates =
+                        mapOf(
+                            "alpha" to InstallState.NotInstalled,
+                            "beta" to
+                                InstallState.Installed(
+                                    version = "0.0.1",
+                                    executablePath = "Game.app/Contents/MacOS/Game",
+                                ),
+                            "gamma" to InstallState.NotInstalled,
+                        ),
+                    delayMs = 120,
+                )
+            val viewModel = createCatalogViewModel(repository, threeGameManifestJson())
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+            waitForProbeCount(repository, minCount = 1)
+
+            assertEquals(listOf("alpha"), repository.probeOrder)
+            assertEquals(1, repository.maxConcurrency)
+            assertTrue(viewModel.state.value.isInstallStatePending)
+            assertFalse(
+                viewModel.state.value.installStatesByGameId
+                    .containsKey("beta"),
+            )
+
+            waitForProbeCount(repository, minCount = 2)
+            assertEquals(listOf("alpha", "beta"), repository.probeOrder)
+            assertEquals(
+                InstallState.NotInstalled,
+                viewModel.state.value.installStatesByGameId["alpha"],
+            )
+            assertFalse(
+                viewModel.state.value.installStatesByGameId
+                    .containsKey("gamma"),
+            )
+
+            waitUntil {
+                viewModel.state.value.installStatesByGameId
+                    .containsKey("beta")
+            }
+            assertEquals(
+                InstallState.Installed(
+                    version = "0.0.1",
+                    executablePath = "Game.app/Contents/MacOS/Game",
+                ),
+                viewModel.state.value.installStatesByGameId["beta"],
+            )
+            assertFalse(
+                viewModel.state.value.installStatesByGameId
+                    .containsKey("gamma"),
+            )
+
+            waitForProbeCount(repository, minCount = 3)
+            waitUntil { viewModel.state.value.installStatesByGameId.size == 3 }
+            assertEquals(listOf("alpha", "beta", "gamma"), repository.probeOrder)
+            assertEquals(1, repository.maxConcurrency)
+            assertEquals(3, viewModel.state.value.installStatesByGameId.size)
+        }
+
+    @Test
+    fun startupInstallProbe_allowsUiEventsWhileBatchBlocked() =
+        runBlocking {
+            val repository =
+                TrackingInstallStateDataSource(
+                    installStates =
+                        mapOf(
+                            "alpha" to InstallState.NotInstalled,
+                            "beta" to InstallState.NotInstalled,
+                        ),
+                    delayMs = 250,
+                )
+            val viewModel = createCatalogViewModel(repository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+            waitForProbeCount(repository, minCount = 1)
+            assertEquals(listOf("alpha"), repository.probeOrder)
+
+            viewModel.onEvent(CatalogEvent.MoveSelection(1))
+            assertEquals("beta", viewModel.state.value.selectedGameId)
+            assertTrue(viewModel.state.value.isInstallStatePending)
+            assertEquals(listOf("alpha"), repository.probeOrder)
+
+            waitForProbeCount(repository, minCount = 2)
+            assertEquals(listOf("alpha", "beta"), repository.probeOrder)
+            assertEquals(1, repository.maxConcurrency)
+            waitUntil {
+                viewModel.state.value.installState == InstallState.NotInstalled
+            }
+        }
+
+    @Test
+    fun gameSelection_reusesCachedInstallStateWithoutDuplicateProbe() =
+        runBlocking {
+            val repository =
+                TrackingInstallStateDataSource(
+                    installStates =
+                        mapOf(
+                            "alpha" to InstallState.NotInstalled,
+                            "beta" to
+                                InstallState.Installed(
+                                    version = "0.0.1",
+                                    executablePath = "Game.app/Contents/MacOS/Game",
+                                ),
+                        ),
+                    delayMs = 40,
+                )
+            val viewModel = createCatalogViewModel(repository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+            waitForProbeCount(repository, minCount = 2)
+            assertEquals(listOf("alpha", "beta"), repository.probeOrder)
+
+            viewModel.onEvent(CatalogEvent.MoveSelection(1))
+            delay(50)
+            assertEquals("beta", viewModel.state.value.selectedGameId)
+            assertEquals(
+                InstallState.Installed(
+                    version = "0.0.1",
+                    executablePath = "Game.app/Contents/MacOS/Game",
+                ),
+                viewModel.state.value.installState,
+            )
+            assertEquals(listOf("alpha", "beta"), repository.probeOrder)
+        }
+
+    @Test
+    fun gameSelection_doesNotDuplicateInFlightStartupProbe() =
+        runBlocking {
+            val repository =
+                TrackingInstallStateDataSource(
+                    installStates =
+                        mapOf(
+                            "alpha" to InstallState.NotInstalled,
+                            "beta" to InstallState.NotInstalled,
+                        ),
+                    delayMs = 200,
+                )
+            val viewModel = createCatalogViewModel(repository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+            waitForProbeCount(repository, minCount = 1)
+            viewModel.onEvent(CatalogEvent.MoveSelection(1))
+            assertEquals(listOf("alpha"), repository.probeOrder)
+
+            waitForProbeCount(repository, minCount = 2)
+            assertEquals(listOf("alpha", "beta"), repository.probeOrder)
+            assertEquals(1, repository.maxConcurrency)
+        }
+
+    @Test
+    fun catalogReload_cancelsInFlightProbesAndIgnoresStaleResults() =
+        runBlocking {
+            val repository =
+                TrackingInstallStateDataSource(
+                    installStates =
+                        mapOf(
+                            "alpha" to InstallState.NotInstalled,
+                            "beta" to InstallState.NotInstalled,
+                        ),
+                    delayMs = 250,
+                )
+            val viewModel = createCatalogViewModel(repository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+            waitForProbeCount(repository, minCount = 1)
+            assertEquals(listOf("alpha"), repository.probeOrder)
+
+            repository.installStates =
+                mapOf(
+                    "alpha" to
+                        InstallState.Installed(
+                            version = "0.0.1",
+                            executablePath = "Game.app/Contents/MacOS/Game",
+                        ),
+                    "beta" to InstallState.NotInstalled,
+                )
+
+            viewModel.onEvent(CatalogEvent.RetryLoad)
+            waitForLoadingToFinish(viewModel)
+            waitForProbeCount(repository, minCount = 2)
+            assertEquals(listOf("alpha", "alpha"), repository.probeOrder.take(2))
+
+            waitUntil {
+                viewModel.state.value.installState is InstallState.Installed
+            }
+            assertEquals(
+                InstallState.Installed(
+                    version = "0.0.1",
+                    executablePath = "Game.app/Contents/MacOS/Game",
+                ),
+                viewModel.state.value.installState,
+            )
+            assertEquals(
+                InstallState.Installed(
+                    version = "0.0.1",
+                    executablePath = "Game.app/Contents/MacOS/Game",
+                ),
+                viewModel.state.value.installStatesByGameId["alpha"],
+            )
+            assertEquals(1, repository.maxConcurrency)
+        }
+
+    @Test
+    fun uninstallFailure_refreshesCachedInstallState() =
+        runBlocking {
+            val repository = FailingUninstallInstallStateDataSource()
+            val viewModel = createCatalogViewModel(repository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+            waitUntil {
+                viewModel.state.value.installState is InstallState.Installed
+            }
+            val probesAfterStartup = repository.probeCount
+
+            viewModel.onEvent(CatalogEvent.UninstallClicked)
+            viewModel.onEvent(CatalogEvent.UninstallChargeComplete)
+            waitUntil { viewModel.state.value.statusLabel == "ERROR" }
+
+            assertTrue(repository.probeCount > probesAfterStartup)
+            assertEquals(
+                InstallState.Installed(
+                    version = "0.0.1",
+                    executablePath = "Game.app/Contents/MacOS/Game",
+                ),
+                viewModel.state.value.installState,
+            )
+        }
+
     private fun createCatalogViewModel(
         gameCatalogRepository: GameCatalogDataSource,
         manifestJson: String = sampleManifestJson(),
@@ -725,6 +964,25 @@ class CatalogViewModelTest {
         error("Catalog load did not complete in time: ${viewModel.state.value}")
     }
 
+    private suspend fun waitForProbeCount(
+        repository: TrackingInstallStateDataSource,
+        minCount: Int,
+    ) {
+        repeat(100) {
+            if (repository.probeOrder.size >= minCount) return
+            delay(25)
+        }
+        error("Expected at least $minCount probes, saw ${repository.probeOrder}")
+    }
+
+    private suspend fun waitUntil(predicate: () -> Boolean) {
+        repeat(100) {
+            if (predicate()) return
+            delay(25)
+        }
+        error("Condition not met in time")
+    }
+
     private suspend fun waitForStatusLabel(
         viewModel: CatalogViewModel,
         statusLabel: String,
@@ -736,12 +994,15 @@ class CatalogViewModelTest {
         error("Status did not become $statusLabel in time: ${viewModel.state.value}")
     }
 
-    private fun createManifestRepository(manifestJson: String): ManifestRepository {
+    private fun createManifestRepository(manifestJson: String): ManifestRepository =
+        createManifestRepository { manifestJson }
+
+    private fun createManifestRepository(manifestJsonProvider: () -> String): ManifestRepository {
         val client =
             HttpClient(
                 MockEngine {
                     respond(
-                        content = manifestJson,
+                        content = manifestJsonProvider(),
                         status = HttpStatusCode.OK,
                         headers = headersOf(HttpHeaders.ContentType, "application/json"),
                     )
@@ -1039,6 +1300,122 @@ class CatalogViewModelTest {
         override suspend fun uninstallAllGames(): Result<Unit> = Result.success(Unit)
     }
 
+    private class TrackingInstallStateDataSource(
+        var installStates: Map<String, InstallState>,
+        private val delayMs: Long,
+    ) : GameCatalogDataSource {
+        val probeOrder = mutableListOf<String>()
+        var maxConcurrency: Int = 0
+        private var inFlight: Int = 0
+        private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
+        override val downloadProgress: StateFlow<DownloadProgress?> = _downloadProgress
+
+        override suspend fun loadCatalog(): Result<List<GameCatalogEntry>> =
+            Result.success(
+                installStates.keys.map { id ->
+                    GameCatalogEntry(
+                        id = id,
+                        title = id,
+                        description = "Preview",
+                        latestVersion = "0.0.1",
+                        versionsUrl = "https://example.com/$id/versions.json",
+                        builds = emptyMap(),
+                    )
+                },
+            )
+
+        override suspend fun fetchVersionHistory(versionsUrl: String): Result<List<GameVersionEntry>> =
+            Result.success(emptyList())
+
+        override suspend fun downloadAndInstall(
+            gameId: String,
+            version: String,
+            build: GameBuild,
+        ): Result<Unit> = Result.success(Unit)
+
+        override suspend fun getInstallState(gameId: String): InstallState {
+            synchronized(this) {
+                inFlight++
+                maxConcurrency = maxOf(maxConcurrency, inFlight)
+                probeOrder += gameId
+            }
+            try {
+                delay(delayMs)
+                return installStates[gameId] ?: InstallState.Unknown
+            } finally {
+                synchronized(this) {
+                    inFlight--
+                }
+            }
+        }
+
+        override suspend fun uninstallGame(gameId: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun getOnDiskSizeBytes(gameId: String): Long? = null
+
+        override suspend fun launchGame(
+            gameId: String,
+            displayTitle: String,
+        ): Result<Unit> = Result.success(Unit)
+
+        override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun uninstallAllGames(): Result<Unit> = Result.success(Unit)
+    }
+
+    private class FailingUninstallInstallStateDataSource : GameCatalogDataSource {
+        var probeCount: Int = 0
+        private val installState: InstallState =
+            InstallState.Installed(
+                version = "0.0.1",
+                executablePath = "Game.app/Contents/MacOS/Game",
+            )
+        private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
+        override val downloadProgress: StateFlow<DownloadProgress?> = _downloadProgress
+
+        override suspend fun loadCatalog(): Result<List<GameCatalogEntry>> =
+            Result.success(
+                listOf(
+                    GameCatalogEntry(
+                        id = "alpha",
+                        title = "Alpha Build",
+                        description = "Preview",
+                        latestVersion = "0.0.1",
+                        versionsUrl = "https://example.com/alpha/versions.json",
+                        builds = emptyMap(),
+                    ),
+                ),
+            )
+
+        override suspend fun fetchVersionHistory(versionsUrl: String): Result<List<GameVersionEntry>> =
+            Result.success(emptyList())
+
+        override suspend fun downloadAndInstall(
+            gameId: String,
+            version: String,
+            build: GameBuild,
+        ): Result<Unit> = Result.success(Unit)
+
+        override suspend fun getInstallState(gameId: String): InstallState {
+            probeCount++
+            return installState
+        }
+
+        override suspend fun uninstallGame(gameId: String): Result<Unit> =
+            Result.failure(IllegalStateException("uninstall failed"))
+
+        override suspend fun getOnDiskSizeBytes(gameId: String): Long? = null
+
+        override suspend fun launchGame(
+            gameId: String,
+            displayTitle: String,
+        ): Result<Unit> = Result.success(Unit)
+
+        override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun uninstallAllGames(): Result<Unit> = Result.success(Unit)
+    }
+
     private class UninstallTrackingDataSource(
         private val platformKey: String,
         private val build: GameBuild,
@@ -1238,6 +1615,39 @@ class CatalogViewModelTest {
                   "sha256": "abc"
                 }
               }
+            }
+          ]
+        }
+        """.trimIndent()
+
+    private fun threeGameManifestJson(): String =
+        """
+        {
+          "launcher_minimum_version": "0.0.1",
+          "games": [
+            {
+              "id": "alpha",
+              "title": "Alpha Build",
+              "description": "Preview",
+              "latest_version": "0.0.1",
+              "versions_url": "https://example.com/alpha/versions.json",
+              "builds": {}
+            },
+            {
+              "id": "beta",
+              "title": "Beta Showcase",
+              "description": "Preview",
+              "latest_version": "0.0.1",
+              "versions_url": "https://example.com/beta/versions.json",
+              "builds": {}
+            },
+            {
+              "id": "gamma",
+              "title": "Gamma Trial",
+              "description": "Preview",
+              "latest_version": "0.0.1",
+              "versions_url": "https://example.com/gamma/versions.json",
+              "builds": {}
             }
           ]
         }
