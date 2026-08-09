@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Stub by design — jpackage includes this before <Product> in main.wxs. -->
+<!-- Stub by design — jpackage includes this before upgrade-version defines in main.wxs. -->
 <!-- Launch-after-install (interactive checkbox + passive auto-launch) lives in main.wxs. -->
-<Include/>
+<Include xmlns="http://schemas.microsoft.com/wix/2006/wi"/>

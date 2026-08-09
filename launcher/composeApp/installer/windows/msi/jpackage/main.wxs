@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- JDK 17 jpackage default main.wxs with branded installer banner/dialog BMPs. -->
+<!-- JDK 25 jpackage default main.wxs + branded banner/dialog BMPs + launch-after-install. -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
      xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 
@@ -13,6 +13,8 @@
   <?define JpInstallerVersion=200 ?>
   <?define JpCompressedMsi=yes ?>
 
+  <?include $(var.JpConfigDir)/overrides.wxi ?>
+
   <?ifdef JpAllowUpgrades ?>
     <?define JpUpgradeVersionOnlyDetectUpgrade="no"?>
   <?else?>
@@ -23,8 +25,6 @@
   <?else?>
     <?define JpUpgradeVersionOnlyDetectDowngrade="yes"?>
   <?endif?>
-
-  <?include $(var.JpConfigDir)/overrides.wxi ?>
 
   <Product
     Id="$(var.JpProductCode)"
@@ -66,6 +66,10 @@
     <CustomAction Id="JpDisallowDowngrade" Error="!(loc.DowngradeErrorMessage)" />
     <?endif?>
 
+    <Binary Id="JpCaDll" SourceFile="wixhelper.dll"/>
+
+    <CustomAction Id="JpFindRelatedProducts" BinaryKey="JpCaDll" DllEntry="FindRelatedProductsEx" />
+
     <!-- Standard required root -->
     <Directory Id="TARGETDIR" Name="SourceDir"/>
 
@@ -73,6 +77,7 @@
       <ComponentGroupRef Id="Shortcuts"/>
       <ComponentGroupRef Id="Files"/>
       <ComponentGroupRef Id="FileAssociations"/>
+      <ComponentGroupRef Id="FragmentOsCondition"/>
     </Feature>
 
     <CustomAction Id="JpSetARPINSTALLLOCATION" Property="ARPINSTALLLOCATION" Value="[INSTALLDIR]" />
@@ -133,15 +138,21 @@
       <?endif?>
 
       <?ifndef JpAllowUpgrades ?>
-      <Custom Action="JpDisallowUpgrade" After="FindRelatedProducts">JP_UPGRADABLE_FOUND</Custom>
+      <Custom Action="JpDisallowUpgrade" After="JpFindRelatedProducts">JP_UPGRADABLE_FOUND</Custom>
       <?endif?>
       <?ifndef JpAllowDowngrades ?>
-      <Custom Action="JpDisallowDowngrade" After="FindRelatedProducts">JP_DOWNGRADABLE_FOUND</Custom>
+      <Custom Action="JpDisallowDowngrade" After="JpFindRelatedProducts">JP_DOWNGRADABLE_FOUND</Custom>
       <?endif?>
+      <LaunchConditions Before="AppSearch"/>
       <RemoveExistingProducts Before="CostInitialize"/>
+      <Custom Action="JpFindRelatedProducts" After="FindRelatedProducts"/>
       <!-- Passive/silent in-app updates: no Finish dialog — launch when install completes. -->
       <Custom Action="LaunchApplication" After="InstallFinalize">(UILevel &lt; 5) AND NOT REMOVE</Custom>
     </InstallExecuteSequence>
+
+    <InstallUISequence>
+      <Custom Action="JpFindRelatedProducts" After="FindRelatedProducts"/>
+    </InstallUISequence>
 
   </Product>
 </Wix>

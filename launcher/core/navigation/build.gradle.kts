@@ -2,19 +2,44 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.androidKmpLibrary)
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
 }
 
 kotlin {
-    androidTarget {
+    android {
+        namespace = "com.morphingcoffee.gamelauncher.core.navigation"
+        compileSdk {
+            version =
+                release(
+                    libs.versions.android.compileSdk
+                        .get()
+                        .toInt(),
+                ) {
+                    minorApiLevel =
+                        libs.versions.android.compileSdkMinor
+                            .get()
+                            .toInt()
+                }
+        }
+        minSdk =
+            libs.versions.android.minSdk
+                .get()
+                .toInt()
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
+        androidResources {
+            enable = true
+        }
+    }
+    jvm("desktop") {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
         }
     }
-    jvm("desktop")
 
     sourceSets {
         val commonMain by getting {
@@ -27,23 +52,5 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.core)
             }
         }
-    }
-}
-
-android {
-    namespace = "com.morphingcoffee.gamelauncher.core.navigation"
-    compileSdk =
-        libs.versions.android.compileSdk
-            .get()
-            .toInt()
-    defaultConfig {
-        minSdk =
-            libs.versions.android.minSdk
-                .get()
-                .toInt()
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
     }
 }

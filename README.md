@@ -31,8 +31,8 @@ GameLauncher/
 
 | Requirement | Notes |
 |-------------|--------|
-| **JDK 17** | Required for Compose Desktop, CI, and native packaging. Verify with `java -version` (17+ is fine locally; CI uses Temurin 17). |
-| **Android SDK (API 36)** | Needed for `./gradlew build` because modules keep an `androidTarget` for Compose previews. Point `ANDROID_HOME` at the SDK, or set `sdk.dir` in `launcher/local.properties` (gitignored). |
+| **JDK 25 (Temurin)** | Required for Compose Desktop, CI, and native packaging (`jpackage`). Kotlin/Java **bytecode target stays 17**. Verify with `java -version` (CI uses Temurin 25). |
+| **Android SDK (API 37.0)** | Needed for `./gradlew build` / Android Studio sync — install **Android SDK Platform 37.0** (SDK Manager). CMP 1.12 AndroidX deps require `compileSdk` 37 with `minorApiLevel = 0` (package dir `platforms/android-37.0`). Point `ANDROID_HOME` at the SDK, or set `sdk.dir` in `launcher/local.properties` (gitignored). |
 | **Python 3** | Stdlib only — used by deploy tooling unit tests and offline catalog validation. |
 | **Git** | To clone the repository. |
 
@@ -75,12 +75,12 @@ First run downloads Gradle dependencies and may take a few minutes.
 ### Run from the IDE
 
 1. Open the **`launcher/`** directory in **Android Studio** or **IntelliJ IDEA** with the **Kotlin Multiplatform** plugin.
-2. Wait for Gradle sync to finish (Android SDK via `launcher/local.properties` is required for the `androidTarget` used by Compose previews).
+2. Wait for Gradle sync to finish (Android SDK via `launcher/local.properties` is required for the Android KMP library target used by Compose previews).
 3. Run the **`composeApp`** desktop configuration, or execute `:composeApp:run`.
 
 ### Compose previews
 
-`@Preview` composables in `commonMain` render in Android Studio when the **Kotlin Multiplatform** plugin is enabled. Modules include an `androidTarget` (library stub) to power the Android preview tooling; desktop remains the primary ship target (macOS / Windows).
+`@Preview` composables in `commonMain` render in Android Studio when the **Kotlin Multiplatform** plugin is enabled. Modules use AGP’s `com.android.kotlin.multiplatform.library` target (library stub) to power Android preview tooling; desktop remains the primary ship target (macOS / Windows).
 
 If no run configuration appears for desktop-only projects, create a **Gradle** run config with task `:composeApp:run`.
 
@@ -96,7 +96,7 @@ See [`.cursor/skills/secret-hygiene/SKILL.md`](.cursor/skills/secret-hygiene/SKI
 
 ### Build installers
 
-Requires a **full JDK 17+** with `jpackage` (e.g. Temurin). Android Studio’s bundled JBR does not include `jpackage`.
+Requires a **full JDK 25** with `jpackage` (e.g. Temurin 25). Android Studio’s bundled JBR does not include `jpackage`.
 
 ```bash
 cd launcher
@@ -221,12 +221,15 @@ We deliberately avoid reducers, middleware, or a global MVI framework until a fe
 
 | Area | Choice | Rationale |
 |------|--------|-----------|
-| UI | Compose Multiplatform 1.11 (desktop JVM) | Shared UI for Windows and macOS from `commonMain` |
-| Language | Kotlin 2.3.20+ | Aligns with Koin Compiler Plugin requirements |
+| UI | Compose Multiplatform 1.12.0-beta03 (desktop JVM) | Shared UI for Windows and macOS from `commonMain`; beta risks noted below |
+| Language | Kotlin 2.4.10 | Official KMP ceiling pairs with Gradle 9.5 / AGP 9.1 |
 | State | Lightweight MVI + `StateFlow` | Clear UDF without ceremony |
-| DI | Koin 4.2 + Compiler Plugin (`compileSafety`) | Multiplatform-friendly; graph validated at compile time |
+| DI | Koin 4.2.2 + Compiler Plugin 1.0.2 (`compileSafety`) | Multiplatform-friendly; graph validated at compile time |
 | Navigation | Navigation 3 (`NavKey` back stack) | Compose-first, multiplatform-safe typed routes |
 | Serialization | kotlinx.serialization | Nav keys now; manifest JSON in a later phase |
+| Tooling | Gradle 9.5.0 · AGP 9.1.0 · Temurin 25 | Official Kotlin 2.4.10 KMP ceilings; bytecode target remains 17 |
+
+**Compose Multiplatform beta:** UI is on **1.12.0-beta03** (Material3 **1.12.0-alpha03**). Expect occasional API/tooling churn until a stable 1.12 line; keep host-specific Skiko artifacts (`-PcomposeDesktopHost=…`) when packaging cross-arch macOS builds.
 
 ### Full system view (current + planned)
 

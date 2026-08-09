@@ -2,19 +2,44 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.androidKmpLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.koinCompiler)
 }
 
 kotlin {
-    androidTarget {
+    android {
+        namespace = "com.morphingcoffee.gamelauncher.feature.settings"
+        compileSdk {
+            version =
+                release(
+                    libs.versions.android.compileSdk
+                        .get()
+                        .toInt(),
+                ) {
+                    minorApiLevel =
+                        libs.versions.android.compileSdkMinor
+                            .get()
+                            .toInt()
+                }
+        }
+        minSdk =
+            libs.versions.android.minSdk
+                .get()
+                .toInt()
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
+        androidResources {
+            enable = true
+        }
+    }
+    jvm("desktop") {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
         }
     }
-    jvm("desktop")
 
     sourceSets {
         val androidMain by getting {
@@ -64,26 +89,8 @@ kotlin {
     }
 }
 
-android {
-    namespace = "com.morphingcoffee.gamelauncher.feature.settings"
-    compileSdk =
-        libs.versions.android.compileSdk
-            .get()
-            .toInt()
-    defaultConfig {
-        minSdk =
-            libs.versions.android.minSdk
-                .get()
-                .toInt()
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-}
-
 dependencies {
-    debugImplementation(libs.compose.ui.tooling)
+    androidRuntimeClasspath(libs.compose.ui.tooling)
 }
 
 koinCompiler {

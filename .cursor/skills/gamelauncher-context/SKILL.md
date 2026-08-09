@@ -120,7 +120,7 @@ Subdirs: `downloads/`, `games/{gameId}/`
 ## Architecture (Stage 1)
 
 - **MVI:** lightweight `MviViewModel` in `:core:architecture`; features expose `State` / `Event` / `Effect`
-- **DI:** Koin 4.2 + Compiler Plugin (`compileSafety = true`); `@KoinApplication` aggregator in `:composeApp`
+- **DI:** Koin 4.2 + Compiler Plugin 1.0.2 (`compileSafety = true` in features; `:composeApp` keeps `compileSafety = false` for cross-module ViewModels — Koin #2404); `@KoinApplication` aggregator in `:composeApp`
 - **Navigation:** Navigation 3; typed `AppDestination : NavKey` in `:core:navigation`
 - **Modules:** `:composeApp`, `:core:architecture`, `:core:designsystem`, `:core:model`, `:core:navigation`, `:feature:home`
 

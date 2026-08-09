@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.androidKmpLibrary)
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
@@ -11,12 +11,37 @@ plugins {
 }
 
 kotlin {
-    androidTarget {
+    android {
+        namespace = "com.morphingcoffee.gamelauncher"
+        compileSdk {
+            version =
+                release(
+                    libs.versions.android.compileSdk
+                        .get()
+                        .toInt(),
+                ) {
+                    minorApiLevel =
+                        libs.versions.android.compileSdkMinor
+                            .get()
+                            .toInt()
+                }
+        }
+        minSdk =
+            libs.versions.android.minSdk
+                .get()
+                .toInt()
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
+        androidResources {
+            enable = true
+        }
+    }
+    jvm("desktop") {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
         }
     }
-    jvm("desktop")
 
     sourceSets {
         val androidMain by getting {
@@ -82,30 +107,13 @@ kotlin {
     }
 }
 
-android {
-    namespace = "com.morphingcoffee.gamelauncher"
-    compileSdk =
-        libs.versions.android.compileSdk
-            .get()
-            .toInt()
-    defaultConfig {
-        minSdk =
-            libs.versions.android.minSdk
-                .get()
-                .toInt()
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-}
-
 dependencies {
-    debugImplementation(libs.compose.ui.tooling)
+    androidRuntimeClasspath(libs.compose.ui.tooling)
 }
 
 koinCompiler {
     // Cross-module ViewModels are not visible to compileSafety yet (Koin #2404).
+    // Still required after Koin compiler 1.0.2 — revisit when #2404 lands.
     compileSafety = false
 }
 
@@ -164,6 +172,16 @@ private fun isGameLauncherDevBuild(): Boolean =
     (findProperty("gameLauncherDev") as String?)
         ?.trim()
         .equals("true", ignoreCase = true) == true
+
+/**
+ * True when this Gradle invocation requested `:composeApp:runDevDesktop`.
+ * Configuration-cache safe replacement for `taskGraph.whenReady` (reads startParameter only).
+ */
+private fun isRunDevDesktopRequested(): Boolean =
+    gradle.startParameter.taskNames.any { name ->
+        name == "runDevDesktop" ||
+            name.endsWith(":runDevDesktop")
+    }
 
 /**
  * Optional public Sentry DSN for packaged builds.
@@ -235,7 +253,7 @@ compose.desktop {
                     } else {
                         "com.morphingcoffee.gamelauncher.desktop"
                     }
-                // JDK 17 jpackage rejects app-version with major 0; keep global 0.0.1 for artifact names.
+                // jpackage rejects app-version with major 0; keep marketing 0.0.x for artifact names.
                 packageVersion = "1.0.0"
                 iconFile.set(iconsDir.file("icon.icns"))
                 ciBuildNumberProperty()?.let { packageBuildVersion = it }
@@ -254,7 +272,7 @@ compose.desktop {
                         "8f2a1b3c-4d5e-6f70-8a9b-0c1d2e3f4a5b"
                     }
                 iconFile.set(iconsDir.file("icon.ico"))
-                // jpackage MSI product version (distinct from marketing packageVersion 0.0.1).
+                // jpackage MSI product version (distinct from marketing packageVersion 0.0.x).
                 packageVersion = "1.0.0"
                 msiPackageVersion = jpackageWindowsMsiVersion()
             }
@@ -268,11 +286,11 @@ tasks.register("runDevDesktop") {
     dependsOn("run")
 }
 
-gradle.taskGraph.whenReady {
-    if (gradle.taskGraph.hasTask(":composeApp:runDevDesktop")) {
-        tasks.named<org.gradle.api.tasks.JavaExec>("run").configure {
-            jvmArgs("-Dgame.launcher.dev=true")
-        }
+// Configuration-cache safe: inject DEV flag when runDevDesktop is on the CLI (not via taskGraph.whenReady).
+// Compose Desktop registers `run` lazily — configure via withType instead of tasks.named("run").
+tasks.withType<JavaExec>().configureEach {
+    if (name == "run" && isRunDevDesktopRequested()) {
+        jvmArgs("-Dgame.launcher.dev=true")
     }
 }
 
