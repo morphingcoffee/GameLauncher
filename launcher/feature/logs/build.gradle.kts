@@ -56,6 +56,7 @@ kotlin {
                 implementation(project(":core:designsystem"))
                 implementation(project(":core:logging"))
                 implementation(project(":core:model"))
+                implementation(project(":core:navigation"))
                 implementation(libs.compose.runtime)
                 implementation(libs.compose.foundation)
                 implementation(libs.compose.material3)

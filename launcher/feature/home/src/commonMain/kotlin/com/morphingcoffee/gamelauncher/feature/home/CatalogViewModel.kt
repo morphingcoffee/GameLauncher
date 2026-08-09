@@ -30,6 +30,8 @@ class CatalogViewModel(
             ),
     ) {
     private var installProbeJob: Job? = null
+    private var catalogLoadJob: Job? = null
+    private var catalogLoadEpoch = 0
 
     /** In-flight game download id — survives selection changes (unlike [CatalogState.isDownloading]). */
     private var activeDownloadGameId: String? = null
@@ -113,18 +115,17 @@ class CatalogViewModel(
         when (event) {
             CatalogEvent.Started -> {
                 updateState { copy(clockText = platformClockText()) }
-                // Home is disposed while Settings is on top; on return CatalogScreen fires Started
-                // again. Skip reload when the ViewModel still holds games — a fresh load flashes
-                // isLoading / clears install probes and remounts ThumbnailImage.
-                if (state.value.games.isEmpty()) {
-                    loadCatalog(showLoading = true)
-                }
+                // Home is disposed while a secondary destination is on top; on return CatalogScreen
+                // fires Started again. Skip reload when games are already held or a load is in
+                // flight — a fresh load flashes isLoading / clears install probes and remounts
+                // ThumbnailImage.
+                ensureCatalogLoaded()
                 sendEffect(CatalogEffect.RequestFocusRoster)
             }
 
             CatalogEvent.OpenClicked -> openWebGame()
 
-            CatalogEvent.RetryLoad -> loadCatalog()
+            CatalogEvent.RetryLoad -> loadCatalog(showLoading = true)
 
             CatalogEvent.ClockTick -> {
                 updateState { copy(clockText = platformClockText()) }
@@ -192,80 +193,107 @@ class CatalogViewModel(
         }
     }
 
+    private fun ensureCatalogLoaded() {
+        if (catalogLoadJob?.isActive == true) return
+        if (state.value.games.isNotEmpty()) return
+        loadCatalog(showLoading = true)
+    }
+
     private fun loadCatalog(showLoading: Boolean = true) {
-        viewModelScope.launch {
-            updateState {
-                copy(
-                    isLoading = if (showLoading) true else isLoading,
-                    errorMessage = null,
-                    statusLabel = if (showLoading) "LOADING" else statusLabel,
-                    appVersion = LauncherMetadata.VERSION,
-                )
-            }
-
-            try {
-                val result = launcherUpdateRepository.loadAndRefresh()
-                val evaluation = launcherUpdateRepository.evaluation.value
-                updateState { copy(updateEvaluation = evaluation) }
-
-                if (state.value.isUpdateGateActive) {
-                    updateState {
-                        copy(
-                            isLoading = false,
-                            statusLabel = "LAUNCHER · UPDATE REQUIRED",
-                        )
-                    }
-                    return@launch
+        val epoch = ++catalogLoadEpoch
+        catalogLoadJob?.cancel()
+        catalogLoadJob =
+            viewModelScope.launch {
+                updateState {
+                    copy(
+                        isLoading = if (showLoading) true else isLoading,
+                        errorMessage = null,
+                        statusLabel = if (showLoading) "LOADING" else statusLabel,
+                        appVersion = LauncherMetadata.VERSION,
+                    )
                 }
 
-                when (result) {
-                    is ManifestLoadResult.Success -> {
-                        applyLoadedGames(result.manifest.games)
-                    }
+                try {
+                    val result = launcherUpdateRepository.loadAndRefresh()
+                    ensureActive()
+                    if (epoch != catalogLoadEpoch) return@launch
 
-                    ManifestLoadResult.SkippedInDevBuild -> {
-                        gameCatalogRepository
-                            .loadCatalog()
-                            .onSuccess { games -> applyLoadedGames(games) }
-                            .onFailure { catalogError ->
-                                updateState {
-                                    copy(
-                                        isLoading = false,
-                                        errorMessage = catalogError.message ?: "Failed to load catalog",
-                                        statusLabel = "ERROR",
-                                    )
-                                }
-                            }
-                    }
+                    val evaluation = launcherUpdateRepository.evaluation.value
+                    updateState { copy(updateEvaluation = evaluation) }
 
-                    ManifestLoadResult.DecodeFailed -> {
+                    if (state.value.isUpdateGateActive) {
                         updateState {
                             copy(
                                 isLoading = false,
                                 statusLabel = "LAUNCHER · UPDATE REQUIRED",
                             )
                         }
+                        return@launch
                     }
-                }
-            } catch (error: Throwable) {
-                ensureActive()
-                gameCatalogRepository
-                    .loadCatalog()
-                    .onSuccess { games -> applyLoadedGames(games) }
-                    .onFailure { catalogError ->
-                        updateState {
-                            copy(
-                                isLoading = false,
-                                errorMessage = catalogError.message ?: error.message ?: "Failed to load catalog",
-                                statusLabel = "ERROR",
-                            )
+
+                    when (result) {
+                        is ManifestLoadResult.Success -> {
+                            if (epoch != catalogLoadEpoch) return@launch
+                            applyLoadedGames(result.manifest.games, loadEpoch = epoch)
+                        }
+
+                        ManifestLoadResult.SkippedInDevBuild -> {
+                            gameCatalogRepository
+                                .loadCatalog()
+                                .onSuccess { games ->
+                                    if (epoch != catalogLoadEpoch) return@launch
+                                    applyLoadedGames(games, loadEpoch = epoch)
+                                }.onFailure { catalogError ->
+                                    if (epoch != catalogLoadEpoch) return@launch
+                                    updateState {
+                                        copy(
+                                            isLoading = false,
+                                            errorMessage = catalogError.message ?: "Failed to load catalog",
+                                            statusLabel = "ERROR",
+                                        )
+                                    }
+                                }
+                        }
+
+                        ManifestLoadResult.DecodeFailed -> {
+                            if (epoch != catalogLoadEpoch) return@launch
+                            updateState {
+                                copy(
+                                    isLoading = false,
+                                    statusLabel = "LAUNCHER · UPDATE REQUIRED",
+                                )
+                            }
                         }
                     }
+                } catch (error: Throwable) {
+                    ensureActive()
+                    if (epoch != catalogLoadEpoch) return@launch
+                    gameCatalogRepository
+                        .loadCatalog()
+                        .onSuccess { games ->
+                            if (epoch != catalogLoadEpoch) return@launch
+                            applyLoadedGames(games, loadEpoch = epoch)
+                        }.onFailure { catalogError ->
+                            if (epoch != catalogLoadEpoch) return@launch
+                            updateState {
+                                copy(
+                                    isLoading = false,
+                                    errorMessage =
+                                        catalogError.message ?: error.message ?: "Failed to load catalog",
+                                    statusLabel = "ERROR",
+                                )
+                            }
+                        }
+                }
             }
-        }
     }
 
-    private fun applyLoadedGames(games: List<GameCatalogEntry>) {
+    private fun applyLoadedGames(
+        games: List<GameCatalogEntry>,
+        loadEpoch: Int = catalogLoadEpoch,
+    ) {
+        if (loadEpoch != catalogLoadEpoch) return
+
         val selectedGameId = state.value.selectedGameId ?: games.firstOrNull()?.id
         installProbeJob?.cancel()
 
@@ -297,8 +325,10 @@ class CatalogViewModel(
             viewModelScope.launch {
                 for (gameId in probeOrder) {
                     ensureActive()
+                    if (loadEpoch != catalogLoadEpoch) return@launch
                     val probedInstallState = gameCatalogRepository.getInstallState(gameId)
                     ensureActive()
+                    if (loadEpoch != catalogLoadEpoch) return@launch
                     publishInstallState(gameId, probedInstallState)
                 }
             }

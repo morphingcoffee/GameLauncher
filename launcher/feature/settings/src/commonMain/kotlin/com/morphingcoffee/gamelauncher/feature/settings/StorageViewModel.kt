@@ -107,17 +107,25 @@ class StorageViewModel(
             StorageEvent.ChartAnimationFinished -> completeChartAnimation()
 
             StorageEvent.ScreenHidden -> {
+                // Cancel destination-local refresh only. In-flight uninstall continues under this
+                // ViewModel and must not be aborted by navigation.
+                if (!state.value.isUninstalling) {
+                    loadEpoch++
+                    refreshJob?.cancel()
+                    refreshJob = null
+                }
                 updateState {
                     copy(
                         activeDialog = null,
                         hoveredSegmentId = null,
-                        chartAnimation = null,
-                        breakdownSegments = null,
-                        centerDisplayTotalBytes = null,
-                        centerDisplayInstallCount = null,
+                        chartAnimation = if (isUninstalling) chartAnimation else null,
+                        breakdownSegments = if (isUninstalling) breakdownSegments else null,
+                        centerDisplayTotalBytes = if (isUninstalling) centerDisplayTotalBytes else null,
+                        centerDisplayInstallCount = if (isUninstalling) centerDisplayInstallCount else null,
                         isChargingUninstall = false,
-                        pendingUninstallAll = false,
-                        pendingUninstallGameId = null,
+                        pendingUninstallAll = if (isUninstalling) pendingUninstallAll else false,
+                        pendingUninstallGameId = if (isUninstalling) pendingUninstallGameId else null,
+                        isLoading = if (isUninstalling) isLoading else false,
                     )
                 }
             }

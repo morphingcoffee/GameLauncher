@@ -1,5 +1,6 @@
 package com.morphingcoffee.gamelauncher.feature.settings
 
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,9 +10,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -33,6 +43,7 @@ import com.morphingcoffee.gamelauncher.core.designsystem.components.TerminalTogg
 import com.morphingcoffee.gamelauncher.core.designsystem.formatLauncherVersionInfoValue
 import com.morphingcoffee.gamelauncher.core.model.LauncherBackgroundTheme
 import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
+import com.morphingcoffee.gamelauncher.core.navigation.NavigationBackInterceptor
 import kotlinx.coroutines.delay
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -97,9 +108,40 @@ fun SettingsScreenContent(
     val uriHandler = LocalUriHandler.current
     val channelLatestVersion = state.channelLatestVersion
     val scrollState = rememberScrollState()
+    val focusRequester = remember { FocusRequester() }
+
+    fun handleBack(): Boolean {
+        if (state.isLauncherUpdateSheetVisible) {
+            onLauncherUpdateSheetDismissed()
+            return true
+        }
+        onBack()
+        return true
+    }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
+    DisposableEffect(state.isLauncherUpdateSheetVisible) {
+        NavigationBackInterceptor.handler = { handleBack() }
+        onDispose {
+            NavigationBackInterceptor.handler = null
+        }
+    }
 
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .focusRequester(focusRequester)
+                .focusable()
+                .onPreviewKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown || event.key != Key.Escape) {
+                        return@onPreviewKeyEvent false
+                    }
+                    handleBack()
+                },
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             AppHeader(
@@ -201,7 +243,7 @@ fun SettingsScreenContent(
 
                 TerminalButton(
                     label = "[ BACK ]",
-                    onClick = onBack,
+                    onClick = { handleBack() },
                     modifier = Modifier.padding(top = LauncherSpacing.Md),
                 )
             }

@@ -1,5 +1,6 @@
 package com.morphingcoffee.gamelauncher.feature.logs
 
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -18,6 +20,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.tooling.preview.Preview
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherSpacing
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherTheme
@@ -32,6 +41,7 @@ import com.morphingcoffee.gamelauncher.core.logging.LogEntry
 import com.morphingcoffee.gamelauncher.core.logging.LogLevel
 import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
 import com.morphingcoffee.gamelauncher.core.model.PlatformKey
+import com.morphingcoffee.gamelauncher.core.navigation.NavigationBackInterceptor
 import kotlinx.coroutines.delay
 
 @Composable
@@ -64,6 +74,21 @@ fun LogsScreenContent(
     onCopyAll: () -> Unit,
 ) {
     val listState = rememberLazyListState()
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
+    DisposableEffect(Unit) {
+        NavigationBackInterceptor.handler = {
+            onBack()
+            true
+        }
+        onDispose {
+            NavigationBackInterceptor.handler = null
+        }
+    }
 
     LaunchedEffect(entries.size) {
         if (entries.isNotEmpty()) {
@@ -72,7 +97,18 @@ fun LogsScreenContent(
     }
 
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .focusRequester(focusRequester)
+                .focusable()
+                .onPreviewKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown || event.key != Key.Escape) {
+                        return@onPreviewKeyEvent false
+                    }
+                    onBack()
+                    true
+                },
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             AppHeader(
