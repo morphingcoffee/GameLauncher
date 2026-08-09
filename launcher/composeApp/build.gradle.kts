@@ -109,7 +109,6 @@ kotlin {
     }
 }
 
-val updateGoldenProperty = providers.gradleProperty("updateGolden")
 val goldenDirFile =
     layout.projectDirectory
         .dir("screenshots/golden")
@@ -118,19 +117,17 @@ val screenshotsRootDir =
     layout.projectDirectory
         .dir("screenshots")
         .asFile
+// Configuration-cache input: presence of -PupdateGolden / -PupdateGolden=true.
+val updateGoldenEnabled = project.hasProperty("updateGolden")
 
 // KMP registers desktopTest lazily — configure via withType so props always attach.
 tasks.withType<Test>().configureEach {
     if (name != "desktopTest") return@configureEach
 
-    // Eager absolute paths under projectDir (actual/diff are siblings of golden/).
+    // Eager Strings only — passing a Provider into systemProperty(Object) can toString() the
+    // provider instead of resolving it (broke -PupdateGolden on CI).
     systemProperty("gamelauncher.golden.dir", goldenDirFile.absolutePath)
-    systemProperty(
-        "gamelauncher.updateGolden",
-        updateGoldenProperty
-            .map { "true" }
-            .orElse("false"),
-    )
+    systemProperty("gamelauncher.updateGolden", updateGoldenEnabled.toString())
 
     testLogging {
         events("passed", "skipped", "failed")

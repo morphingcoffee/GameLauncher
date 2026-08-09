@@ -70,11 +70,13 @@ jobs:
             echo "No committed golden PNGs — bootstrapping with -PupdateGolden"
           fi
           if [ "$update" = "true" ]; then
-            args+=(-PupdateGolden)
+            # Explicit =true so Gradle property presence/value is unambiguous.
+            args+=(-PupdateGolden=true)
             echo "update_golden=true" >> "$GITHUB_OUTPUT"
           else
             echo "update_golden=false" >> "$GITHUB_OUTPUT"
           fi
+          echo "Running: ./gradlew ${args[*]}"
           ./gradlew "${args[@]}"
 
       - name: Upload screenshots + test report
