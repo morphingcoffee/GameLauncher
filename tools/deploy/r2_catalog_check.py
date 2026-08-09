@@ -282,6 +282,131 @@ def compare_json_documents(
     checker.warn(scope, f"{label} differs from git copy")
 
 
+def check_catalog_game_fields(checker: CatalogChecker, game: Dict[str, Any]) -> Optional[str]:
+    """Validate catalog game entry identity/fields. Returns game_id or None."""
+    game_id = game.get("id")
+    if not game_id:
+        checker.fail("manifest", "game entry missing id")
+        return None
+
+    scope = f"game:{game_id}"
+    for field_name in ("title", "latest_version", "versions_url"):
+        if not game.get(field_name):
+            checker.fail(scope, f"catalog missing {field_name}")
+    return game_id
+
+
+def check_catalog_builds_metadata(
+    checker: CatalogChecker,
+    game_id: str,
+    catalog_builds: Dict[str, Any],
+) -> None:
+    scope = f"game:{game_id}"
+    if catalog_builds:
+        checker.ok(f"{scope} catalog builds", f"{len(catalog_builds)} platform(s)")
+        for platform, build in catalog_builds.items():
+            if isinstance(build, dict):
+                validate_build_metadata(checker, f"{scope} catalog", platform, build)
+    else:
+        checker.warn(f"{scope} catalog builds", "no inline builds in manifest")
+
+
+def check_latest_version_consistency(
+    checker: CatalogChecker,
+    game_id: str,
+    latest_version: Any,
+    catalog_builds: Dict[str, Any],
+    versions_data: Dict[str, Any],
+) -> None:
+    scope = f"game:{game_id}"
+    if not latest_version or not isinstance(versions_data.get("versions"), list):
+        return
+
+    version_numbers = {entry.get("version") for entry in versions_data["versions"]}
+    if latest_version not in version_numbers:
+        checker.fail(
+            scope,
+            f"catalog latest_version {latest_version} not found in versions.json",
+        )
+        return
+
+    checker.ok(scope, f"latest_version {latest_version} in versions.json")
+
+    latest_entry = next(
+        (entry for entry in versions_data["versions"] if entry.get("version") == latest_version),
+        None,
+    )
+    if not latest_entry or not catalog_builds:
+        return
+
+    index_builds = latest_entry.get("builds") or {}
+    for platform, catalog_build in catalog_builds.items():
+        index_build = index_builds.get(platform)
+        if index_build is None:
+            checker.warn(
+                scope,
+                f"catalog build[{platform}] not in versions.json for {latest_version}",
+            )
+        elif index_build != catalog_build:
+            checker.warn(
+                scope,
+                f"catalog build[{platform}] differs from versions.json for {latest_version}",
+            )
+        else:
+            checker.ok(
+                scope,
+                f"catalog build[{platform}] matches versions.json",
+            )
+
+
+def check_game_offline(
+    checker: CatalogChecker,
+    game: Dict[str, Any],
+    repo_root: Path,
+) -> None:
+    """Validate a catalog game against git versions.json only (no R2 / network)."""
+    game_id = check_catalog_game_fields(checker, game)
+    if not game_id:
+        return
+
+    scope = f"game:{game_id}"
+    latest_version = game.get("latest_version")
+    catalog_builds = game.get("builds") or {}
+    if not isinstance(catalog_builds, dict):
+        checker.fail(scope, "catalog builds must be an object")
+        catalog_builds = {}
+
+    check_catalog_builds_metadata(checker, game_id, catalog_builds)
+
+    git_path = git_versions_path(repo_root, game_id)
+    if not git_path.is_file():
+        checker.fail(scope, f"missing git versions index: {git_path.relative_to(repo_root)}")
+        return
+
+    try:
+        versions_data = json.loads(git_path.read_text())
+    except json.JSONDecodeError as exc:
+        checker.fail(scope, f"invalid JSON in {git_path.relative_to(repo_root)}: {exc}")
+        return
+
+    checker.ok(scope, f"loaded git {git_path.relative_to(repo_root)}")
+    check_versions_index(
+        checker,
+        game_id,
+        versions_data,
+        remote="",
+        cdn_base="",
+        check_objects=False,
+    )
+    check_latest_version_consistency(
+        checker,
+        game_id,
+        latest_version,
+        catalog_builds,
+        versions_data,
+    )
+
+
 def check_game(
     checker: CatalogChecker,
     game: Dict[str, Any],
@@ -293,34 +418,29 @@ def check_game(
     compare_git: bool,
     tmpdir: Path,
 ) -> None:
-    game_id = game.get("id")
+    game_id = check_catalog_game_fields(checker, game)
     if not game_id:
-        checker.fail("manifest", "game entry missing id")
         return
 
     scope = f"game:{game_id}"
-    for field_name in ("title", "latest_version", "versions_url"):
-        if not game.get(field_name):
-            checker.fail(scope, f"catalog missing {field_name}")
-
     latest_version = game.get("latest_version")
     catalog_builds = game.get("builds") or {}
-    if catalog_builds:
-        checker.ok(f"{scope} catalog builds", f"{len(catalog_builds)} platform(s)")
+    if not isinstance(catalog_builds, dict):
+        checker.fail(scope, "catalog builds must be an object")
+        catalog_builds = {}
+
+    check_catalog_builds_metadata(checker, game_id, catalog_builds)
+    if check_objects:
         for platform, build in catalog_builds.items():
             if isinstance(build, dict):
-                validate_build_metadata(checker, f"{scope} catalog", platform, build)
-                if check_objects:
-                    check_build_object(
-                        checker,
-                        f"{scope} catalog",
-                        platform,
-                        build,
-                        remote,
-                        cdn_base,
-                    )
-    else:
-        checker.warn(f"{scope} catalog builds", "no inline builds in manifest")
+                check_build_object(
+                    checker,
+                    f"{scope} catalog",
+                    platform,
+                    build,
+                    remote,
+                    cdn_base,
+                )
 
     check_thumbnail(checker, game_id, game.get("thumbnail_url"), remote, cdn_base)
 
@@ -345,40 +465,13 @@ def check_game(
         cdn_base,
         check_objects=check_objects,
     )
-
-    if latest_version and isinstance(versions_data.get("versions"), list):
-        version_numbers = {entry.get("version") for entry in versions_data["versions"]}
-        if latest_version not in version_numbers:
-            checker.fail(
-                scope,
-                f"catalog latest_version {latest_version} not found in versions.json",
-            )
-        else:
-            checker.ok(scope, f"latest_version {latest_version} in versions.json")
-
-        latest_entry = next(
-            (entry for entry in versions_data["versions"] if entry.get("version") == latest_version),
-            None,
-        )
-        if latest_entry and catalog_builds:
-            remote_builds = latest_entry.get("builds") or {}
-            for platform, catalog_build in catalog_builds.items():
-                remote_build = remote_builds.get(platform)
-                if remote_build is None:
-                    checker.warn(
-                        scope,
-                        f"catalog build[{platform}] not in versions.json for {latest_version}",
-                    )
-                elif remote_build != catalog_build:
-                    checker.warn(
-                        scope,
-                        f"catalog build[{platform}] differs from versions.json for {latest_version}",
-                    )
-                else:
-                    checker.ok(
-                        scope,
-                        f"catalog build[{platform}] matches versions.json",
-                    )
+    check_latest_version_consistency(
+        checker,
+        game_id,
+        latest_version,
+        catalog_builds,
+        versions_data,
+    )
 
     if compare_git:
         git_path = git_versions_path(repo_root, game_id)
@@ -462,6 +555,14 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         description="Validate R2 catalog integrity (manifest, versions.json, build zips)",
     )
     parser.add_argument(
+        "--offline",
+        action="store_true",
+        help=(
+            "Validate git manifests/manifest.json and each referenced "
+            "manifests/games/{id}/versions.json with no R2, Keychain, or network"
+        ),
+    )
+    parser.add_argument(
         "--manifest",
         type=Path,
         help="Validate a local manifest file instead of live R2 manifest.json",
@@ -489,6 +590,44 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         help="Compare live R2 manifest.json with git manifests/manifest.json",
     )
     return parser.parse_args(argv)
+
+
+def run_offline_check(
+    checker: CatalogChecker,
+    repo_root: Path,
+    *,
+    manifest_path: Optional[Path],
+    game_filter: Optional[Set[str]],
+) -> int:
+    """Validate committed catalog JSON only — never opens R2Session or touches network."""
+    path = manifest_path or catalog_manifest_path(repo_root)
+    if not path.is_file():
+        checker.fail("manifest", f"not found: {path}")
+        print_report(checker)
+        return 1
+
+    try:
+        manifest = json.loads(path.read_text())
+    except json.JSONDecodeError as exc:
+        checker.fail("manifest", f"invalid JSON in {path}: {exc}")
+        print_report(checker)
+        return 1
+
+    checker.ok("manifest", f"loaded offline {path}")
+
+    games = check_manifest_structure(checker, manifest)
+    games = filter_games(games, game_filter)
+
+    if game_filter:
+        missing = game_filter - {game.get("id") for game in games}
+        for game_id in sorted(missing):
+            checker.fail(f"game:{game_id}", "not listed in manifest")
+
+    for game in games:
+        check_game_offline(checker, game, repo_root)
+
+    print_report(checker)
+    return 0 if checker.passed else 1
 
 
 def _use_color() -> bool:
@@ -531,9 +670,27 @@ def print_report(checker: CatalogChecker) -> None:
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parse_args(argv)
     repo_root = find_repo_root()
-    load_env_file(repo_root / ".env")
     checker = CatalogChecker()
     game_filter = set(args.games) if args.games else None
+
+    if args.offline:
+        if args.compare_git or args.compare_git_manifest:
+            checker.fail(
+                "config",
+                "--offline cannot be combined with --compare-git / --compare-git-manifest",
+            )
+            print_report(checker)
+            return 1
+        if args.skip_objects:
+            checker.warn("config", "--skip-objects is implied by --offline")
+        return run_offline_check(
+            checker,
+            repo_root,
+            manifest_path=args.manifest,
+            game_filter=game_filter,
+        )
+
+    load_env_file(repo_root / ".env")
 
     import os
 

@@ -178,11 +178,15 @@ python3 tools/deploy/r2_publish_versions.py krabs_v1
 ### Catalog integrity audit
 
 ```bash
+# Live R2 (credentials required)
 python3 tools/deploy/r2_catalog_check.py
 python3 tools/deploy/r2_catalog_check.py --game krabs_v1 --compare-git
+
+# Offline / CI — git manifests only (no R2, Keychain, or network)
+python3 tools/deploy/r2_catalog_check.py --offline
 ```
 
-See [`.cursor/skills/r2-catalog-integrity/SKILL.md`](../.cursor/skills/r2-catalog-integrity/SKILL.md).
+See [`.cursor/skills/r2-catalog-integrity/SKILL.md`](../.cursor/skills/r2-catalog-integrity/SKILL.md). Repo-root `./tools/dev/verify.sh` includes the offline check.
 
 ## GitHub Actions register (CI / cross-repo)
 

@@ -31,10 +31,35 @@ GameLauncher/
 
 | Requirement | Notes |
 |-------------|--------|
-| **JDK 17+** | Required for Compose Desktop and native packaging. Verify with `java -version`. |
+| **JDK 17** | Required for Compose Desktop, CI, and native packaging. Verify with `java -version` (17+ is fine locally; CI uses Temurin 17). |
+| **Python 3** | Stdlib only — used by deploy tooling unit tests and offline catalog validation. |
 | **Git** | To clone the repository. |
 
-No API keys, CDN credentials, or GitHub tokens are needed to run the app locally at this stage.
+No API keys, CDN credentials, or GitHub tokens are needed to run the app or the local verify script.
+
+### Verify (same checks as CI)
+
+From the **repository root**, run the canonical verification script (Gradle build + ktlint, Python unit tests, offline catalog validation):
+
+```bash
+./tools/dev/verify.sh
+```
+
+Or run the same steps manually:
+
+```bash
+# Gradle root is launcher/ (not the repo root)
+cd launcher
+./gradlew build ktlintCheck --warning-mode all
+
+cd ../tools/deploy
+python3 -m unittest discover -s tests -v
+
+cd ../..
+python3 tools/deploy/r2_catalog_check.py --offline
+```
+
+GitHub Actions runs these checks on every pull request and every push to `main` via [`.github/workflows/ci.yml`](.github/workflows/ci.yml) (check name: **CI**).
 
 ### Run from the terminal
 

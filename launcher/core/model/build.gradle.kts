@@ -1,5 +1,6 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
+import org.jlleitschuh.gradle.ktlint.tasks.BaseKtLintCheckTask
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -41,6 +42,8 @@ val generateLauncherVersion by tasks.registering {
         (findProperty("buildNumber") as String?)
             ?.trim()
             .orEmpty()
+    inputs.property("marketingVersion", marketingVersion)
+    inputs.property("buildNumber", buildNumber)
     outputs.dir(outputDir)
     doLast {
         val dir = outputDir.get().asFile
@@ -58,7 +61,12 @@ val generateLauncherVersion by tasks.registering {
     }
 }
 
-tasks.withType<KotlinCompile>().configureEach {
+// Generated commonMain sources must exist before any Kotlin compile or ktlint worker
+// that reads build/generated/kotlin/commonMain (avoids race after clean).
+tasks.withType<KotlinCompilationTask<*>>().configureEach {
+    dependsOn(generateLauncherVersion)
+}
+tasks.withType<BaseKtLintCheckTask>().configureEach {
     dependsOn(generateLauncherVersion)
 }
 
