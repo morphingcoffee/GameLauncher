@@ -1,20 +1,22 @@
 [versions]
-kotlin = "2.3.20"
-compose-multiplatform = "1.11.0"
-compose-material3 = "1.11.0-alpha07"
-koin = "4.2.1"
-koin-plugin = "1.0.0-RC1"
+kotlin = "2.4.10"
+compose-multiplatform = "1.12.0-beta03"
+compose-material3 = "1.12.0-alpha03"
+koin = "4.2.2"
+koin-plugin = "1.0.2"
 coroutines = "1.10.2"
 serialization = "1.10.0"
-lifecycle = "2.11.0-beta01"
-navigation3 = "1.1.1"
+lifecycle = "2.11.0"
+navigation3 = "1.2.0-alpha02"
 savedstate = "1.4.0"
-agp = "8.13.2"
-android-compileSdk = "36"
+agp = "9.1.0"
+# compileSdk 37 is required by Compose/AndroidX artifacts pulled by CMP 1.12.0-beta03.
+# AGP 9.1.0's documented ceiling is 36 — see android.suppressUnsupportedCompileSdk in gradle.properties.
+android-compileSdk = "37"
 android-minSdk = "26"
 android-targetSdk = "36"
 ktlint-plugin = "14.2.0"
-ktor = "3.1.1"
+ktor = "3.5.2"
 coil = "3.5.0"
 sentry = "8.16.0"
 
@@ -54,7 +56,7 @@ coil-network-ktor3 = { module = "io.coil-kt.coil3:coil-network-ktor3", version.r
 sentry = { module = "io.sentry:sentry", version.ref = "sentry" }
 
 [plugins]
-androidLibrary = { id = "com.android.library", version.ref = "agp" }
+androidKmpLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "compose-multiplatform" }

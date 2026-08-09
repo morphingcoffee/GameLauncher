@@ -5,16 +5,29 @@ import org.jlleitschuh.gradle.ktlint.tasks.BaseKtLintCheckTask
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.kotlinSerialization)
-    alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.androidKmpLibrary)
 }
 
 kotlin {
-    androidTarget {
+    android {
+        namespace = "com.morphingcoffee.gamelauncher.core.model"
+        compileSdk =
+            libs.versions.android.compileSdk
+                .get()
+                .toInt()
+        minSdk =
+            libs.versions.android.minSdk
+                .get()
+                .toInt()
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
         }
     }
-    jvm("desktop")
+    jvm("desktop") {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
+    }
 
     sourceSets {
         val commonMain by getting {
@@ -68,22 +81,4 @@ tasks.withType<KotlinCompilationTask<*>>().configureEach {
 }
 tasks.withType<BaseKtLintCheckTask>().configureEach {
     dependsOn(generateLauncherVersion)
-}
-
-android {
-    namespace = "com.morphingcoffee.gamelauncher.core.model"
-    compileSdk =
-        libs.versions.android.compileSdk
-            .get()
-            .toInt()
-    defaultConfig {
-        minSdk =
-            libs.versions.android.minSdk
-                .get()
-                .toInt()
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
 }

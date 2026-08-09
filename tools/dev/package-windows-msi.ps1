@@ -94,8 +94,9 @@ if (-not (Test-Path $jpackage)) {
     Write-Error "jpackage not found at $jpackage"
 }
 
-# JDK 17 jpackage requires WiX 3.x candle.exe/light.exe. GitHub runners ship WiX 3.14+ on
-# PATH, which can break jpackage's WiX sources. Prefer WiX 3.11 from Gradle createDistributable.
+# JDK 25 jpackage still shells out to WiX candle.exe/light.exe for MSI. Prefer a WiX 3.11
+# tree produced by Gradle createDistributable when present (historically more reliable than
+# newer runner WiX builds with jpackage-generated sources); otherwise use candle.exe on PATH.
 $wixCandidates = @(
     (Join-Path $LauncherRoot "build\wix311")
     (Join-Path $LauncherRoot "composeApp\build\wix311")
