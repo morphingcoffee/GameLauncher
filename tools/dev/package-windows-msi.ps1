@@ -94,22 +94,25 @@ if (-not (Test-Path $jpackage)) {
     Write-Error "jpackage not found at $jpackage"
 }
 
-# JDK 25 jpackage still shells out to WiX candle.exe/light.exe for MSI. Prefer a WiX 3.11
-# tree produced by Gradle createDistributable when present (historically more reliable than
-# newer runner WiX builds with jpackage-generated sources); otherwise use candle.exe on PATH.
-$wixCandidates = @(
-    (Join-Path $LauncherRoot "build\wix311")
-    (Join-Path $LauncherRoot "composeApp\build\wix311")
-)
-foreach ($wixDir in $wixCandidates) {
-    $candle = Join-Path $wixDir "candle.exe"
-    if (Test-Path $candle) {
-        $env:PATH = "$wixDir;$env:PATH"
-        Write-Host "Using WiX from $wixDir"
-        break
-    }
-}
+# JDK 25 jpackage shells out to WiX 3.x candle.exe/light.exe (or WiX 4/5 wix.exe).
+# Prefer candle.exe already on PATH (GitHub windows-latest ships WiX 3.14). Fall back to
+# the WiX 3.11 tree Gradle createDistributable may download — do not force 3.11 ahead of PATH.
 $candleCmd = Get-Command candle.exe -ErrorAction SilentlyContinue
+if (-not $candleCmd) {
+    $wixCandidates = @(
+        (Join-Path $LauncherRoot "build\wix311")
+        (Join-Path $LauncherRoot "composeApp\build\wix311")
+    )
+    foreach ($wixDir in $wixCandidates) {
+        $candle = Join-Path $wixDir "candle.exe"
+        if (Test-Path $candle) {
+            $env:PATH = "$wixDir;$env:PATH"
+            Write-Host "Using WiX from $wixDir"
+            break
+        }
+    }
+    $candleCmd = Get-Command candle.exe -ErrorAction SilentlyContinue
+}
 if ($candleCmd) {
     Write-Host "candle.exe: $($candleCmd.Source)"
 } else {
@@ -120,7 +123,9 @@ Write-Host "Packaging MSI product version $msiVersion ($packageName) with brande
 Write-Host "Installer banner: $bannerPath"
 Write-Host "Installer dialog: $dialogPath"
 
+# --verbose surfaces candle/light diagnostics (e.g. LGHT****) on failure.
 & $jpackage `
+    --verbose `
     --type msi `
     --app-image $appImage `
     --resource-dir $stagingDir `
