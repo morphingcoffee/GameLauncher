@@ -253,7 +253,7 @@ private fun SettingsScreenPreview() {
                     releasesUrl = "https://github.com/morphingcoffee/GameLauncher/releases",
                     sendCrashReports = true,
                     shareExtendedDiagnostics = false,
-                    backgroundTheme = LauncherBackgroundTheme.SPECTRAL_TOPOLOGY,
+                    backgroundTheme = LauncherBackgroundTheme.DEFAULT,
                 ),
             onBack = {},
         )

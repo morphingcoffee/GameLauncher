@@ -80,7 +80,7 @@ class FileLauncherSettingsRepositoryTest {
         runTest {
             val dispatcher = StandardTestDispatcher(testScheduler)
             withTempSettingsFile { file ->
-                file.writeText("""{"background_theme":"static_terminal"}""")
+                file.writeText("""{"background_theme":"spectral_topology"}""")
                 val repository =
                     FileLauncherSettingsRepository(
                         file = file,
@@ -88,8 +88,9 @@ class FileLauncherSettingsRepositoryTest {
                         scope = TestScope(dispatcher),
                     )
                 assertEquals(LauncherBackgroundTheme.DEFAULT, repository.backgroundTheme.value)
-                dispatcher.scheduler.advanceUntilIdle()
                 assertEquals(LauncherBackgroundTheme.STATIC_TERMINAL, repository.backgroundTheme.value)
+                dispatcher.scheduler.advanceUntilIdle()
+                assertEquals(LauncherBackgroundTheme.SPECTRAL_TOPOLOGY, repository.backgroundTheme.value)
             }
         }
 

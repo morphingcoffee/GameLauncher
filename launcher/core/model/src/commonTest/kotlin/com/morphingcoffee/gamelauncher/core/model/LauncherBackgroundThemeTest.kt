@@ -5,9 +5,10 @@ import kotlin.test.assertEquals
 
 class LauncherBackgroundThemeTest {
     @Test
-    fun defaultIsSpectralTopology() {
-        assertEquals(LauncherBackgroundTheme.SPECTRAL_TOPOLOGY, LauncherBackgroundTheme.DEFAULT)
-        assertEquals("spectral_topology", LauncherBackgroundTheme.DEFAULT.id)
+    fun defaultIsStaticTerminalAndFirstInList() {
+        assertEquals(LauncherBackgroundTheme.STATIC_TERMINAL, LauncherBackgroundTheme.DEFAULT)
+        assertEquals("static_terminal", LauncherBackgroundTheme.DEFAULT.id)
+        assertEquals(LauncherBackgroundTheme.STATIC_TERMINAL, LauncherBackgroundTheme.entries.first())
     }
 
     @Test
@@ -22,6 +23,6 @@ class LauncherBackgroundThemeTest {
         assertEquals(LauncherBackgroundTheme.DEFAULT, LauncherBackgroundTheme.fromId(null))
         assertEquals(LauncherBackgroundTheme.DEFAULT, LauncherBackgroundTheme.fromId(""))
         assertEquals(LauncherBackgroundTheme.DEFAULT, LauncherBackgroundTheme.fromId("Spectral Topology"))
-        assertEquals(LauncherBackgroundTheme.DEFAULT, LauncherBackgroundTheme.fromId("SPECTRAL_TOPOLOGY"))
+        assertEquals(LauncherBackgroundTheme.DEFAULT, LauncherBackgroundTheme.fromId("STATIC_TERMINAL"))
     }
 }

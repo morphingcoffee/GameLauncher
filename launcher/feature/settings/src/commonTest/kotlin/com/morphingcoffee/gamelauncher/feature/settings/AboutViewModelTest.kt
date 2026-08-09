@@ -175,12 +175,13 @@ class AboutViewModelTest {
                 )
             viewModel.onEvent(AboutEvent.Started)
             assertEquals(LauncherBackgroundTheme.DEFAULT, viewModel.state.value.backgroundTheme)
+            assertEquals(LauncherBackgroundTheme.STATIC_TERMINAL, viewModel.state.value.backgroundTheme)
 
-            viewModel.onEvent(AboutEvent.BackgroundThemeSelected(LauncherBackgroundTheme.STATIC_TERMINAL))
+            viewModel.onEvent(AboutEvent.BackgroundThemeSelected(LauncherBackgroundTheme.SPECTRAL_TOPOLOGY))
             delay(20)
 
-            assertEquals(LauncherBackgroundTheme.STATIC_TERMINAL, settings.backgroundTheme.value)
-            assertEquals(LauncherBackgroundTheme.STATIC_TERMINAL, viewModel.state.value.backgroundTheme)
+            assertEquals(LauncherBackgroundTheme.SPECTRAL_TOPOLOGY, settings.backgroundTheme.value)
+            assertEquals(LauncherBackgroundTheme.SPECTRAL_TOPOLOGY, viewModel.state.value.backgroundTheme)
         }
 
     private fun createViewModel(
