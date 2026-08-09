@@ -4,9 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: Branch, tag, or SHA to build
+        description: >-
+          Branch, tag, or SHA to build. Leave empty to use the branch/tag you
+          ran this workflow from (github.ref). Defaulting this to main caused
+          feature-branch dispatches to silently package main.
         required: false
-        default: main
+        default: ""
 
       build_windows_msi_prod:
         description: "Build Windows MSI (prod)"
