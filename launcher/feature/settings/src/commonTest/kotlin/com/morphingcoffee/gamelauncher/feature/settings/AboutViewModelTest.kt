@@ -156,7 +156,10 @@ class AboutViewModelTest {
             val viewModel = createViewModel(createRepository(manifestWithLauncherUpdateJson()))
             viewModel.onEvent(AboutEvent.Started)
             viewModel.onEvent(AboutEvent.TestSentryClicked)
-            assertTrue(viewModel.state.value.sentryTestStatus?.contains("Test event sent") == true)
+            assertTrue(
+                viewModel.state.value.sentryTestStatus
+                    ?.contains("Test event sent") == true,
+            )
         }
 
     private fun createViewModel(

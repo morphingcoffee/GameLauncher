@@ -12,11 +12,11 @@ import com.morphingcoffee.gamelauncher.core.telemetry.CrashReporting
 import com.morphingcoffee.gamelauncher.core.telemetry.TelemetryPreferences
 import com.morphingcoffee.gamelauncher.core.telemetry.TelemetryPreferencesStore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.NonCancellable
 
 class AboutViewModel(
     private val launcherUpdateRepository: LauncherUpdateRepository,
