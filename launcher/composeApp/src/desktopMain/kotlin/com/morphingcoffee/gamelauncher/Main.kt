@@ -1,5 +1,6 @@
 package com.morphingcoffee.gamelauncher
 
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
@@ -21,10 +22,15 @@ fun main() {
     }
 
     application {
+        // Runtime title-bar / taskbar icon (packaging still uses icons/icon.ico|.icns).
+        // Must live on the desktop classpath (desktopMain/resources); native iconFile alone
+        // does not replace the JVM window chrome icon on Windows.
+        val windowIcon = painterResource("window-icon.png")
         Window(
             state = rememberWindowState(width = 900.dp, height = 620.dp),
             onCloseRequest = ::exitApplication,
             title = if (isDev) "MC.GAME.LAUNCHER [DEV]" else "MC.GAME.LAUNCHER",
+            icon = windowIcon,
         ) {
             DesktopGlobalShortcuts()
             App()
