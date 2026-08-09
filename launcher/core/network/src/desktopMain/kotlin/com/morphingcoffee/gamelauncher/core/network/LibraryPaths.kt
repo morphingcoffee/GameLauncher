@@ -3,6 +3,10 @@ package com.morphingcoffee.gamelauncher.core.network
 import java.nio.file.Paths
 
 object LibraryPaths {
+    fun appSupportRoot(): String = rootDirectory()
+
+    fun preferencesFile(): String = path(rootDirectory(), "preferences.json")
+
     private fun rootDirectory(): String {
         val os =
             System

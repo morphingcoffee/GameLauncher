@@ -3,6 +3,7 @@ package com.morphingcoffee.gamelauncher.core.network
 import com.morphingcoffee.gamelauncher.core.model.GameBuild
 import com.morphingcoffee.gamelauncher.core.model.GameCatalogEntry
 import com.morphingcoffee.gamelauncher.core.model.GameVersionEntry
+import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -50,7 +51,17 @@ class GameCatalogRepository(
             gameInstaller.getOnDiskSizeBytes(gameId)
         }
 
-    override suspend fun launchGame(gameId: String): Result<Unit> = gameLauncher.launch(gameId)
+    override suspend fun launchGame(
+        gameId: String,
+        displayTitle: String,
+    ): Result<Unit> =
+        gameLauncher.launch(
+            GameLaunchIdentity(
+                gameId = gameId,
+                displayTitle = displayTitle,
+                platformKey = PlatformKey.current(),
+            ),
+        )
 
     override suspend fun openWebGame(url: String): Result<Unit> = gameLauncher.openUrl(url)
 

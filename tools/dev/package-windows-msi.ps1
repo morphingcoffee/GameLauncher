@@ -15,12 +15,17 @@ Set-Location $LauncherRoot
 if (-not $BuildNumber) {
     Write-Error "BUILD_NUMBER is required (workflow run number or -BuildNumber)."
 }
+if ($BuildNumber -notmatch '^\d+$') {
+    Write-Error "BUILD_NUMBER must be a non-negative integer (jpackage MSI/DMG versions), got: '$BuildNumber'. If you passed -Dev via an array splat (@('-Dev')), PowerShell binds it positionally to BuildNumber — call the script with -Dev as a named switch instead."
+}
 
+# Sentry DSN is read by Gradle from SENTRY_DSN env (do not pass on the CLI — DSN contains '@').
 $devProperty = @()
 if ($Dev) {
     $devProperty = @("-PgameLauncherDev=true")
 }
 
+Write-Host "Packaging MSI (BuildNumber=$BuildNumber, Dev=$Dev)"
 $gradleArgs = @(":composeApp:createDistributable", "--no-daemon", "-PbuildNumber=$BuildNumber") + $devProperty
 & .\gradlew.bat @gradleArgs
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

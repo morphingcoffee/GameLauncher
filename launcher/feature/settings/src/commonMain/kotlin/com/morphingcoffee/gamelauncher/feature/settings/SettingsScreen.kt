@@ -23,9 +23,11 @@ import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherUpda
 import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherUpdateSheet
 import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherUpdateSheetState
 import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherUpdateSignal
+import com.morphingcoffee.gamelauncher.core.designsystem.components.MonoLabel
 import com.morphingcoffee.gamelauncher.core.designsystem.components.StatusBar
 import com.morphingcoffee.gamelauncher.core.designsystem.components.TerminalButton
 import com.morphingcoffee.gamelauncher.core.designsystem.components.TerminalLinkRow
+import com.morphingcoffee.gamelauncher.core.designsystem.components.TerminalToggleRow
 import com.morphingcoffee.gamelauncher.core.designsystem.formatLauncherVersionInfoValue
 import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
 import kotlinx.coroutines.delay
@@ -66,6 +68,9 @@ fun SettingsScreen(
         onUpdateClicked = { viewModel.onEvent(AboutEvent.UpdateClicked) },
         onUpdateChargeComplete = { viewModel.onEvent(AboutEvent.UpdateChargeComplete) },
         onReleaseNotesClicked = { viewModel.onEvent(AboutEvent.ReleaseNotesClicked) },
+        onSendCrashReportsToggled = { viewModel.onEvent(AboutEvent.SendCrashReportsToggled) },
+        onShareExtendedDiagnosticsToggled = { viewModel.onEvent(AboutEvent.ShareExtendedDiagnosticsToggled) },
+        onTestSentryClicked = { viewModel.onEvent(AboutEvent.TestSentryClicked) },
     )
 }
 
@@ -78,6 +83,9 @@ fun SettingsScreenContent(
     onUpdateClicked: () -> Unit = {},
     onUpdateChargeComplete: () -> Unit = {},
     onReleaseNotesClicked: () -> Unit = {},
+    onSendCrashReportsToggled: () -> Unit = {},
+    onShareExtendedDiagnosticsToggled: () -> Unit = {},
+    onTestSentryClicked: () -> Unit = {},
 ) {
     val uriHandler = LocalUriHandler.current
     val channelLatestVersion = state.channelLatestVersion
@@ -120,6 +128,32 @@ fun SettingsScreenContent(
                     label = "VERSION",
                     value = formatLauncherVersionInfoValue(state.appVersion),
                 )
+
+                TerminalToggleRow(
+                    label = "CRASH RPT",
+                    checked = state.sendCrashReports,
+                    description = "Crashes & launch failures. No identity.",
+                    onToggle = onSendCrashReportsToggled,
+                )
+
+                TerminalToggleRow(
+                    label = "EXT DIAG",
+                    checked = state.shareExtendedDiagnostics,
+                    enabled = state.extendedDiagnosticsEnabled,
+                    description = "Redacted output + recent logs on failure.",
+                    onToggle = onShareExtendedDiagnosticsToggled,
+                )
+
+                if (state.showSentryTestButton) {
+                    TerminalButton(
+                        label = "[ TEST SENTRY ]",
+                        onClick = onTestSentryClicked,
+                        enabled = state.sendCrashReports,
+                    )
+                    state.sentryTestStatus?.let { status ->
+                        MonoLabel(text = status, muted = true)
+                    }
+                }
 
                 state.links.forEach { link ->
                     TerminalLinkRow(
@@ -193,6 +227,8 @@ private fun SettingsScreenPreview() {
                     platformLabel = "macos-arm64",
                     clockText = "12:34:56",
                     releasesUrl = "https://github.com/morphingcoffee/GameLauncher/releases",
+                    sendCrashReports = true,
+                    shareExtendedDiagnostics = false,
                 ),
             onBack = {},
         )

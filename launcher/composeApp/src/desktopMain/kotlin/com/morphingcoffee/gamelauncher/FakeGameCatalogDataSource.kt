@@ -136,7 +136,10 @@ class FakeGameCatalogDataSource(
             }
         }
 
-    override suspend fun launchGame(gameId: String): Result<Unit> {
+    override suspend fun launchGame(
+        gameId: String,
+        displayTitle: String,
+    ): Result<Unit> {
         val version =
             installedGames[gameId]
                 ?: return Result.failure(IllegalStateException("Game is not installed: $gameId"))

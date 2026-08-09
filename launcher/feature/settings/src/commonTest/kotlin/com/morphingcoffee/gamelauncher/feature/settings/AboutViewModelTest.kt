@@ -7,6 +7,9 @@ import com.morphingcoffee.gamelauncher.core.network.DownloadProgress
 import com.morphingcoffee.gamelauncher.core.network.LauncherUpdateInstaller
 import com.morphingcoffee.gamelauncher.core.network.LauncherUpdateRepository
 import com.morphingcoffee.gamelauncher.core.network.ManifestRepository
+import com.morphingcoffee.gamelauncher.core.telemetry.CrashReporting
+import com.morphingcoffee.gamelauncher.core.telemetry.InMemoryTelemetryPreferencesStore
+import com.morphingcoffee.gamelauncher.core.telemetry.TelemetryPreferences
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -28,11 +31,13 @@ class AboutViewModelTest {
     @BeforeTest
     fun clearDevProperty() {
         System.clearProperty("game.launcher.dev")
+        CrashReporting.resetForTests()
     }
 
     @AfterTest
     fun tearDown() {
         System.clearProperty("game.launcher.dev")
+        CrashReporting.resetForTests()
     }
 
     @Test
@@ -77,7 +82,7 @@ class AboutViewModelTest {
             val repository = createRepository(manifestWithLauncherUpdateJson())
             repository.loadAndRefresh()
 
-            val viewModel = AboutViewModel(repository)
+            val viewModel = createViewModel(repository)
             viewModel.onEvent(AboutEvent.Started)
             delay(50)
 
@@ -92,6 +97,75 @@ class AboutViewModelTest {
             assertTrue(viewModel.state.value.isLauncherUpdateSheetVisible)
             assertFalse(viewModel.state.value.isUpdateCharging)
         }
+
+    @Test
+    fun telemetryDefaults_crashReportsOnExtendedOff() =
+        runTest {
+            val viewModel = createViewModel(createRepository(manifestWithLauncherUpdateJson()))
+            viewModel.onEvent(AboutEvent.Started)
+            assertTrue(viewModel.state.value.sendCrashReports)
+            assertFalse(viewModel.state.value.shareExtendedDiagnostics)
+        }
+
+    @Test
+    fun togglingCrashReportsOff_disablesExtendedDiagnostics() =
+        runTest {
+            val store =
+                InMemoryTelemetryPreferencesStore(
+                    TelemetryPreferences(sendCrashReports = true, shareExtendedDiagnostics = true),
+                )
+            val viewModel = createViewModel(createRepository(manifestWithLauncherUpdateJson()), store)
+            viewModel.onEvent(AboutEvent.Started)
+            assertTrue(viewModel.state.value.shareExtendedDiagnostics)
+
+            viewModel.onEvent(AboutEvent.SendCrashReportsToggled)
+
+            assertFalse(viewModel.state.value.sendCrashReports)
+            assertFalse(viewModel.state.value.shareExtendedDiagnostics)
+            assertFalse(viewModel.state.value.extendedDiagnosticsEnabled)
+        }
+
+    @Test
+    fun extendedDiagnosticsToggle_ignoredWhenCrashReportsOff() =
+        runTest {
+            val store =
+                InMemoryTelemetryPreferencesStore(
+                    TelemetryPreferences(sendCrashReports = false, shareExtendedDiagnostics = false),
+                )
+            val viewModel = createViewModel(createRepository(manifestWithLauncherUpdateJson()), store)
+            viewModel.onEvent(AboutEvent.Started)
+
+            viewModel.onEvent(AboutEvent.ShareExtendedDiagnosticsToggled)
+
+            assertFalse(viewModel.state.value.shareExtendedDiagnostics)
+        }
+
+    @Test
+    fun sentryTestButton_visibleOnlyOnDevBuild() {
+        System.clearProperty("game.launcher.dev")
+        assertFalse(AboutState(isDevBuild = false).showSentryTestButton)
+
+        System.setProperty("game.launcher.dev", "true")
+        assertTrue(AboutState(isDevBuild = true).showSentryTestButton)
+    }
+
+    @Test
+    fun testSentryClicked_onDevBuild_updatesStatus() =
+        runTest {
+            System.setProperty("game.launcher.dev", "true")
+            val viewModel = createViewModel(createRepository(manifestWithLauncherUpdateJson()))
+            viewModel.onEvent(AboutEvent.Started)
+            viewModel.onEvent(AboutEvent.TestSentryClicked)
+            assertTrue(
+                viewModel.state.value.sentryTestStatus
+                    ?.contains("Test event sent") == true,
+            )
+        }
+
+    private fun createViewModel(
+        repository: LauncherUpdateRepository,
+        store: InMemoryTelemetryPreferencesStore = InMemoryTelemetryPreferencesStore(),
+    ): AboutViewModel = AboutViewModel(repository, store)
 
     private fun createRepository(manifestJson: String): LauncherUpdateRepository {
         val manifestClient =

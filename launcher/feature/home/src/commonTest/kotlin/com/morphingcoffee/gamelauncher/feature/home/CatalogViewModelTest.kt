@@ -800,7 +800,10 @@ class CatalogViewModelTest {
 
         override suspend fun getOnDiskSizeBytes(gameId: String): Long? = null
 
-        override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
+        override suspend fun launchGame(
+            gameId: String,
+            displayTitle: String,
+        ): Result<Unit> = Result.success(Unit)
 
         override suspend fun openWebGame(url: String): Result<Unit> {
             openedUrl = url
@@ -851,7 +854,10 @@ class CatalogViewModelTest {
 
         override suspend fun getOnDiskSizeBytes(gameId: String): Long? = null
 
-        override suspend fun launchGame(gameId: String): Result<Unit> {
+        override suspend fun launchGame(
+            gameId: String,
+            displayTitle: String,
+        ): Result<Unit> {
             delay(launchDelayMs)
             return Result.success(Unit)
         }
@@ -910,7 +916,10 @@ class CatalogViewModelTest {
 
         override suspend fun getOnDiskSizeBytes(gameId: String): Long? = null
 
-        override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
+        override suspend fun launchGame(
+            gameId: String,
+            displayTitle: String,
+        ): Result<Unit> = Result.success(Unit)
 
         override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
 
@@ -963,7 +972,10 @@ class CatalogViewModelTest {
 
         override suspend fun getOnDiskSizeBytes(gameId: String): Long? = null
 
-        override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
+        override suspend fun launchGame(
+            gameId: String,
+            displayTitle: String,
+        ): Result<Unit> = Result.success(Unit)
 
         override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
 
@@ -1017,7 +1029,10 @@ class CatalogViewModelTest {
 
         override suspend fun getOnDiskSizeBytes(gameId: String): Long? = null
 
-        override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
+        override suspend fun launchGame(
+            gameId: String,
+            displayTitle: String,
+        ): Result<Unit> = Result.success(Unit)
 
         override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
 
@@ -1070,7 +1085,10 @@ class CatalogViewModelTest {
 
         override suspend fun getOnDiskSizeBytes(gameId: String): Long? = 2048L
 
-        override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
+        override suspend fun launchGame(
+            gameId: String,
+            displayTitle: String,
+        ): Result<Unit> = Result.success(Unit)
 
         override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
 
@@ -1135,7 +1153,10 @@ class CatalogViewModelTest {
 
         override suspend fun getOnDiskSizeBytes(gameId: String): Long? = null
 
-        override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
+        override suspend fun launchGame(
+            gameId: String,
+            displayTitle: String,
+        ): Result<Unit> = Result.success(Unit)
 
         override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
 
@@ -1171,7 +1192,10 @@ class CatalogViewModelTest {
 
         override suspend fun getOnDiskSizeBytes(gameId: String): Long? = null
 
-        override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
+        override suspend fun launchGame(
+            gameId: String,
+            displayTitle: String,
+        ): Result<Unit> = Result.success(Unit)
 
         override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
 

@@ -28,7 +28,9 @@ kotlin {
             dependencies {
                 implementation(project(":core:designsystem"))
                 implementation(project(":core:logging"))
+                implementation(project(":core:telemetry"))
                 implementation(libs.ktor.client.cio)
+                implementation(libs.sentry)
                 // Generic :desktop lacks Skiko natives; use the host OS/arch artifact (was compose.desktop.currentOs).
                 implementation(
                     composeDesktopHostDependency(
@@ -48,6 +50,7 @@ kotlin {
                 implementation(project(":core:model"))
                 implementation(project(":core:navigation"))
                 implementation(project(":core:network"))
+                implementation(project(":core:telemetry"))
                 implementation(project(":feature:home"))
                 implementation(project(":feature:logs"))
                 implementation(project(":feature:settings"))
@@ -144,16 +147,34 @@ private fun composeDesktopHostDependency(composeVersion: String): String {
 }
 
 /** Optional `-PbuildNumber=…` from CI (`github.run_number`) — shared across macOS and Windows packaging. */
-private fun ciBuildNumberProperty(): String? =
-    (findProperty("buildNumber") as String?)
-        ?.trim()
-        ?.takeIf { it.isNotEmpty() }
+private fun ciBuildNumberProperty(): String? {
+    val raw =
+        (findProperty("buildNumber") as String?)
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+            ?: return null
+    require(raw.all { it.isDigit() }) {
+        "buildNumber must be a non-negative integer for jpackage MSI/DMG versions, got: '$raw'"
+    }
+    return raw
+}
 
 /** `-PgameLauncherDev=true` — fake catalog, `[DEV]` window title, separate installer identity. */
 private fun isGameLauncherDevBuild(): Boolean =
     (findProperty("gameLauncherDev") as String?)
         ?.trim()
         .equals("true", ignoreCase = true) == true
+
+/**
+ * Optional public Sentry DSN for packaged builds.
+ * Prefer `SENTRY_DSN` env (avoids shell/`@` quoting issues with `-PsentryDsn=https://…@…`).
+ * `-PsentryDsn=…` still works as an override. Never a Sentry auth token — DSN only.
+ */
+private fun sentryDsnProperty(): String? =
+    (findProperty("sentryDsn") as String?)
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+        ?: System.getenv("SENTRY_DSN")?.trim()?.takeIf { it.isNotEmpty() }
 
 private fun desktopPackageName(): String = if (isGameLauncherDevBuild()) "GameLauncherDev" else "GameLauncher"
 
@@ -187,6 +208,10 @@ compose.desktop {
 
         if (isGameLauncherDevBuild()) {
             jvmArgs("-Dgame.launcher.dev=true")
+        }
+
+        sentryDsnProperty()?.let { dsn ->
+            jvmArgs("-Dsentry.dsn=$dsn")
         }
 
         nativeDistributions {
@@ -317,5 +342,14 @@ tasks.register("printMacOsDmgVolumeName") {
     description = "Prints macOS DMG volume name (Game Launcher or Game Launcher DEV)"
     doLast {
         println(if (isGameLauncherDevBuild()) "Game Launcher DEV" else "Game Launcher")
+    }
+}
+
+tasks.register("printSentryDsnConfigured") {
+    notCompatibleWithConfigurationCache("Reads optional -PsentryDsn")
+    group = "distribution"
+    description = "Prints whether a Sentry DSN build property is configured (true/false, never the DSN)"
+    doLast {
+        println(sentryDsnProperty() != null)
     }
 }

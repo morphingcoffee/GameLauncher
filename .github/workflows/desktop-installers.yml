@@ -142,6 +142,11 @@ jobs:
         working-directory: ${{ github.workspace }}
 
       - name: Build macOS app image (${{ matrix.variant }})
+        env:
+          # Public client DSN only — never an auth token. Gradle reads SENTRY_DSN from env
+          # (avoid -PsentryDsn=… — DSN contains '@'). Same project for prod + DEV;
+          # filter DEV in Sentry by environment=development / tag dev_build=true.
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
         run: |
           args=(-PcomposeDesktopHost=${{ matrix.compose_host }} -PbuildNumber="$BUILD_NUMBER")
           if [ "${{ matrix.variant }}" = "dev" ]; then
@@ -292,13 +297,16 @@ jobs:
 
       - name: Package ${{ matrix.format }} (${{ matrix.variant }})
         shell: pwsh
+        env:
+          # Gradle reads SENTRY_DSN from env inside the package scripts — do not pass the
+          # DSN on the PowerShell CLI (DSN contains '@').
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
         run: |
-          $args = @()
+          # IMPORTANT: do not array-splat "-Dev" (e.g. @("-Dev")). Array splats are positional
+          # in PowerShell, so "-Dev" binds to $BuildNumber and produces illegal versions
+          # like 1.0.-Dev. Pass the switch by name instead.
           if ("${{ matrix.variant }}" -eq "dev") {
-            $args += "-Dev"
-          }
-          if ($args.Count -gt 0) {
-            ..\tools\dev\${{ matrix.script }} @args
+            ..\tools\dev\${{ matrix.script }} -Dev
           } else {
             ..\tools\dev\${{ matrix.script }}
           }
