@@ -11,21 +11,26 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
-import java.awt.Desktop
 import java.io.File
 import java.io.FileOutputStream
 import java.security.MessageDigest
-import kotlin.system.exitProcess
 
 private const val READ_BUFFER_SIZE = 256 * 1024
 
-private class LauncherUpdateInstallerImpl(
+internal class LauncherUpdateInstallerImpl(
     private val downloadHttpClient: HttpClient,
+    private val libraryLayout: LibraryLayout = LibraryPaths,
+    private val processLauncher: ProcessLauncher = RealProcessLauncher,
+    private val desktopActions: DesktopActions = RealDesktopActions,
+    private val processExiter: ProcessExiter = RealProcessExiter,
+    private val osName: () -> String = { System.getProperty("os.name") },
+    private val handoffDelayMillis: Long = 500L,
 ) : LauncherUpdateInstaller {
     private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
     override val downloadProgress: StateFlow<DownloadProgress?> = _downloadProgress.asStateFlow()
@@ -42,12 +47,12 @@ private class LauncherUpdateInstallerImpl(
             val extension = extensionForArtifact(channelBuild.artifactType)
             val destination =
                 File(
-                    LibraryPaths.userDownloadsDirectory(),
+                    libraryLayout.userDownloadsDirectory(),
                     "GameLauncher-$versionLabel$extension",
                 )
             destination.parentFile?.mkdirs()
 
-            val stagingFile = File(LibraryPaths.launcherUpdatesDirectory(), "update-$versionLabel$extension.part")
+            val stagingFile = File(libraryLayout.launcherUpdatesDirectory(), "update-$versionLabel$extension.part")
             stagingFile.parentFile?.mkdirs()
 
             var resumeOffset = 0L
@@ -80,7 +85,7 @@ private class LauncherUpdateInstallerImpl(
                     )
                 }
             } finally {
-                withContext(Dispatchers.IO) {
+                withContext(NonCancellable + Dispatchers.IO) {
                     if (stagingFile.exists()) {
                         stagingFile.delete()
                     }
@@ -182,27 +187,30 @@ private class LauncherUpdateInstallerImpl(
     ) {
         when (artifactType.lowercase()) {
             "msi" -> {
-                ProcessBuilder("msiexec", "/i", destination.absolutePath, "/passive")
-                    .start()
-                delay(500)
+                processLauncher.start(
+                    command = listOf("msiexec", "/i", destination.absolutePath, "/passive"),
+                    workingDirectory = null,
+                    redirectErrorStream = false,
+                )
+                delay(handoffDelayMillis)
                 CrashReporting.flush()
-                exitProcess(0)
+                processExiter.exit(0)
             }
             "dmg" -> {
-                if (!Desktop.isDesktopSupported()) {
+                if (!desktopActions.isDesktopSupported()) {
                     error("Desktop API is not supported on this platform")
                 }
-                Desktop.getDesktop().open(destination)
-                delay(500)
+                desktopActions.open(destination)
+                delay(handoffDelayMillis)
                 CrashReporting.flush()
-                exitProcess(0)
+                processExiter.exit(0)
             }
             "zip" -> {
                 revealDownloadedFile(destination)
             }
             else -> {
-                if (Desktop.isDesktopSupported()) {
-                    Desktop.getDesktop().open(destination)
+                if (desktopActions.isDesktopSupported()) {
+                    desktopActions.open(destination)
                 } else {
                     error("Unsupported update artifact type: $artifactType")
                 }
@@ -211,20 +219,28 @@ private class LauncherUpdateInstallerImpl(
     }
 
     private fun revealDownloadedFile(destination: File) {
-        val os = System.getProperty("os.name").lowercase()
+        val os = osName().lowercase()
         when {
             "win" in os -> {
-                ProcessBuilder("explorer.exe", "/select,${destination.absolutePath}").start()
+                processLauncher.start(
+                    command = listOf("explorer.exe", "/select,${destination.absolutePath}"),
+                    workingDirectory = null,
+                    redirectErrorStream = false,
+                )
             }
             "mac" in os || "darwin" in os -> {
-                ProcessBuilder("open", "-R", destination.absolutePath).start()
+                processLauncher.start(
+                    command = listOf("open", "-R", destination.absolutePath),
+                    workingDirectory = null,
+                    redirectErrorStream = false,
+                )
             }
-            Desktop.isDesktopSupported() -> {
+            desktopActions.isDesktopSupported() -> {
                 val parent = destination.parentFile
                 if (parent != null) {
-                    Desktop.getDesktop().open(parent)
+                    desktopActions.openDirectory(parent)
                 } else {
-                    Desktop.getDesktop().open(destination)
+                    desktopActions.open(destination)
                 }
             }
             else -> error("Desktop API is not supported on this platform")

@@ -42,9 +42,12 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Gradle build + ktlintCheck
+      # Root allTests covers every included KMP module (composeApp, core:*, feature:*).
+      # New modules must be include()'d in settings.gradle.kts with a desktop/JVM test host;
+      # do not pin CI to a single-module allowlist.
+      - name: Gradle allTests + build + ktlintCheck
         working-directory: launcher
-        run: ./gradlew build ktlintCheck --warning-mode all
+        run: ./gradlew allTests build ktlintCheck --warning-mode all --no-daemon
 
       - name: Python unit tests
         working-directory: tools/deploy
