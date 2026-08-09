@@ -725,7 +725,10 @@ class CatalogViewModelTest {
         error("Catalog load did not complete in time: ${viewModel.state.value}")
     }
 
-    private suspend fun waitForStatusLabel(viewModel: CatalogViewModel, statusLabel: String) {
+    private suspend fun waitForStatusLabel(
+        viewModel: CatalogViewModel,
+        statusLabel: String,
+    ) {
         repeat(100) {
             if (viewModel.state.value.statusLabel == statusLabel) return
             delay(25)
