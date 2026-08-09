@@ -27,7 +27,10 @@ class LauncherUpdateInstallerIntegrationTest {
     @BeforeTest
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
-        tempRoot = kotlin.io.path.createTempDirectory("launcher-update-test-").toFile()
+        tempRoot =
+            kotlin.io.path
+                .createTempDirectory("launcher-update-test-")
+                .toFile()
         userDownloads = File(tempRoot, "UserDownloads").also { it.mkdirs() }
         libraryLayout = temporaryLibraryLayout(tempRoot, userDownloads)
     }
@@ -66,7 +69,9 @@ class LauncherUpdateInstallerIntegrationTest {
             val destination = File(userDownloads, "GameLauncher-1.2.3.zip")
             assertTrue(destination.isFile)
             assertEquals(bytes.toList(), destination.readBytes().toList())
-            assertFalse(File(libraryLayout.launcherUpdatesDirectory()).listFiles()?.any { it.extension == "part" } == true)
+            assertFalse(
+                File(libraryLayout.launcherUpdatesDirectory()).listFiles()?.any { it.extension == "part" } == true,
+            )
             assertNull(installer.downloadProgress.value)
             assertTrue(processExiter.exits.isEmpty())
         }

@@ -14,7 +14,10 @@ class GameLauncherIntegrationTest {
 
     @BeforeTest
     fun setUp() {
-        tempRoot = kotlin.io.path.createTempDirectory("game-launcher-test-").toFile()
+        tempRoot =
+            kotlin.io.path
+                .createTempDirectory("game-launcher-test-")
+                .toFile()
         libraryLayout = temporaryLibraryLayout(tempRoot)
     }
 
