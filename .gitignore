@@ -48,3 +48,7 @@ local.properties
 # Local R2 upload staging (mirrors R2 object keys). Metadata: manifests/ — see r2_staging/README.md
 r2_staging/*
 !r2_staging/README.md
+
+# Python
+__pycache__/
+*.py[cod]
