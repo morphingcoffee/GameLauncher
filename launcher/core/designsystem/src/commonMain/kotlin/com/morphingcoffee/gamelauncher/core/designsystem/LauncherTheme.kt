@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -26,10 +27,13 @@ private val LauncherColorScheme =
     )
 
 @Composable
-fun LauncherTheme(content: @Composable () -> Unit) {
+fun LauncherTheme(
+    typography: Typography = LauncherTypography,
+    content: @Composable () -> Unit,
+) {
     MaterialTheme(
         colorScheme = LauncherColorScheme,
-        typography = LauncherTypography,
+        typography = typography,
     ) {
         // Transparent so the app-wide LauncherBackground beneath NavDisplay can show through.
         Surface(modifier = Modifier.fillMaxSize(), color = Color.Transparent) {

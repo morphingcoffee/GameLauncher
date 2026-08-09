@@ -3,6 +3,7 @@ package com.morphingcoffee.gamelauncher.core.designsystem.components
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.font.FontFamily
 
 internal data class InterpolatedSegmentLayout(
     val segment: PieSegment,
@@ -49,6 +50,7 @@ internal fun DrawScope.drawStorageSegmentReflow(
     hoverBorderPx: Float,
     textMeasurer: TextMeasurer,
     innerRadius: Float,
+    labelFontFamily: FontFamily = FontFamily.Monospace,
 ) {
     layouts.forEach { layout ->
         val isHovered = layout.segment.id == hoveredSegmentId
@@ -85,6 +87,7 @@ internal fun DrawScope.drawStorageSegmentReflow(
                 innerRadius = innerRadius,
                 outerRadius = outerRadius,
                 segmentColor = layout.segment.color,
+                fontFamily = labelFontFamily,
             )
         }
     }

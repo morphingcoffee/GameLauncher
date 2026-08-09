@@ -69,6 +69,8 @@ python3 tools/deploy/r2_catalog_check.py --offline
 
 GitHub Actions runs these checks on every pull request and every push to `main` via [`.github/workflows/ci.yml`](.github/workflows/ci.yml) (check name: **CI**).
 
+Compose Desktop **UI golden** screenshots run on `macos-15` via [`.github/workflows/ui-goldens.yml`](.github/workflows/ui-goldens.yml). See [`docs/ui-goldens.md`](docs/ui-goldens.md) for the canonical host, regenerate workflow (`-PupdateGolden`), and why baselines are macOS-arm64-only.
+
 ### Run from the terminal
 
 ```bash

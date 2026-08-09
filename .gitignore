@@ -30,6 +30,10 @@ replay_pid*
 build/
 **/build/
 
+# UI golden actual/diff (baselines under screenshots/golden/ are committed)
+launcher/composeApp/screenshots/actual/
+launcher/composeApp/screenshots/diff/
+
 # IDE
 .idea/
 *.iml

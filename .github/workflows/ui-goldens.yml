@@ -1,0 +1,99 @@
+name: UI goldens
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      update_golden:
+        description: >-
+          Regenerate golden baselines on the canonical host and upload them as an
+          artifact (download + commit under launcher/composeApp/screenshots/golden/).
+        type: boolean
+        default: false
+
+concurrency:
+  group: ui-goldens-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  goldens:
+    name: Compose UI goldens (macos-15)
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: gradle
+
+      # AGP modules still resolve an Android SDK even for desktopTest (Compose @Preview targets).
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK platform 37.0
+        run: sdkmanager "platforms;android-37.0" "build-tools;36.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission for Gradle wrapper
+        run: chmod +x ./launcher/gradlew
+
+      - name: Detect missing golden PNGs
+        id: baselines
+        run: |
+          count="$(find launcher/composeApp/screenshots/golden -name '*.png' 2>/dev/null | wc -l | tr -d ' ')"
+          echo "png_count=$count" >> "$GITHUB_OUTPUT"
+          echo "Found $count committed golden PNG(s)"
+
+      - name: Run desktopTest (goldens)
+        id: test
+        working-directory: launcher
+        run: |
+          args=(:composeApp:desktopTest --no-daemon)
+          update=false
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && \
+             [ "${{ inputs.update_golden }}" = "true" ]; then
+            update=true
+          fi
+          # Bootstrap: empty golden/*.png → generate on canonical host so the artifact is commit-ready.
+          if [ "${{ steps.baselines.outputs.png_count }}" = "0" ]; then
+            update=true
+            echo "No committed golden PNGs — bootstrapping with -PupdateGolden"
+          fi
+          if [ "$update" = "true" ]; then
+            # Explicit =true so Gradle property presence/value is unambiguous.
+            args+=(-PupdateGolden=true)
+            echo "update_golden=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "update_golden=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Running: ./gradlew ${args[*]}"
+          ./gradlew "${args[@]}"
+
+      - name: Upload screenshots + test report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ui-goldens-${{ github.run_id }}
+          path: |
+            launcher/composeApp/screenshots/
+            launcher/composeApp/build/reports/tests/desktopTest/
+          if-no-files-found: warn
+          include-hidden-files: true
+
+      - name: Require committing bootstrapped / regenerated baselines
+        if: steps.test.outputs.update_golden == 'true'
+        run: |
+          echo "::notice::Golden PNGs were written under launcher/composeApp/screenshots/golden/."
+          echo "Download artifact ui-goldens-${{ github.run_id }}, copy golden/*.png into the repo, commit, and push."
+          echo "This job fails intentionally so the PR stays red until baselines are committed."
+          exit 1

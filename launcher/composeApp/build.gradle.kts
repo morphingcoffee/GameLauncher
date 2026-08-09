@@ -102,9 +102,42 @@ kotlin {
                 implementation(libs.kotlin.test)
                 implementation(libs.kotlinx.coroutines.test)
                 implementation(project(":core:designsystem"))
+                // Compose Desktop UI test + JUnit4 (runDesktopComposeUiTest / captureToImage).
+                implementation(libs.compose.ui.test.junit4.desktop)
             }
         }
     }
+}
+
+val goldenDirFile =
+    layout.projectDirectory
+        .dir("screenshots/golden")
+        .asFile
+val screenshotsRootDir =
+    layout.projectDirectory
+        .dir("screenshots")
+        .asFile
+// Configuration-cache input: presence of -PupdateGolden / -PupdateGolden=true.
+val updateGoldenEnabled = project.hasProperty("updateGolden")
+
+// KMP registers desktopTest lazily — configure via withType so props always attach.
+tasks.withType<Test>().configureEach {
+    if (name != "desktopTest") return@configureEach
+
+    // Eager Strings only — passing a Provider into systemProperty(Object) can toString() the
+    // provider instead of resolving it (broke -PupdateGolden on CI).
+    systemProperty("gamelauncher.golden.dir", goldenDirFile.absolutePath)
+    systemProperty("gamelauncher.updateGolden", updateGoldenEnabled.toString())
+
+    testLogging {
+        events("passed", "skipped", "failed")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        showStackTraces = true
+        showStandardStreams = true
+    }
+
+    // Keep CI artifact paths stable even when the task fails.
+    outputs.dir(screenshotsRootDir)
 }
 
 dependencies {

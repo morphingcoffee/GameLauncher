@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -32,12 +33,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherColors
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherSpacing
-import com.morphingcoffee.gamelauncher.core.designsystem.LauncherTypography
 import com.morphingcoffee.gamelauncher.core.designsystem.formatFileSize
 import kotlinx.coroutines.flow.collectLatest
 import kotlin.random.Random
@@ -102,6 +103,9 @@ fun StoragePieChart(
     modifier: Modifier = Modifier,
 ) {
     val textMeasurer = rememberTextMeasurer()
+    val labelFontFamily =
+        MaterialTheme.typography.bodyMedium.fontFamily
+            ?: FontFamily.Monospace
     val loadingPhase = rememberPieLoadingPhase(isLoading)
     var centerHovered by remember { mutableStateOf(false) }
     val centerPulseRotation =
@@ -255,6 +259,7 @@ fun StoragePieChart(
                         hoverBorderPx = hoverBorderPx,
                         textMeasurer = textMeasurer,
                         innerRadius = innerRadius,
+                        labelFontFamily = labelFontFamily,
                     )
                 }
                 else -> {
@@ -294,6 +299,7 @@ fun StoragePieChart(
                                 innerRadius = innerRadius,
                                 outerRadius = outerRadius,
                                 segmentColor = segment.color,
+                                fontFamily = labelFontFamily,
                             )
                         }
                         startAngle += sweep
@@ -365,18 +371,18 @@ private fun ColumnCenterLabel(
     modifier: Modifier = Modifier,
 ) {
     val displayStyle =
-        LauncherTypography.displayLarge.copy(
+        MaterialTheme.typography.displayLarge.copy(
             fontSize = (28 * labelScale).sp,
             lineHeight = (32 * labelScale).sp,
             letterSpacing = (3 * labelScale).sp,
         )
     val subStyle =
-        LauncherTypography.bodyMedium.copy(
+        MaterialTheme.typography.bodyMedium.copy(
             fontSize = (12 * labelScale).sp,
             lineHeight = (16 * labelScale).sp,
         )
     val emptyStyle =
-        LauncherTypography.bodyMedium.copy(
+        MaterialTheme.typography.bodyMedium.copy(
             fontSize = (11 * labelScale).sp,
             lineHeight = (14 * labelScale).sp,
         )
