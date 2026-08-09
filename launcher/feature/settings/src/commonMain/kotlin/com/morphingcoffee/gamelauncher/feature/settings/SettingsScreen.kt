@@ -1,12 +1,13 @@
 package com.morphingcoffee.gamelauncher.feature.settings
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -14,9 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.morphingcoffee.gamelauncher.core.designsystem.LauncherColors
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherSpacing
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherTheme
+import com.morphingcoffee.gamelauncher.core.designsystem.TerminalRule
 import com.morphingcoffee.gamelauncher.core.designsystem.components.AppHeader
 import com.morphingcoffee.gamelauncher.core.designsystem.components.DisplayTitle
 import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherUpdateInfoRow
@@ -27,8 +28,10 @@ import com.morphingcoffee.gamelauncher.core.designsystem.components.MonoLabel
 import com.morphingcoffee.gamelauncher.core.designsystem.components.StatusBar
 import com.morphingcoffee.gamelauncher.core.designsystem.components.TerminalButton
 import com.morphingcoffee.gamelauncher.core.designsystem.components.TerminalLinkRow
+import com.morphingcoffee.gamelauncher.core.designsystem.components.TerminalOptionRow
 import com.morphingcoffee.gamelauncher.core.designsystem.components.TerminalToggleRow
 import com.morphingcoffee.gamelauncher.core.designsystem.formatLauncherVersionInfoValue
+import com.morphingcoffee.gamelauncher.core.model.LauncherBackgroundTheme
 import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
 import kotlinx.coroutines.delay
 import org.koin.compose.viewmodel.koinViewModel
@@ -71,6 +74,9 @@ fun SettingsScreen(
         onSendCrashReportsToggled = { viewModel.onEvent(AboutEvent.SendCrashReportsToggled) },
         onShareExtendedDiagnosticsToggled = { viewModel.onEvent(AboutEvent.ShareExtendedDiagnosticsToggled) },
         onTestSentryClicked = { viewModel.onEvent(AboutEvent.TestSentryClicked) },
+        onBackgroundThemeSelected = { theme ->
+            viewModel.onEvent(AboutEvent.BackgroundThemeSelected(theme))
+        },
     )
 }
 
@@ -86,15 +92,14 @@ fun SettingsScreenContent(
     onSendCrashReportsToggled: () -> Unit = {},
     onShareExtendedDiagnosticsToggled: () -> Unit = {},
     onTestSentryClicked: () -> Unit = {},
+    onBackgroundThemeSelected: (LauncherBackgroundTheme) -> Unit = {},
 ) {
     val uriHandler = LocalUriHandler.current
     val channelLatestVersion = state.channelLatestVersion
+    val scrollState = rememberScrollState()
 
     Box(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(LauncherColors.Background),
+        modifier = Modifier.fillMaxSize(),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             AppHeader(
@@ -119,15 +124,29 @@ fun SettingsScreenContent(
                     Modifier
                         .weight(1f)
                         .fillMaxWidth()
+                        .verticalScroll(scrollState)
                         .padding(horizontal = LauncherSpacing.Lg, vertical = LauncherSpacing.Xl),
                 verticalArrangement = Arrangement.spacedBy(LauncherSpacing.Lg),
             ) {
-                DisplayTitle(text = "About")
+                DisplayTitle(text = "Settings")
 
-                LauncherUpdateInfoRow(
-                    label = "VERSION",
-                    value = formatLauncherVersionInfoValue(state.appVersion),
-                )
+                MonoLabel(text = "APPEARANCE / BACKGROUND", muted = true)
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(LauncherSpacing.Xs),
+                ) {
+                    state.backgroundThemes.forEach { theme ->
+                        TerminalOptionRow(
+                            label = theme.displayName,
+                            selected = theme == state.backgroundTheme,
+                            onClick = { onBackgroundThemeSelected(theme) },
+                        )
+                    }
+                }
+
+                TerminalRule()
+
+                MonoLabel(text = "TELEMETRY / CRASH REPORTING", muted = true)
 
                 TerminalToggleRow(
                     label = "CRASH RPT",
@@ -154,6 +173,15 @@ fun SettingsScreenContent(
                         MonoLabel(text = status, muted = true)
                     }
                 }
+
+                TerminalRule()
+
+                MonoLabel(text = "ABOUT", muted = true)
+
+                LauncherUpdateInfoRow(
+                    label = "VERSION",
+                    value = formatLauncherVersionInfoValue(state.appVersion),
+                )
 
                 state.links.forEach { link ->
                     TerminalLinkRow(
@@ -182,7 +210,7 @@ fun SettingsScreenContent(
                 statusText =
                     when {
                         state.isUpdateDownloading -> "LAUNCHER · UPDATING"
-                        else -> "ABOUT"
+                        else -> "SETTINGS"
                     },
                 clockText = state.clockText,
                 downloadProgress = state.downloadProgressFraction,
@@ -212,7 +240,7 @@ private fun AboutState.toLauncherUpdateSheetState(): LauncherUpdateSheetState =
     )
 
 @Preview(
-    name = "About",
+    name = "Settings",
     widthDp = 1280,
     heightDp = 720,
     showBackground = true,
@@ -229,6 +257,7 @@ private fun SettingsScreenPreview() {
                     releasesUrl = "https://github.com/morphingcoffee/GameLauncher/releases",
                     sendCrashReports = true,
                     shareExtendedDiagnostics = false,
+                    backgroundTheme = LauncherBackgroundTheme.DEFAULT,
                 ),
             onBack = {},
         )

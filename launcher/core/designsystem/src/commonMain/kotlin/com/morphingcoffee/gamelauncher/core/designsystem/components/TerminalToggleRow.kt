@@ -6,7 +6,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -18,6 +17,8 @@ import com.morphingcoffee.gamelauncher.core.designsystem.LauncherSpacing
 
 /**
  * Terminal-style ON/OFF setting row with an explanatory description.
+ *
+ * Width hugs content (toggle control and description).
  */
 @Composable
 fun TerminalToggleRow(
@@ -32,16 +33,12 @@ fun TerminalToggleRow(
     val contentAlpha = if (enabled) 1f else 0.45f
 
     Column(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .alpha(contentAlpha),
+        modifier = modifier.alpha(contentAlpha),
         verticalArrangement = Arrangement.spacedBy(LauncherSpacing.Xs),
     ) {
         Row(
             modifier =
                 Modifier
-                    .fillMaxWidth()
                     .hoverable(interactionSource = interactionSource, enabled = enabled)
                     .clickable(
                         enabled = enabled,

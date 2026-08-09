@@ -9,6 +9,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.morphingcoffee.gamelauncher.core.designsystem.components.MonoLabel
@@ -30,7 +31,8 @@ fun LauncherTheme(content: @Composable () -> Unit) {
         colorScheme = LauncherColorScheme,
         typography = LauncherTypography,
     ) {
-        Surface(modifier = Modifier.fillMaxSize(), color = LauncherColors.Background) {
+        // Transparent so the app-wide LauncherBackground beneath NavDisplay can show through.
+        Surface(modifier = Modifier.fillMaxSize(), color = Color.Transparent) {
             content()
         }
     }

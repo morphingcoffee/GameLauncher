@@ -113,7 +113,12 @@ class CatalogViewModel(
         when (event) {
             CatalogEvent.Started -> {
                 updateState { copy(clockText = platformClockText()) }
-                loadCatalog()
+                // Home is disposed while Settings is on top; on return CatalogScreen fires Started
+                // again. Skip reload when the ViewModel still holds games — a fresh load flashes
+                // isLoading / clears install probes and remounts ThumbnailImage.
+                if (state.value.games.isEmpty()) {
+                    loadCatalog(showLoading = true)
+                }
                 sendEffect(CatalogEffect.RequestFocusRoster)
             }
 
@@ -187,13 +192,13 @@ class CatalogViewModel(
         }
     }
 
-    private fun loadCatalog() {
+    private fun loadCatalog(showLoading: Boolean = true) {
         viewModelScope.launch {
             updateState {
                 copy(
-                    isLoading = true,
+                    isLoading = if (showLoading) true else isLoading,
                     errorMessage = null,
-                    statusLabel = "LOADING",
+                    statusLabel = if (showLoading) "LOADING" else statusLabel,
                     appVersion = LauncherMetadata.VERSION,
                 )
             }

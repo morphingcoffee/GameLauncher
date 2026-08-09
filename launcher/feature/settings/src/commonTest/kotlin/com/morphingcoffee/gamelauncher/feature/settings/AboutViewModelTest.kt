@@ -1,9 +1,11 @@
 package com.morphingcoffee.gamelauncher.feature.settings
 
+import com.morphingcoffee.gamelauncher.core.model.LauncherBackgroundTheme
 import com.morphingcoffee.gamelauncher.core.model.LauncherChannelBuild
 import com.morphingcoffee.gamelauncher.core.model.LauncherUpdateEvaluation
 import com.morphingcoffee.gamelauncher.core.model.LauncherUpdateStatus
 import com.morphingcoffee.gamelauncher.core.network.DownloadProgress
+import com.morphingcoffee.gamelauncher.core.network.InMemoryLauncherSettingsRepository
 import com.morphingcoffee.gamelauncher.core.network.LauncherUpdateInstaller
 import com.morphingcoffee.gamelauncher.core.network.LauncherUpdateRepository
 import com.morphingcoffee.gamelauncher.core.network.ManifestRepository
@@ -162,10 +164,31 @@ class AboutViewModelTest {
             )
         }
 
+    @Test
+    fun backgroundThemeSelected_updatesRepositoryAndState() =
+        runTest {
+            val settings = InMemoryLauncherSettingsRepository()
+            val viewModel =
+                createViewModel(
+                    createRepository(manifestWithLauncherUpdateJson()),
+                    settingsRepository = settings,
+                )
+            viewModel.onEvent(AboutEvent.Started)
+            assertEquals(LauncherBackgroundTheme.DEFAULT, viewModel.state.value.backgroundTheme)
+            assertEquals(LauncherBackgroundTheme.STATIC_TERMINAL, viewModel.state.value.backgroundTheme)
+
+            viewModel.onEvent(AboutEvent.BackgroundThemeSelected(LauncherBackgroundTheme.SPECTRAL_TOPOLOGY))
+            delay(20)
+
+            assertEquals(LauncherBackgroundTheme.SPECTRAL_TOPOLOGY, settings.backgroundTheme.value)
+            assertEquals(LauncherBackgroundTheme.SPECTRAL_TOPOLOGY, viewModel.state.value.backgroundTheme)
+        }
+
     private fun createViewModel(
         repository: LauncherUpdateRepository,
         store: InMemoryTelemetryPreferencesStore = InMemoryTelemetryPreferencesStore(),
-    ): AboutViewModel = AboutViewModel(repository, store)
+        settingsRepository: InMemoryLauncherSettingsRepository = InMemoryLauncherSettingsRepository(),
+    ): AboutViewModel = AboutViewModel(repository, store, settingsRepository)
 
     private fun createRepository(manifestJson: String): LauncherUpdateRepository {
         val manifestClient =

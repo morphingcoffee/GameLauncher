@@ -183,7 +183,6 @@ fun StorageScreenContent(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(LauncherColors.Background)
                 .focusRequester(focusRequester)
                 .focusable()
                 .onPreviewKeyEvent { event ->
