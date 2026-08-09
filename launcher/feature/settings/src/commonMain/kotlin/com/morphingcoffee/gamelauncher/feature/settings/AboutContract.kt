@@ -1,6 +1,7 @@
 package com.morphingcoffee.gamelauncher.feature.settings
 
 import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
+import com.morphingcoffee.gamelauncher.core.model.LauncherRuntime
 import com.morphingcoffee.gamelauncher.core.model.LauncherUpdateEvaluation
 import com.morphingcoffee.gamelauncher.core.model.LauncherUpdateStatus
 
@@ -22,6 +23,8 @@ sealed interface AboutEvent {
     data object SendCrashReportsToggled : AboutEvent
 
     data object ShareExtendedDiagnosticsToggled : AboutEvent
+
+    data object TestSentryClicked : AboutEvent
 }
 
 data class AboutState(
@@ -38,6 +41,8 @@ data class AboutState(
     val downloadProgressFraction: Float? = null,
     val sendCrashReports: Boolean = true,
     val shareExtendedDiagnostics: Boolean = false,
+    val isDevBuild: Boolean = LauncherRuntime.isDevBuild(),
+    val sentryTestStatus: String? = null,
 ) {
     val showLauncherUpdateSignal: Boolean
         get() = updateEvaluation?.status == LauncherUpdateStatus.UpdateAvailable
@@ -47,6 +52,9 @@ data class AboutState(
 
     val extendedDiagnosticsEnabled: Boolean
         get() = sendCrashReports
+
+    val showSentryTestButton: Boolean
+        get() = isDevBuild
 }
 
 sealed interface AboutEffect {

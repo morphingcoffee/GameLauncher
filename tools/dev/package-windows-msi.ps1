@@ -23,7 +23,7 @@ if ($Dev) {
 }
 
 $sentryProperty = @()
-if (-not $Dev -and $SentryDsn) {
+if ($SentryDsn) {
     $sentryProperty = @("-PsentryDsn=$SentryDsn")
 }
 

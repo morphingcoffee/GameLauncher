@@ -5,6 +5,7 @@ import com.morphingcoffee.gamelauncher.core.architecture.MviViewModel
 import com.morphingcoffee.gamelauncher.core.designsystem.platformClockText
 import com.morphingcoffee.gamelauncher.core.logging.AppLog
 import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
+import com.morphingcoffee.gamelauncher.core.model.LauncherRuntime
 import com.morphingcoffee.gamelauncher.core.model.PlatformKey
 import com.morphingcoffee.gamelauncher.core.network.LauncherUpdateRepository
 import com.morphingcoffee.gamelauncher.core.telemetry.CrashReporting
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.NonCancellable
 
 class AboutViewModel(
     private val launcherUpdateRepository: LauncherUpdateRepository,
@@ -24,6 +26,7 @@ class AboutViewModel(
             AboutState(
                 platformLabel = formatPlatformLabel(PlatformKey.current()),
                 releasesUrl = launcherUpdateRepository.releasesUrl(),
+                isDevBuild = LauncherRuntime.isDevBuild(),
             ),
     ) {
     init {
@@ -68,6 +71,7 @@ class AboutViewModel(
                         updateEvaluation = launcherUpdateRepository.evaluation.value,
                         sendCrashReports = prefs.sendCrashReports,
                         shareExtendedDiagnostics = prefs.shareExtendedDiagnostics,
+                        isDevBuild = LauncherRuntime.isDevBuild(),
                     )
                 }
             }
@@ -121,7 +125,20 @@ class AboutViewModel(
                     )
                 persistPreferences(next)
             }
+
+            AboutEvent.TestSentryClicked -> sendSentrySmokeTest()
         }
+    }
+
+    private fun sendSentrySmokeTest() {
+        if (!LauncherRuntime.isDevBuild()) return
+        if (!state.value.sendCrashReports) {
+            updateState { copy(sentryTestStatus = "Enable crash reports first") }
+            return
+        }
+        AppLog.i("About", "Sending Sentry smoke-test event")
+        CrashReporting.captureTestEvent()
+        updateState { copy(sentryTestStatus = "Test event sent — check Sentry (environment=development)") }
     }
 
     private fun persistPreferences(preferences: TelemetryPreferences) {
@@ -129,11 +146,13 @@ class AboutViewModel(
             copy(
                 sendCrashReports = preferences.sendCrashReports,
                 shareExtendedDiagnostics = preferences.shareExtendedDiagnostics,
+                sentryTestStatus = null,
             )
         }
+        // Gate sends immediately; persist on IO so the next startup sees the same choice.
         CrashReporting.updatePreferences(preferences)
         viewModelScope.launch {
-            withContext(Dispatchers.IO) {
+            withContext(Dispatchers.IO + NonCancellable) {
                 telemetryPreferencesStore.save(preferences)
             }
         }

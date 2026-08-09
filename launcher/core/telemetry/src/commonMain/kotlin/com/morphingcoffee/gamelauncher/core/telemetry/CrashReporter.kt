@@ -20,10 +20,15 @@ interface CrashReporter {
         error: Throwable,
     )
 
+    /** DEV smoke-test path — does not crash the process. */
+    fun captureTestEvent(message: String = DEFAULT_TEST_MESSAGE)
+
     fun flush(timeoutMillis: Long = DEFAULT_FLUSH_TIMEOUT_MS)
 
     companion object {
         const val DEFAULT_FLUSH_TIMEOUT_MS = 2_000L
+        const val DEFAULT_TEST_MESSAGE = "Sentry smoke test from GameLauncher DEV"
+        const val OPERATION_SENTRY_SMOKE_TEST = "sentry_smoke_test"
     }
 }
 
@@ -47,6 +52,8 @@ object NoOpCrashReporter : CrashReporter {
         versionLabel: String,
         error: Throwable,
     ) = Unit
+
+    override fun captureTestEvent(message: String) = Unit
 
     override fun flush(timeoutMillis: Long) = Unit
 }
@@ -93,6 +100,10 @@ object CrashReporting {
         error: Throwable,
     ) {
         runCatching { reporter.captureUpdateFailure(versionLabel, error) }
+    }
+
+    fun captureTestEvent(message: String = CrashReporter.DEFAULT_TEST_MESSAGE) {
+        runCatching { reporter.captureTestEvent(message) }
     }
 
     fun flush(timeoutMillis: Long = CrashReporter.DEFAULT_FLUSH_TIMEOUT_MS) {

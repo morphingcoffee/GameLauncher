@@ -145,11 +145,11 @@ jobs:
           args=(-PcomposeDesktopHost=${{ matrix.compose_host }} -PbuildNumber="$BUILD_NUMBER")
           if [ "${{ matrix.variant }}" = "dev" ]; then
             args+=(-PgameLauncherDev=true)
-          else
-            # Public client DSN only — never a Sentry auth token. Prod packages only.
-            if [ -n "${SENTRY_DSN:-}" ]; then
-              args+=(-PsentryDsn="$SENTRY_DSN")
-            fi
+          fi
+          # Public client DSN only — never a Sentry auth token. Same project for prod + DEV
+          # (filter in Sentry by environment=development / tag dev_build=true).
+          if [ -n "${SENTRY_DSN:-}" ]; then
+            args+=(-PsentryDsn="$SENTRY_DSN")
           fi
           ./gradlew :composeApp:createDistributable --no-daemon "${args[@]}"
 
@@ -302,7 +302,9 @@ jobs:
           $args = @()
           if ("${{ matrix.variant }}" -eq "dev") {
             $args += "-Dev"
-          } elseif ($env:SENTRY_DSN) {
+          }
+          # Same public DSN for prod + DEV; DEV events are tagged environment=development.
+          if ($env:SENTRY_DSN) {
             $args += "-SentryDsn"
             $args += $env:SENTRY_DSN
           }

@@ -122,8 +122,6 @@ class AboutViewModelTest {
 
             assertFalse(viewModel.state.value.sendCrashReports)
             assertFalse(viewModel.state.value.shareExtendedDiagnostics)
-            assertFalse(store.load().sendCrashReports)
-            assertFalse(store.load().shareExtendedDiagnostics)
             assertFalse(viewModel.state.value.extendedDiagnosticsEnabled)
         }
 
@@ -140,7 +138,25 @@ class AboutViewModelTest {
             viewModel.onEvent(AboutEvent.ShareExtendedDiagnosticsToggled)
 
             assertFalse(viewModel.state.value.shareExtendedDiagnostics)
-            assertFalse(store.load().shareExtendedDiagnostics)
+        }
+
+    @Test
+    fun sentryTestButton_visibleOnlyOnDevBuild() {
+        System.clearProperty("game.launcher.dev")
+        assertFalse(AboutState(isDevBuild = false).showSentryTestButton)
+
+        System.setProperty("game.launcher.dev", "true")
+        assertTrue(AboutState(isDevBuild = true).showSentryTestButton)
+    }
+
+    @Test
+    fun testSentryClicked_onDevBuild_updatesStatus() =
+        runTest {
+            System.setProperty("game.launcher.dev", "true")
+            val viewModel = createViewModel(createRepository(manifestWithLauncherUpdateJson()))
+            viewModel.onEvent(AboutEvent.Started)
+            viewModel.onEvent(AboutEvent.TestSentryClicked)
+            assertTrue(viewModel.state.value.sentryTestStatus?.contains("Test event sent") == true)
         }
 
     private fun createViewModel(

@@ -93,6 +93,18 @@ class SentryCrashReporter(
         }
     }
 
+    override fun captureTestEvent(message: String) {
+        if (!canSend()) return
+        runCatching {
+            Sentry.withScope { scope ->
+                scope.setTag("operation", CrashReporter.OPERATION_SENTRY_SMOKE_TEST)
+                attachCommonTags(scope)
+                Sentry.captureException(SentrySmokeTestException(message))
+            }
+            flush()
+        }
+    }
+
     override fun flush(timeoutMillis: Long) {
         if (closed.get()) return
         runCatching {
@@ -148,6 +160,10 @@ class SentryCrashReporter(
             scope.addBreadcrumb(breadcrumb)
         }
     }
+
+    class SentrySmokeTestException(
+        message: String,
+    ) : RuntimeException(message)
 
     companion object {
         private const val MAX_BREADCRUMB_ENTRIES = 40

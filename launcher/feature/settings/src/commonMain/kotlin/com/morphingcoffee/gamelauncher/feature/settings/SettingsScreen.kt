@@ -23,6 +23,7 @@ import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherUpda
 import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherUpdateSheet
 import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherUpdateSheetState
 import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherUpdateSignal
+import com.morphingcoffee.gamelauncher.core.designsystem.components.MonoLabel
 import com.morphingcoffee.gamelauncher.core.designsystem.components.StatusBar
 import com.morphingcoffee.gamelauncher.core.designsystem.components.TerminalButton
 import com.morphingcoffee.gamelauncher.core.designsystem.components.TerminalLinkRow
@@ -69,6 +70,7 @@ fun SettingsScreen(
         onReleaseNotesClicked = { viewModel.onEvent(AboutEvent.ReleaseNotesClicked) },
         onSendCrashReportsToggled = { viewModel.onEvent(AboutEvent.SendCrashReportsToggled) },
         onShareExtendedDiagnosticsToggled = { viewModel.onEvent(AboutEvent.ShareExtendedDiagnosticsToggled) },
+        onTestSentryClicked = { viewModel.onEvent(AboutEvent.TestSentryClicked) },
     )
 }
 
@@ -83,6 +85,7 @@ fun SettingsScreenContent(
     onReleaseNotesClicked: () -> Unit = {},
     onSendCrashReportsToggled: () -> Unit = {},
     onShareExtendedDiagnosticsToggled: () -> Unit = {},
+    onTestSentryClicked: () -> Unit = {},
 ) {
     val uriHandler = LocalUriHandler.current
     val channelLatestVersion = state.channelLatestVersion
@@ -144,6 +147,17 @@ fun SettingsScreenContent(
                             "tail and recent launcher log breadcrumbs on failure events.",
                     onToggle = onShareExtendedDiagnosticsToggled,
                 )
+
+                if (state.showSentryTestButton) {
+                    TerminalButton(
+                        label = "[ TEST SENTRY ]",
+                        onClick = onTestSentryClicked,
+                        enabled = state.sendCrashReports,
+                    )
+                    state.sentryTestStatus?.let { status ->
+                        MonoLabel(text = status, muted = true)
+                    }
+                }
 
                 state.links.forEach { link ->
                     TerminalLinkRow(

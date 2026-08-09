@@ -12,6 +12,7 @@ class RecordingCrashReporterTest {
             private set
         val launchFailures = mutableListOf<GameLaunchFailure>()
         val uncaught = mutableListOf<Throwable>()
+        val testEvents = mutableListOf<String>()
 
         override fun updatePreferences(preferences: TelemetryPreferences) {
             this.preferences = preferences
@@ -34,6 +35,11 @@ class RecordingCrashReporterTest {
             versionLabel: String,
             error: Throwable,
         ) = Unit
+
+        override fun captureTestEvent(message: String) {
+            if (!preferences.sendCrashReports) return
+            testEvents += message
+        }
 
         override fun flush(timeoutMillis: Long) = Unit
     }
@@ -88,5 +94,11 @@ class RecordingCrashReporterTest {
             ),
         )
         assertTrue(reporter.launchFailures.isEmpty())
+    }
+
+    @Test
+    fun captureTestEvent_recordsWhenEnabled() {
+        CrashReporting.captureTestEvent("smoke")
+        assertEquals(listOf("smoke"), reporter.testEvents)
     }
 }
