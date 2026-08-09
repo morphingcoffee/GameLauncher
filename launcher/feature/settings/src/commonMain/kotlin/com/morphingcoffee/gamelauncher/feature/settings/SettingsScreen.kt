@@ -26,6 +26,7 @@ import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherUpda
 import com.morphingcoffee.gamelauncher.core.designsystem.components.StatusBar
 import com.morphingcoffee.gamelauncher.core.designsystem.components.TerminalButton
 import com.morphingcoffee.gamelauncher.core.designsystem.components.TerminalLinkRow
+import com.morphingcoffee.gamelauncher.core.designsystem.components.TerminalToggleRow
 import com.morphingcoffee.gamelauncher.core.designsystem.formatLauncherVersionInfoValue
 import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
 import kotlinx.coroutines.delay
@@ -66,6 +67,8 @@ fun SettingsScreen(
         onUpdateClicked = { viewModel.onEvent(AboutEvent.UpdateClicked) },
         onUpdateChargeComplete = { viewModel.onEvent(AboutEvent.UpdateChargeComplete) },
         onReleaseNotesClicked = { viewModel.onEvent(AboutEvent.ReleaseNotesClicked) },
+        onSendCrashReportsToggled = { viewModel.onEvent(AboutEvent.SendCrashReportsToggled) },
+        onShareExtendedDiagnosticsToggled = { viewModel.onEvent(AboutEvent.ShareExtendedDiagnosticsToggled) },
     )
 }
 
@@ -78,6 +81,8 @@ fun SettingsScreenContent(
     onUpdateClicked: () -> Unit = {},
     onUpdateChargeComplete: () -> Unit = {},
     onReleaseNotesClicked: () -> Unit = {},
+    onSendCrashReportsToggled: () -> Unit = {},
+    onShareExtendedDiagnosticsToggled: () -> Unit = {},
 ) {
     val uriHandler = LocalUriHandler.current
     val channelLatestVersion = state.channelLatestVersion
@@ -119,6 +124,25 @@ fun SettingsScreenContent(
                 LauncherUpdateInfoRow(
                     label = "VERSION",
                     value = formatLauncherVersionInfoValue(state.appVersion),
+                )
+
+                TerminalToggleRow(
+                    label = "CRASH RPT",
+                    checked = state.sendCrashReports,
+                    description =
+                        "Send launcher crash reports and launch/update failures " +
+                            "(game id, title, version, platform, exit code). No user identity.",
+                    onToggle = onSendCrashReportsToggled,
+                )
+
+                TerminalToggleRow(
+                    label = "EXT DIAG",
+                    checked = state.shareExtendedDiagnostics,
+                    enabled = state.extendedDiagnosticsEnabled,
+                    description =
+                        "When crash reports are on, also include a redacted process output " +
+                            "tail and recent launcher log breadcrumbs on failure events.",
+                    onToggle = onShareExtendedDiagnosticsToggled,
                 )
 
                 state.links.forEach { link ->
@@ -193,6 +217,8 @@ private fun SettingsScreenPreview() {
                     platformLabel = "macos-arm64",
                     clockText = "12:34:56",
                     releasesUrl = "https://github.com/morphingcoffee/GameLauncher/releases",
+                    sendCrashReports = true,
+                    shareExtendedDiagnostics = false,
                 ),
             onBack = {},
         )

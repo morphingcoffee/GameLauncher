@@ -28,7 +28,9 @@ kotlin {
             dependencies {
                 implementation(project(":core:designsystem"))
                 implementation(project(":core:logging"))
+                implementation(project(":core:telemetry"))
                 implementation(libs.ktor.client.cio)
+                implementation(libs.sentry)
                 // Generic :desktop lacks Skiko natives; use the host OS/arch artifact (was compose.desktop.currentOs).
                 implementation(
                     composeDesktopHostDependency(
@@ -48,6 +50,7 @@ kotlin {
                 implementation(project(":core:model"))
                 implementation(project(":core:navigation"))
                 implementation(project(":core:network"))
+                implementation(project(":core:telemetry"))
                 implementation(project(":feature:home"))
                 implementation(project(":feature:logs"))
                 implementation(project(":feature:settings"))
@@ -155,6 +158,15 @@ private fun isGameLauncherDevBuild(): Boolean =
         ?.trim()
         .equals("true", ignoreCase = true) == true
 
+/**
+ * Optional public Sentry DSN for packaged builds (`-PsentryDsn=…`).
+ * Never a Sentry auth token — DSN only. Missing → crash reporting is a safe no-op.
+ */
+private fun sentryDsnProperty(): String? =
+    (findProperty("sentryDsn") as String?)
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+
 private fun desktopPackageName(): String = if (isGameLauncherDevBuild()) "GameLauncherDev" else "GameLauncher"
 
 private fun artifactVariantSuffix(): String = if (isGameLauncherDevBuild()) "-dev" else ""
@@ -187,6 +199,10 @@ compose.desktop {
 
         if (isGameLauncherDevBuild()) {
             jvmArgs("-Dgame.launcher.dev=true")
+        }
+
+        sentryDsnProperty()?.let { dsn ->
+            jvmArgs("-Dsentry.dsn=$dsn")
         }
 
         nativeDistributions {
@@ -317,5 +333,14 @@ tasks.register("printMacOsDmgVolumeName") {
     description = "Prints macOS DMG volume name (Game Launcher or Game Launcher DEV)"
     doLast {
         println(if (isGameLauncherDevBuild()) "Game Launcher DEV" else "Game Launcher")
+    }
+}
+
+tasks.register("printSentryDsnConfigured") {
+    notCompatibleWithConfigurationCache("Reads optional -PsentryDsn")
+    group = "distribution"
+    description = "Prints whether a Sentry DSN build property is configured (true/false, never the DSN)"
+    doLast {
+        println(sentryDsnProperty() != null)
     }
 }

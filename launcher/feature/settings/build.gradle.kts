@@ -35,6 +35,7 @@ kotlin {
                 implementation(project(":core:model"))
                 implementation(project(":core:navigation"))
                 implementation(project(":core:network"))
+                implementation(project(":core:telemetry"))
                 implementation(libs.compose.runtime)
                 implementation(libs.compose.foundation)
                 implementation(libs.compose.material3)

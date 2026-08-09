@@ -2,6 +2,7 @@ package com.morphingcoffee.gamelauncher.core.network
 
 import com.morphingcoffee.gamelauncher.core.logging.AppLog
 import com.morphingcoffee.gamelauncher.core.model.LauncherChannelBuild
+import com.morphingcoffee.gamelauncher.core.telemetry.CrashReporting
 import io.ktor.client.HttpClient
 import io.ktor.client.request.header
 import io.ktor.client.request.prepareGet
@@ -88,6 +89,7 @@ private class LauncherUpdateInstallerImpl(
             }
         }.onFailure { error ->
             AppLog.e("LauncherUpdate", "Update failed for $versionLabel", error)
+            CrashReporting.captureUpdateFailure(versionLabel, error)
             _downloadProgress.value = null
         }
 
@@ -183,6 +185,7 @@ private class LauncherUpdateInstallerImpl(
                 ProcessBuilder("msiexec", "/i", destination.absolutePath, "/passive")
                     .start()
                 delay(500)
+                CrashReporting.flush()
                 exitProcess(0)
             }
             "dmg" -> {
@@ -191,6 +194,7 @@ private class LauncherUpdateInstallerImpl(
                 }
                 Desktop.getDesktop().open(destination)
                 delay(500)
+                CrashReporting.flush()
                 exitProcess(0)
             }
             "zip" -> {

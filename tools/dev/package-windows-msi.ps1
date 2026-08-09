@@ -4,7 +4,8 @@
 
 param(
     [string]$BuildNumber = $env:BUILD_NUMBER,
-    [switch]$Dev
+    [switch]$Dev,
+    [string]$SentryDsn = $env:SENTRY_DSN
 )
 
 $ErrorActionPreference = "Stop"
@@ -21,7 +22,12 @@ if ($Dev) {
     $devProperty = @("-PgameLauncherDev=true")
 }
 
-$gradleArgs = @(":composeApp:createDistributable", "--no-daemon", "-PbuildNumber=$BuildNumber") + $devProperty
+$sentryProperty = @()
+if (-not $Dev -and $SentryDsn) {
+    $sentryProperty = @("-PsentryDsn=$SentryDsn")
+}
+
+$gradleArgs = @(":composeApp:createDistributable", "--no-daemon", "-PbuildNumber=$BuildNumber") + $devProperty + $sentryProperty
 & .\gradlew.bat @gradleArgs
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 

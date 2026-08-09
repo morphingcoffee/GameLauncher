@@ -505,7 +505,7 @@ class CatalogViewModel(
             }
 
             gameCatalogRepository
-                .launchGame(game.id)
+                .launchGame(game.id, game.title)
                 .onSuccess {
                     AppLog.i("Catalog", "Launch finished for ${game.id}")
                     updateState {

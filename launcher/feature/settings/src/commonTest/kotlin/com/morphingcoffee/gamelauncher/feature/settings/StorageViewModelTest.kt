@@ -259,7 +259,10 @@ class StorageViewModelTest {
 
         override suspend fun getOnDiskSizeBytes(gameId: String): Long? = sizes[gameId]
 
-        override suspend fun launchGame(gameId: String): Result<Unit> = Result.success(Unit)
+        override suspend fun launchGame(
+            gameId: String,
+            displayTitle: String,
+        ): Result<Unit> = Result.success(Unit)
 
         override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
 

@@ -18,6 +18,10 @@ sealed interface AboutEvent {
     data object ReleaseNotesClicked : AboutEvent
 
     data object ClockTick : AboutEvent
+
+    data object SendCrashReportsToggled : AboutEvent
+
+    data object ShareExtendedDiagnosticsToggled : AboutEvent
 }
 
 data class AboutState(
@@ -32,12 +36,17 @@ data class AboutState(
     val isUpdateCharging: Boolean = false,
     val updateErrorMessage: String? = null,
     val downloadProgressFraction: Float? = null,
+    val sendCrashReports: Boolean = true,
+    val shareExtendedDiagnostics: Boolean = false,
 ) {
     val showLauncherUpdateSignal: Boolean
         get() = updateEvaluation?.status == LauncherUpdateStatus.UpdateAvailable
 
     val channelLatestVersion: String?
         get() = updateEvaluation?.channelBuild?.version
+
+    val extendedDiagnosticsEnabled: Boolean
+        get() = sendCrashReports
 }
 
 sealed interface AboutEffect {

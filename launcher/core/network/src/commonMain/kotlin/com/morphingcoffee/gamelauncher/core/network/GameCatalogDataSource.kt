@@ -24,7 +24,10 @@ interface GameCatalogDataSource {
 
     suspend fun getOnDiskSizeBytes(gameId: String): Long?
 
-    suspend fun launchGame(gameId: String): Result<Unit>
+    suspend fun launchGame(
+        gameId: String,
+        displayTitle: String = gameId,
+    ): Result<Unit>
 
     suspend fun openWebGame(url: String): Result<Unit>
 

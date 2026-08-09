@@ -19,6 +19,7 @@ kotlin {
             dependencies {
                 implementation(project(":core:model"))
                 implementation(project(":core:logging"))
+                implementation(project(":core:telemetry"))
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.ktor.client.core)
