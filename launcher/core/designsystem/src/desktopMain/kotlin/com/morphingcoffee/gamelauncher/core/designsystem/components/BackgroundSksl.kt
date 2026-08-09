@@ -148,8 +148,11 @@ internal object BackgroundSksl {
 
         half4 main(float2 fragCoord) {
             float2 res = uResolution;
+            // Skia fragCoord is top-left / y-down; this lattice was authored Shadertoy-style (y-up).
+            // Without the flip, the heightfield misses along the window bottom and leaves a flat band.
             float2 p = (2.0 * fragCoord - res) / res.y;
-            float2 pointer = uPointer * 7.0;
+            p.y = -p.y;
+            float2 pointer = float2(uPointer.x, -uPointer.y) * 7.0;
 
             float3 rd = normalize(float3(-0.85, -0.72, -0.85));
             float3 right = normalize(cross(rd, float3(0.0, 1.0, 0.0)));
@@ -161,17 +164,17 @@ internal object BackgroundSksl {
             float t = 0.0;
             bool hit = false;
             float3 pos = ro;
-            for (int i = 0; i < 72; i++) {
+            for (int i = 0; i < 84; i++) {
                 pos = ro + rd * t;
                 if (pos.y < heightAt(pos.xz, pointer)) {
                     hit = true;
                     break;
                 }
-                t += 0.42;
+                t += 0.38;
             }
 
             if (hit) {
-                float lo = t - 0.42;
+                float lo = t - 0.38;
                 float hi = t;
                 for (int j = 0; j < 5; j++) {
                     float mid = 0.5 * (lo + hi);
@@ -189,6 +192,9 @@ internal object BackgroundSksl {
                 half3 tint = mix(half3(0.08, 0.85, 1.00), half3(0.85, 0.22, 0.95), clamp(pos.y * 0.5 + 0.5, 0.0, 1.0));
                 float fog = exp(-hi * 0.042);
                 col += tint * neon * fog * 0.70 + tint * 0.035 * fog;
+            } else {
+                // Soft distant wash so any remaining misses still read as full-bleed, not a cut-off strip.
+                col += half3(0.02, 0.05, 0.08) * (0.20 + 0.12 * clamp(-p.y, 0.0, 1.0));
             }
 
             col *= 1.0 - 0.28 * dot(p * float2(0.52, 0.78), p);
