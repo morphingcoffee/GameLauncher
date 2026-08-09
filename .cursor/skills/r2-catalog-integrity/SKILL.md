@@ -41,8 +41,12 @@ Exit `0` = no errors (warnings may still appear). Exit `1` = at least one error.
 # One game only
 python3 tools/deploy/r2_catalog_check.py --game krabs_v1
 
-# Metadata/schema only — no object existence or size probes (offline CDN base not required)
+# Metadata/schema only — no object existence or size probes (still opens R2Session)
 python3 tools/deploy/r2_catalog_check.py --skip-objects
+
+# True offline / CI — git manifests/manifest.json + referenced versions.json only
+# Never creates R2Session, never touches Keychain/rclone/network
+python3 tools/deploy/r2_catalog_check.py --offline
 
 # Compare live R2 JSON with git source of truth
 python3 tools/deploy/r2_catalog_check.py --compare-git --compare-git-manifest

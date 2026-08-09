@@ -244,9 +244,8 @@ class CatalogViewModelTest {
             viewModel.onEvent(CatalogEvent.Started)
             waitForLoadingToFinish(viewModel)
             viewModel.onEvent(CatalogEvent.OpenClicked)
-            delay(50)
+            waitForStatusLabel(viewModel, "ERROR")
 
-            assertEquals("ERROR", viewModel.state.value.statusLabel)
             assertEquals("Browser unavailable", viewModel.state.value.launchErrorMessage)
         }
 
@@ -724,6 +723,17 @@ class CatalogViewModelTest {
             delay(25)
         }
         error("Catalog load did not complete in time: ${viewModel.state.value}")
+    }
+
+    private suspend fun waitForStatusLabel(
+        viewModel: CatalogViewModel,
+        statusLabel: String,
+    ) {
+        repeat(100) {
+            if (viewModel.state.value.statusLabel == statusLabel) return
+            delay(25)
+        }
+        error("Status did not become $statusLabel in time: ${viewModel.state.value}")
     }
 
     private fun createManifestRepository(manifestJson: String): ManifestRepository {
