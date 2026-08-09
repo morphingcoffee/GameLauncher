@@ -4,36 +4,36 @@
     "release_notes_url": "https://github.com/morphingcoffee/GameLauncher/releases",
     "channels": {
       "windows-x64-msi": {
-        "version": "0.0.1-build68",
+        "version": "0.0.2-build80",
         "artifact_type": "msi",
-        "released_at": "2026-06-21T15:39:05Z",
-        "download_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/launcher/releases/0.0.1-build68/windows-x64-msi/GameLauncher-0.0.1-build68.msi",
-        "file_size_bytes": 66408236,
-        "sha256": "fc78e1e315bac7ac2286dd06e1d4ed76d02e7ad37af9638f69d324e2c23f7a08"
+        "released_at": "2026-08-09T19:33:32Z",
+        "download_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/launcher/releases/0.0.2-build80/windows-x64-msi/GameLauncher-0.0.2-build80.msi",
+        "file_size_bytes": 72243921,
+        "sha256": "1fdcbe8c064293898fc7491dc53444e39317547b290f582cb9752841b9ebd089"
       },
       "windows-x64-portable": {
-        "version": "0.0.1-build68",
+        "version": "0.0.2-build80",
         "artifact_type": "zip",
-        "released_at": "2026-06-21T15:39:05Z",
-        "download_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/launcher/releases/0.0.1-build68/windows-x64-portable/GameLauncher-0.0.1-build68.zip",
-        "file_size_bytes": 65758822,
-        "sha256": "1fcd4b313504f98a3fec947984e3bc62f573e94f3ec6601e42f407d4e227b31b"
+        "released_at": "2026-08-09T19:33:32Z",
+        "download_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/launcher/releases/0.0.2-build80/windows-x64-portable/GameLauncher-0.0.2-build80.zip",
+        "file_size_bytes": 71263515,
+        "sha256": "19aebb27a3767752c8413577d550352b402c0cf2452f46088ba184a69ee83dcc"
       },
       "macos-arm64-dmg": {
-        "version": "0.0.1-build68",
+        "version": "0.0.2-build80",
         "artifact_type": "dmg",
-        "released_at": "2026-06-21T15:39:05Z",
-        "download_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/launcher/releases/0.0.1-build68/macos-arm64-dmg/GameLauncher-0.0.1-build68-macos-arm64.dmg",
-        "file_size_bytes": 77309993,
-        "sha256": "3955d2fcdc43c2d57660c22d83868332a446df586e3c7301731345ba4f63e82e"
+        "released_at": "2026-08-09T19:33:31Z",
+        "download_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/launcher/releases/0.0.2-build80/macos-arm64-dmg/GameLauncher-0.0.2-build80-macos-arm64.dmg",
+        "file_size_bytes": 82353626,
+        "sha256": "bcb84f14cfaaa14e6ae5526bd7ea84011c1d9c62f251042941a1bb9840137f84"
       },
       "macos-x64-dmg": {
-        "version": "0.0.1-build68",
+        "version": "0.0.2-build80",
         "artifact_type": "dmg",
-        "released_at": "2026-06-21T15:39:05Z",
-        "download_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/launcher/releases/0.0.1-build68/macos-x64-dmg/GameLauncher-0.0.1-build68-macos-x64.dmg",
-        "file_size_bytes": 78626876,
-        "sha256": "8119003c988f7ec4ad2c8e9285d96cc5ce5074ebbde568147b0787235982c15f"
+        "released_at": "2026-08-09T19:33:31Z",
+        "download_url": "https://pub-7e50fe985fd54f429195235e41363c26.r2.dev/launcher/releases/0.0.2-build80/macos-x64-dmg/GameLauncher-0.0.2-build80-macos-x64.dmg",
+        "file_size_bytes": 83553369,
+        "sha256": "5c87d991252a4e863d40ce6a609a376b49bffa99778786a696498dde28a0c603"
       }
     }
   },
