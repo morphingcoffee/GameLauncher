@@ -147,10 +147,17 @@ private fun composeDesktopHostDependency(composeVersion: String): String {
 }
 
 /** Optional `-PbuildNumber=…` from CI (`github.run_number`) — shared across macOS and Windows packaging. */
-private fun ciBuildNumberProperty(): String? =
-    (findProperty("buildNumber") as String?)
-        ?.trim()
-        ?.takeIf { it.isNotEmpty() }
+private fun ciBuildNumberProperty(): String? {
+    val raw =
+        (findProperty("buildNumber") as String?)
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+            ?: return null
+    require(raw.all { it.isDigit() }) {
+        "buildNumber must be a non-negative integer for jpackage MSI/DMG versions, got: '$raw'"
+    }
+    return raw
+}
 
 /** `-PgameLauncherDev=true` — fake catalog, `[DEV]` window title, separate installer identity. */
 private fun isGameLauncherDevBuild(): Boolean =
