@@ -1,7 +1,6 @@
 package com.morphingcoffee.gamelauncher
 
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -79,7 +78,8 @@ internal fun AppNavigation(
             }
         }
 
-        Box(
+        LauncherBackground(
+            theme = backgroundTheme,
             modifier =
                 Modifier
                     .fillMaxSize()
@@ -92,10 +92,6 @@ internal fun AppNavigation(
                         true
                     },
         ) {
-            LauncherBackground(
-                theme = backgroundTheme,
-                modifier = Modifier.fillMaxSize(),
-            )
             NavDisplay(
                 backStack = backStack,
                 onBack = {

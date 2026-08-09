@@ -6,7 +6,10 @@ import androidx.compose.ui.geometry.Offset
 import com.morphingcoffee.gamelauncher.core.model.LauncherBackgroundTheme
 
 /**
- * App-wide animated (or static) launcher background.
+ * App-wide animated (or static) launcher background layered under [content].
+ *
+ * Pointer tracking (desktop) is attached to the same host that wraps [content], so hovering UI
+ * does not look like a window exit. Idle decay runs only when the cursor leaves the host.
  *
  * Optional [timeSeconds] / [pointerNormalized] keep golden-image snapshots deterministic later
  * (issue #93). When null, desktop uses a live clock and non-consuming pointer tracking.
@@ -19,4 +22,5 @@ expect fun LauncherBackground(
     modifier: Modifier = Modifier,
     timeSeconds: Float? = null,
     pointerNormalized: Offset? = null,
+    content: @Composable () -> Unit = {},
 )

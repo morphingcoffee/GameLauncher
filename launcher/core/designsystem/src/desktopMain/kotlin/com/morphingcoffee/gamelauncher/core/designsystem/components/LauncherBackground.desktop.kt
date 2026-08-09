@@ -1,6 +1,7 @@
 package com.morphingcoffee.gamelauncher.core.designsystem.components
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -24,9 +25,13 @@ import org.jetbrains.skia.Paint
 import org.jetbrains.skia.RuntimeEffect
 import org.jetbrains.skia.RuntimeShaderBuilder
 import kotlin.math.cos
+import kotlin.math.exp
 import kotlin.math.sin
 
 private const val TAG = "LauncherBackground"
+
+/** Time constant for pointer smoothing / idle return (~1 second settle). */
+private const val POINTER_SMOOTH_TAU_SECONDS = 1.0f
 
 @Composable
 actual fun LauncherBackground(
@@ -34,6 +39,7 @@ actual fun LauncherBackground(
     modifier: Modifier,
     timeSeconds: Float?,
     pointerNormalized: Offset?,
+    content: @Composable () -> Unit,
 ) {
     val animated = theme != LauncherBackgroundTheme.STATIC_TERMINAL
     var liveTime by remember(theme) { mutableFloatStateOf(0f) }
@@ -41,23 +47,38 @@ actual fun LauncherBackground(
     var rawPointer by remember(theme) { mutableStateOf(Offset.Zero) }
     var smoothPointer by remember(theme) { mutableStateOf(Offset.Zero) }
 
+    val externallyDriven = pointerNormalized != null
+
     if (animated && timeSeconds == null) {
         LaunchedEffect(theme) {
             val start = withFrameNanos { it }
+            var lastFrame = start
             while (isActive) {
                 withFrameNanos { frameTime ->
                     val t = (frameTime - start) / 1_000_000_000f
+                    val dt =
+                        ((frameTime - lastFrame) / 1_000_000_000f)
+                            .coerceIn(0f, 0.1f)
+                    lastFrame = frameTime
                     liveTime = t
+
                     val idle =
                         Offset(
                             x = 0.48f * sin(t * 0.11f),
                             y = 0.30f * cos(t * 0.09f),
                         )
-                    val target = if (pointerInside) rawPointer else idle
+                    val external = pointerNormalized
+                    val target =
+                        when {
+                            external != null -> external
+                            pointerInside -> rawPointer
+                            else -> idle
+                        }
+                    val alpha = 1f - exp(-dt / POINTER_SMOOTH_TAU_SECONDS)
                     smoothPointer =
                         Offset(
-                            x = smoothPointer.x + (target.x - smoothPointer.x) * 0.12f,
-                            y = smoothPointer.y + (target.y - smoothPointer.y) * 0.12f,
+                            x = smoothPointer.x + (target.x - smoothPointer.x) * alpha,
+                            y = smoothPointer.y + (target.y - smoothPointer.y) * alpha,
                         )
                 }
             }
@@ -66,43 +87,33 @@ actual fun LauncherBackground(
 
     val time = timeSeconds ?: liveTime
     val pointer =
-        pointerNormalized
-            ?: if (animated) {
-                if (timeSeconds != null) {
-                    Offset(
-                        x = 0.48f * sin(time * 0.11f),
-                        y = 0.30f * cos(time * 0.09f),
-                    )
-                } else {
-                    smoothPointer
-                }
-            } else {
-                Offset.Zero
-            }
-
-    if (!animated) {
-        StaticTerminalBackground(modifier = modifier)
-        return
-    }
+        when {
+            !animated -> Offset.Zero
+            timeSeconds != null && pointerNormalized != null -> pointerNormalized
+            timeSeconds != null ->
+                Offset(
+                    x = 0.48f * sin(time * 0.11f),
+                    y = 0.30f * cos(time * 0.09f),
+                )
+            else -> smoothPointer
+        }
 
     val effect =
         remember(theme) {
-            compileEffect(theme)
+            if (animated) compileEffect(theme) else null
         }
-
-    if (effect == null) {
-        StaticTerminalBackground(modifier = modifier)
-        return
-    }
-
-    val builder = remember(effect) { RuntimeShaderBuilder(effect) }
+    val useShader = animated && effect != null
+    val builder = remember(effect) { effect?.let { RuntimeShaderBuilder(it) } }
     val paint = remember { Paint() }
 
     Box(
         modifier =
             modifier
+                .fillMaxSize()
                 .then(
-                    if (pointerNormalized == null) {
+                    if (!externallyDriven && animated) {
+                        // Host wraps [content], so moves over UI still count as inside.
+                        // Exit fires only when the cursor leaves this host (window content).
                         Modifier.pointerInput(theme) {
                             awaitPointerEventScope {
                                 while (true) {
@@ -133,19 +144,30 @@ actual fun LauncherBackground(
                     } else {
                         Modifier
                     },
-                ).drawBehind {
-                    try {
-                        builder.uniform("uTime", time)
-                        builder.uniform("uResolution", size.width, size.height)
-                        builder.uniform("uPointer", pointer.x, pointer.y)
-                        paint.shader = builder.makeShader()
-                        drawContext.canvas.skiaCanvas.drawPaint(paint)
-                    } catch (error: Exception) {
-                        AppLog.w(TAG, "Background shader render failed; using solid fallback", error)
-                        drawRect(LauncherColors.Background)
-                    }
-                },
-    )
+                ).then(
+                    if (useShader && builder != null) {
+                        Modifier.drawBehind {
+                            try {
+                                builder.uniform("uTime", time)
+                                builder.uniform("uResolution", size.width, size.height)
+                                builder.uniform("uPointer", pointer.x, pointer.y)
+                                paint.shader = builder.makeShader()
+                                drawContext.canvas.skiaCanvas.drawPaint(paint)
+                            } catch (error: Exception) {
+                                AppLog.w(TAG, "Background shader render failed; using solid fallback", error)
+                                drawRect(LauncherColors.Background)
+                            }
+                        }
+                    } else {
+                        Modifier
+                    },
+                ),
+    ) {
+        if (!useShader) {
+            StaticTerminalBackground(modifier = Modifier.fillMaxSize())
+        }
+        content()
+    }
 }
 
 private fun compileEffect(theme: LauncherBackgroundTheme): RuntimeEffect? {
