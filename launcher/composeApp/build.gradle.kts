@@ -27,7 +27,6 @@ kotlin {
         val desktopMain by getting {
             dependencies {
                 implementation(project(":core:designsystem"))
-                implementation(project(":core:model"))
                 implementation(project(":core:logging"))
                 implementation(libs.ktor.client.cio)
                 // Generic :desktop lacks Skiko natives; use the host OS/arch artifact (was compose.desktop.currentOs).
@@ -46,6 +45,7 @@ kotlin {
             dependencies {
                 implementation(project(":core:architecture"))
                 implementation(project(":core:designsystem"))
+                implementation(project(":core:model"))
                 implementation(project(":core:navigation"))
                 implementation(project(":core:network"))
                 implementation(project(":feature:home"))

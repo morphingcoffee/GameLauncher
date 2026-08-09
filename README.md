@@ -32,6 +32,7 @@ GameLauncher/
 | Requirement | Notes |
 |-------------|--------|
 | **JDK 17** | Required for Compose Desktop, CI, and native packaging. Verify with `java -version` (17+ is fine locally; CI uses Temurin 17). |
+| **Android SDK (API 36)** | Needed for `./gradlew build` because modules keep an `androidTarget` for Compose previews. Point `ANDROID_HOME` at the SDK, or set `sdk.dir` in `launcher/local.properties` (gitignored). |
 | **Python 3** | Stdlib only — used by deploy tooling unit tests and offline catalog validation. |
 | **Git** | To clone the repository. |
 
