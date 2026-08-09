@@ -304,6 +304,73 @@ class CatalogViewModelTest {
         }
 
     @Test
+    fun reselectDuringDownload_keepsDownloadingAndIgnoresExtraClicks() =
+        runBlocking {
+            val previousOs = System.getProperty("os.name")
+            val previousArch = System.getProperty("os.arch")
+            System.setProperty("os.name", "Mac OS X")
+            System.setProperty("os.arch", "aarch64")
+            try {
+                val platformKey = PlatformKey.current()
+                assertEquals(PlatformKey.MACOS_ARM64, platformKey)
+                val build =
+                    GameBuild(
+                        downloadUrl = "https://example.com/alpha.zip",
+                        executablePath = "Game.app/Contents/MacOS/Game",
+                        fileSizeBytes = 1024,
+                        sha256 = "abc",
+                    )
+                val repository =
+                    DelayedDownloadDataSource(
+                        platformKey = platformKey!!,
+                        build = build,
+                        downloadDelayMs = 400,
+                    )
+                val viewModel = createCatalogViewModel(repository, twoMacGamesManifestJson())
+
+                viewModel.onEvent(CatalogEvent.Started)
+                waitForLoadingToFinish(viewModel)
+                waitUntil {
+                    viewModel.state.value.installState == InstallState.NotInstalled
+                }
+
+                viewModel.onEvent(CatalogEvent.DownloadClicked)
+                delay(30)
+                assertTrue(viewModel.state.value.isDownloading)
+                assertEquals(1, repository.downloadInvocationCount)
+
+                viewModel.onEvent(CatalogEvent.MoveSelection(1))
+                assertEquals("beta", viewModel.state.value.selectedGameId)
+                assertFalse(viewModel.state.value.isDownloading)
+
+                viewModel.onEvent(CatalogEvent.MoveSelection(-1))
+                assertEquals("alpha", viewModel.state.value.selectedGameId)
+                assertTrue(
+                    viewModel.state.value.isDownloading,
+                    "Reselecting the in-flight download must restore isDownloading",
+                )
+
+                viewModel.onEvent(CatalogEvent.DownloadClicked)
+                viewModel.onEvent(CatalogEvent.DownloadClicked)
+                delay(500)
+
+                assertEquals(1, repository.downloadInvocationCount)
+                assertFalse(viewModel.state.value.isDownloading)
+            } finally {
+                if (previousOs != null) {
+                    System.setProperty("os.name", previousOs)
+                } else {
+                    System.clearProperty("os.name")
+                }
+                if (previousArch != null) {
+                    System.setProperty("os.arch", previousArch)
+                } else {
+                    System.clearProperty("os.arch")
+                }
+            }
+        }
+
+    @Test
     fun gameSelection_hidesDownloadWhileInstallStatePending() =
         runBlocking {
             val repository =
@@ -1592,6 +1659,7 @@ class CatalogViewModelTest {
         private val build: GameBuild,
         private val downloadDelayMs: Long,
     ) : GameCatalogDataSource {
+        var downloadInvocationCount = 0
         private val installStates = mutableMapOf<String, InstallState>()
         private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
         override val downloadProgress: StateFlow<DownloadProgress?> = _downloadProgress
@@ -1626,6 +1694,7 @@ class CatalogViewModelTest {
             version: String,
             build: GameBuild,
         ): Result<Unit> {
+            downloadInvocationCount++
             delay(downloadDelayMs)
             installStates[gameId] =
                 InstallState.Installed(

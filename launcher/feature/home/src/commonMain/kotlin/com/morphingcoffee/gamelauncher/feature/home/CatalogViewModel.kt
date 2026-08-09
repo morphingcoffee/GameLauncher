@@ -31,6 +31,12 @@ class CatalogViewModel(
     ) {
     private var installProbeJob: Job? = null
 
+    /** In-flight game download id — survives selection changes (unlike [CatalogState.isDownloading]). */
+    private var activeDownloadGameId: String? = null
+
+    /** In-flight game uninstall id — survives selection changes (unlike [CatalogState.isUninstalling]). */
+    private var activeUninstallGameId: String? = null
+
     init {
         gameCatalogRepository.downloadProgress
             .onEach { progress ->
@@ -338,9 +344,11 @@ class CatalogViewModel(
                 isVersionPickerVisible = false,
                 isVersionHistoryLoading = false,
                 installState = InstallState.Unknown,
-                isDownloading = false,
+                // Preserve in-flight ops for the game being selected; never clear the private
+                // active* ids here — that is what allowed re-clicking DOWNLOAD mid-install.
+                isDownloading = gameId == activeDownloadGameId,
                 isChargingUninstall = false,
-                isUninstalling = false,
+                isUninstalling = gameId == activeUninstallGameId,
                 onDiskSizeBytes = null,
                 ambientColor = Color.Transparent,
                 launchErrorMessage = null,
@@ -484,10 +492,12 @@ class CatalogViewModel(
             }
         val build = resolveBuildForVersion(game, version) ?: return
         if (version.isBlank()) return
-        if (state.value.isDownloading) return
+        // Single active download (shared progress stream + shared staging/game dirs).
+        if (activeDownloadGameId != null || activeUninstallGameId != null) return
 
         val gameId = game.id
         val versionAtStart = version
+        activeDownloadGameId = gameId
         updateState {
             copy(
                 isDownloading = true,
@@ -536,6 +546,9 @@ class CatalogViewModel(
                         }
                     }
             } finally {
+                if (activeDownloadGameId == gameId) {
+                    activeDownloadGameId = null
+                }
                 if (state.value.selectedGameId == gameId) {
                     updateState { copy(isDownloading = false) }
                 }
@@ -644,11 +657,17 @@ class CatalogViewModel(
 
     private fun uninstallSelectedGame() {
         val game = state.value.selectedGame ?: return
-        if (state.value.isLaunching || state.value.isDownloading || state.value.isUninstalling) return
+        if (state.value.isLaunching ||
+            activeDownloadGameId != null ||
+            activeUninstallGameId != null
+        ) {
+            return
+        }
 
         val gameId = game.id
         val versionAtStart = state.value.displayVersion
 
+        activeUninstallGameId = gameId
         updateState {
             copy(
                 isChargingUninstall = false,
@@ -692,6 +711,9 @@ class CatalogViewModel(
                         }
                     }
             } finally {
+                if (activeUninstallGameId == gameId) {
+                    activeUninstallGameId = null
+                }
                 if (state.value.selectedGameId == gameId) {
                     updateState { copy(isUninstalling = false) }
                 }

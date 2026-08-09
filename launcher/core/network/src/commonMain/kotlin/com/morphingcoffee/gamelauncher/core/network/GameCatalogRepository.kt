@@ -9,10 +9,20 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 
 fun interface BlockingInstallStateProbe {
     fun probe(gameId: String): InstallState
+}
+
+fun interface DownloadInstallRunner {
+    suspend fun downloadAndInstall(
+        gameId: String,
+        version: String,
+        build: GameBuild,
+        onProgress: (DownloadProgress) -> Unit,
+    ): Result<Unit>
 }
 
 class GameCatalogRepository(
@@ -22,9 +32,16 @@ class GameCatalogRepository(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val installStateProbe: BlockingInstallStateProbe =
         BlockingInstallStateProbe { gameInstaller.getInstallState(it) },
+    private val downloadInstallRunner: DownloadInstallRunner =
+        DownloadInstallRunner { gameId, version, build, onProgress ->
+            gameInstaller.downloadAndInstall(gameId, version, build, onProgress)
+        },
 ) : GameCatalogDataSource {
     private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
     override val downloadProgress: StateFlow<DownloadProgress?> = _downloadProgress.asStateFlow()
+
+    /** Fail-fast lock: installer staging/game dirs are not safe for concurrent installs. */
+    private val downloadInstallMutex = Mutex()
 
     override suspend fun loadCatalog(): Result<List<GameCatalogEntry>> =
         runCatching {
@@ -41,13 +58,22 @@ class GameCatalogRepository(
         version: String,
         build: GameBuild,
     ): Result<Unit> {
+        if (!downloadInstallMutex.tryLock()) {
+            return Result.failure(
+                IllegalStateException("A game download is already in progress"),
+            )
+        }
         _downloadProgress.value = null
-        return gameInstaller
-            .downloadAndInstall(gameId, version, build) { progress ->
-                _downloadProgress.value = progress
-            }.also {
-                _downloadProgress.value = null
-            }
+        return try {
+            downloadInstallRunner
+                .downloadAndInstall(gameId, version, build) { progress ->
+                    _downloadProgress.value = progress
+                }.also {
+                    _downloadProgress.value = null
+                }
+        } finally {
+            downloadInstallMutex.unlock()
+        }
     }
 
     override suspend fun getInstallState(gameId: String): InstallState =
