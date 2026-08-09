@@ -140,16 +140,14 @@ jobs:
 
       - name: Build macOS app image (${{ matrix.variant }})
         env:
+          # Public client DSN only — never an auth token. Gradle reads SENTRY_DSN from env
+          # (avoid -PsentryDsn=… — DSN contains '@'). Same project for prod + DEV;
+          # filter DEV in Sentry by environment=development / tag dev_build=true.
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
         run: |
           args=(-PcomposeDesktopHost=${{ matrix.compose_host }} -PbuildNumber="$BUILD_NUMBER")
           if [ "${{ matrix.variant }}" = "dev" ]; then
             args+=(-PgameLauncherDev=true)
-          fi
-          # Public client DSN only — never a Sentry auth token. Same project for prod + DEV
-          # (filter in Sentry by environment=development / tag dev_build=true).
-          if [ -n "${SENTRY_DSN:-}" ]; then
-            args+=(-PsentryDsn="$SENTRY_DSN")
           fi
           ./gradlew :composeApp:createDistributable --no-daemon "${args[@]}"
 
@@ -297,19 +295,17 @@ jobs:
       - name: Package ${{ matrix.format }} (${{ matrix.variant }})
         shell: pwsh
         env:
+          # Gradle reads SENTRY_DSN from env inside the package scripts — do not pass the
+          # DSN on the PowerShell CLI (DSN contains '@' and breaks argument binding).
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
         run: |
-          $args = @()
+          # Avoid automatic $args variable — use an explicit name.
+          $packageArgs = @()
           if ("${{ matrix.variant }}" -eq "dev") {
-            $args += "-Dev"
+            $packageArgs += "-Dev"
           }
-          # Same public DSN for prod + DEV; DEV events are tagged environment=development.
-          if ($env:SENTRY_DSN) {
-            $args += "-SentryDsn"
-            $args += $env:SENTRY_DSN
-          }
-          if ($args.Count -gt 0) {
-            ..\tools\dev\${{ matrix.script }} @args
+          if ($packageArgs.Count -gt 0) {
+            ..\tools\dev\${{ matrix.script }} @packageArgs
           } else {
             ..\tools\dev\${{ matrix.script }}
           }

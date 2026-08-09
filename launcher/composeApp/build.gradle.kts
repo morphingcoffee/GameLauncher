@@ -159,13 +159,15 @@ private fun isGameLauncherDevBuild(): Boolean =
         .equals("true", ignoreCase = true) == true
 
 /**
- * Optional public Sentry DSN for packaged builds (`-PsentryDsn=…`).
- * Never a Sentry auth token — DSN only. Missing → crash reporting is a safe no-op.
+ * Optional public Sentry DSN for packaged builds.
+ * Prefer `SENTRY_DSN` env (avoids shell/`@` quoting issues with `-PsentryDsn=https://…@…`).
+ * `-PsentryDsn=…` still works as an override. Never a Sentry auth token — DSN only.
  */
 private fun sentryDsnProperty(): String? =
     (findProperty("sentryDsn") as String?)
         ?.trim()
         ?.takeIf { it.isNotEmpty() }
+        ?: System.getenv("SENTRY_DSN")?.trim()?.takeIf { it.isNotEmpty() }
 
 private fun desktopPackageName(): String = if (isGameLauncherDevBuild()) "GameLauncherDev" else "GameLauncher"
 

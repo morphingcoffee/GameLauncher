@@ -4,8 +4,7 @@
 
 param(
     [string]$BuildNumber = $env:BUILD_NUMBER,
-    [switch]$Dev,
-    [string]$SentryDsn = $env:SENTRY_DSN
+    [switch]$Dev
 )
 
 $ErrorActionPreference = "Stop"
@@ -17,17 +16,13 @@ if (-not $BuildNumber) {
     Write-Error "BUILD_NUMBER is required (workflow run number or -BuildNumber)."
 }
 
+# Sentry DSN is read by Gradle from SENTRY_DSN env (do not pass on the CLI — DSN contains '@').
 $devProperty = @()
 if ($Dev) {
     $devProperty = @("-PgameLauncherDev=true")
 }
 
-$sentryProperty = @()
-if ($SentryDsn) {
-    $sentryProperty = @("-PsentryDsn=$SentryDsn")
-}
-
-$gradleArgs = @(":composeApp:createDistributable", "--no-daemon", "-PbuildNumber=$BuildNumber") + $devProperty + $sentryProperty
+$gradleArgs = @(":composeApp:createDistributable", "--no-daemon", "-PbuildNumber=$BuildNumber") + $devProperty
 & .\gradlew.bat @gradleArgs
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
