@@ -10,6 +10,7 @@ import com.morphingcoffee.gamelauncher.core.model.LauncherBackgroundTheme
  *
  * Pointer tracking (desktop) is attached to the same host that wraps [content], so hovering UI
  * does not look like a window exit. Idle decay runs only when the cursor leaves the host.
+ * Animation frame state is kept in a sibling visual layer so [content] is not recomposed every frame.
  *
  * Optional [timeSeconds] / [pointerNormalized] keep golden-image snapshots deterministic later
  * (issue #93). When null, desktop uses a live clock and non-consuming pointer tracking.

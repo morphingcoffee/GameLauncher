@@ -33,6 +33,21 @@ private const val TAG = "LauncherBackground"
 /** Time constant for pointer smoothing / idle return (~1 second settle). */
 private const val POINTER_SMOOTH_TAU_SECONDS = 1.0f
 
+/**
+ * Non-Compose pointer probe updated from the host's [pointerInput].
+ * Must not use Compose state — otherwise the host recomposes and re-invokes [content] every move/frame.
+ */
+private class PointerProbe {
+    @Volatile
+    var inside: Boolean = false
+
+    @Volatile
+    var x: Float = 0f
+
+    @Volatile
+    var y: Float = 0f
+}
+
 @Composable
 actual fun LauncherBackground(
     theme: LauncherBackgroundTheme,
@@ -42,12 +57,70 @@ actual fun LauncherBackground(
     content: @Composable () -> Unit,
 ) {
     val animated = theme != LauncherBackgroundTheme.STATIC_TERMINAL
-    var liveTime by remember(theme) { mutableFloatStateOf(0f) }
-    var pointerInside by remember(theme) { mutableStateOf(false) }
-    var rawPointer by remember(theme) { mutableStateOf(Offset.Zero) }
-    var smoothPointer by remember(theme) { mutableStateOf(Offset.Zero) }
+    val probe = remember { PointerProbe() }
 
-    val externallyDriven = pointerNormalized != null
+    // Host owns hit-testing so UI above the visual layer still counts as "inside".
+    // Frame clock / smooth pointer state live only in [BackgroundVisual] so NavDisplay
+    // (and thumbnails) are not recomposed every animation frame.
+    Box(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .then(
+                    if (pointerNormalized == null && animated) {
+                        Modifier.pointerInput(theme) {
+                            awaitPointerEventScope {
+                                while (true) {
+                                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                                    when (event.type) {
+                                        PointerEventType.Exit -> {
+                                            probe.inside = false
+                                        }
+                                        PointerEventType.Move,
+                                        PointerEventType.Enter,
+                                        PointerEventType.Press,
+                                        -> {
+                                            val change = event.changes.firstOrNull() ?: continue
+                                            val pos = change.position
+                                            val area = size
+                                            if (area.width > 0 && area.height > 0) {
+                                                probe.x = (2f * pos.x - area.width) / area.height
+                                                probe.y = (2f * pos.y - area.height) / area.height
+                                                probe.inside = true
+                                            }
+                                        }
+                                        else -> Unit
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        Modifier
+                    },
+                ),
+    ) {
+        BackgroundVisual(
+            theme = theme,
+            timeSeconds = timeSeconds,
+            pointerNormalized = pointerNormalized,
+            probe = probe,
+            modifier = Modifier.fillMaxSize(),
+        )
+        content()
+    }
+}
+
+@Composable
+private fun BackgroundVisual(
+    theme: LauncherBackgroundTheme,
+    timeSeconds: Float?,
+    pointerNormalized: Offset?,
+    probe: PointerProbe,
+    modifier: Modifier,
+) {
+    val animated = theme != LauncherBackgroundTheme.STATIC_TERMINAL
+    var liveTime by remember(theme) { mutableFloatStateOf(0f) }
+    var smoothPointer by remember(theme) { mutableStateOf(Offset.Zero) }
 
     if (animated && timeSeconds == null) {
         LaunchedEffect(theme) {
@@ -67,11 +140,10 @@ actual fun LauncherBackground(
                             x = 0.48f * sin(t * 0.11f),
                             y = 0.30f * cos(t * 0.09f),
                         )
-                    val external = pointerNormalized
                     val target =
                         when {
-                            external != null -> external
-                            pointerInside -> rawPointer
+                            pointerNormalized != null -> pointerNormalized
+                            probe.inside -> Offset(probe.x, probe.y)
                             else -> idle
                         }
                     val alpha = 1f - exp(-dt / POINTER_SMOOTH_TAU_SECONDS)
@@ -102,72 +174,29 @@ actual fun LauncherBackground(
         remember(theme) {
             if (animated) compileEffect(theme) else null
         }
-    val useShader = animated && effect != null
-    val builder = remember(effect) { effect?.let { RuntimeShaderBuilder(it) } }
+    if (!animated || effect == null) {
+        StaticTerminalBackground(modifier = modifier)
+        return
+    }
+
+    val builder = remember(effect) { RuntimeShaderBuilder(effect) }
     val paint = remember { Paint() }
 
     Box(
         modifier =
-            modifier
-                .fillMaxSize()
-                .then(
-                    if (!externallyDriven && animated) {
-                        // Host wraps [content], so moves over UI still count as inside.
-                        // Exit fires only when the cursor leaves this host (window content).
-                        Modifier.pointerInput(theme) {
-                            awaitPointerEventScope {
-                                while (true) {
-                                    val event = awaitPointerEvent(PointerEventPass.Initial)
-                                    when (event.type) {
-                                        PointerEventType.Exit -> {
-                                            pointerInside = false
-                                        }
-                                        PointerEventType.Move,
-                                        PointerEventType.Enter,
-                                        PointerEventType.Press,
-                                        -> {
-                                            val change = event.changes.firstOrNull() ?: continue
-                                            val pos = change.position
-                                            val area = size
-                                            if (area.width > 0 && area.height > 0) {
-                                                val nx = (2f * pos.x - area.width) / area.height
-                                                val ny = (2f * pos.y - area.height) / area.height
-                                                rawPointer = Offset(nx, ny)
-                                                pointerInside = true
-                                            }
-                                        }
-                                        else -> Unit
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        Modifier
-                    },
-                ).then(
-                    if (useShader && builder != null) {
-                        Modifier.drawBehind {
-                            try {
-                                builder.uniform("uTime", time)
-                                builder.uniform("uResolution", size.width, size.height)
-                                builder.uniform("uPointer", pointer.x, pointer.y)
-                                paint.shader = builder.makeShader()
-                                drawContext.canvas.skiaCanvas.drawPaint(paint)
-                            } catch (error: Exception) {
-                                AppLog.w(TAG, "Background shader render failed; using solid fallback", error)
-                                drawRect(LauncherColors.Background)
-                            }
-                        }
-                    } else {
-                        Modifier
-                    },
-                ),
-    ) {
-        if (!useShader) {
-            StaticTerminalBackground(modifier = Modifier.fillMaxSize())
-        }
-        content()
-    }
+            modifier.drawBehind {
+                try {
+                    builder.uniform("uTime", time)
+                    builder.uniform("uResolution", size.width, size.height)
+                    builder.uniform("uPointer", pointer.x, pointer.y)
+                    paint.shader = builder.makeShader()
+                    drawContext.canvas.skiaCanvas.drawPaint(paint)
+                } catch (error: Exception) {
+                    AppLog.w(TAG, "Background shader render failed; using solid fallback", error)
+                    drawRect(LauncherColors.Background)
+                }
+            },
+    )
 }
 
 private fun compileEffect(theme: LauncherBackgroundTheme): RuntimeEffect? {
