@@ -21,8 +21,7 @@ import com.morphingcoffee.gamelauncher.feature.settings.StorageState
 internal const val GOLDEN_PLATFORM = PlatformKey.MACOS_ARM64
 
 internal const val GOLDEN_CLOCK = "13:42:01"
-/** Obviously fake — must never look like a real marketing / CI build label. */
-internal const val GOLDEN_APP_VERSION = "99999.0.0-golden"
+internal const val GOLDEN_APP_VERSION = "0.0.2-golden"
 
 internal fun catalogLoadingState(): CatalogState =
     CatalogState(
@@ -166,7 +165,7 @@ internal fun storageUninstallAllDialogState(): StorageState =
 
 private fun goldenChannelBuild(): LauncherChannelBuild =
     LauncherChannelBuild(
-        version = "0.0.2-build99",
+        version = "99999.0.0-build99999",
         artifactType = "dmg",
         downloadUrl = "https://cdn.example/launcher.dmg",
         fileSizeBytes = 48_000_000L,
