@@ -1,42 +1,29 @@
-package com.morphingcoffee.gamelauncher.feature.home
+package com.morphingcoffee.gamelauncher.core.designsystem.components
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import kotlinx.coroutines.isActive
-import kotlin.math.sin
+import com.morphingcoffee.gamelauncher.core.designsystem.LauncherColors
 
+/**
+ * Fixed low-contrast phosphor-dot / scanline field. No animation loop.
+ * Also used as the soft-fail fallback when SkSL compilation fails.
+ */
 @Composable
-actual fun ShaderBackground(modifier: Modifier) {
-    var time by remember { mutableFloatStateOf(0f) }
-
-    androidx.compose.runtime.LaunchedEffect(Unit) {
-        val start = withFrameNanos { it }
-        while (isActive) {
-            withFrameNanos { frameTime ->
-                time = (frameTime - start) / 1_000_000_000f
-            }
-        }
-    }
-
+fun StaticTerminalBackground(modifier: Modifier = Modifier) {
     Box(
         modifier =
             modifier.drawBehind {
-                val scanlineAlpha = 0.055f
-                val dotAlpha = 0.04f
+                drawRect(LauncherColors.Background)
+                val scanlineAlpha = 0.04f
+                val dotAlpha = 0.035f
                 val lineStep = 3f
                 var y = 0f
                 while (y < size.height) {
-                    val wave = sin((y / size.height + time * 0.04f) * 200f) * 0.5f + 0.5f
-                    if (wave > 0.95f) {
+                    if ((y.toInt() / 3) % 7 == 0) {
                         drawLine(
                             color = Color.White.copy(alpha = scanlineAlpha),
                             start = Offset(0f, y),
@@ -54,7 +41,7 @@ actual fun ShaderBackground(modifier: Modifier) {
                     while (gy < size.height) {
                         drawCircle(
                             color = Color.White.copy(alpha = dotAlpha),
-                            radius = 0.75f,
+                            radius = 0.7f,
                             center = Offset(gx, gy),
                         )
                         gy += gridStep

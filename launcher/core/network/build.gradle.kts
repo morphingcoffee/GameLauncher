@@ -65,10 +65,13 @@ kotlin {
             dependencies {
                 implementation(libs.kotlin.test)
                 implementation(libs.kotlinx.coroutines.test)
+<<<<<<< HEAD
                 implementation(libs.ktor.client.mock)
                 implementation(libs.ktor.client.content.negotiation)
                 implementation(libs.ktor.serialization.kotlinx.json)
                 implementation(libs.kotlinx.serialization.json)
+=======
+>>>>>>> 4d22e0e (Add switchable SkSL launcher background themes (#73))
             }
         }
         val commonTest by getting {

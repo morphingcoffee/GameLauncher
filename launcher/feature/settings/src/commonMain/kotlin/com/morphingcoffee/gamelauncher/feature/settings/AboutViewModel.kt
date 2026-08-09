@@ -7,6 +7,7 @@ import com.morphingcoffee.gamelauncher.core.logging.AppLog
 import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
 import com.morphingcoffee.gamelauncher.core.model.LauncherRuntime
 import com.morphingcoffee.gamelauncher.core.model.PlatformKey
+import com.morphingcoffee.gamelauncher.core.network.LauncherSettingsRepository
 import com.morphingcoffee.gamelauncher.core.network.LauncherUpdateRepository
 import com.morphingcoffee.gamelauncher.core.telemetry.CrashReporting
 import com.morphingcoffee.gamelauncher.core.telemetry.TelemetryPreferences
@@ -21,12 +22,14 @@ import kotlinx.coroutines.withContext
 class AboutViewModel(
     private val launcherUpdateRepository: LauncherUpdateRepository,
     private val telemetryPreferencesStore: TelemetryPreferencesStore,
+    private val launcherSettingsRepository: LauncherSettingsRepository,
 ) : MviViewModel<AboutState, AboutEvent, AboutEffect>(
         initialState =
             AboutState(
                 platformLabel = formatPlatformLabel(PlatformKey.current()),
                 releasesUrl = launcherUpdateRepository.releasesUrl(),
                 isDevBuild = LauncherRuntime.isDevBuild(),
+                backgroundTheme = launcherSettingsRepository.backgroundTheme.value,
             ),
     ) {
     init {
@@ -55,6 +58,11 @@ class AboutViewModel(
                         )
                     }
                 }
+            }.launchIn(viewModelScope)
+
+        launcherSettingsRepository.backgroundTheme
+            .onEach { theme ->
+                updateState { copy(backgroundTheme = theme) }
             }.launchIn(viewModelScope)
     }
 
@@ -127,6 +135,10 @@ class AboutViewModel(
             }
 
             AboutEvent.TestSentryClicked -> sendSentrySmokeTest()
+
+            is AboutEvent.BackgroundThemeSelected -> {
+                launcherSettingsRepository.setBackgroundTheme(event.theme)
+            }
         }
     }
 

@@ -7,6 +7,8 @@ object LibraryPaths : LibraryLayout {
 
     fun preferencesFile(): String = path(rootDirectory(), "preferences.json")
 
+    fun settingsFile(): String = path(rootDirectory(), "settings.json")
+
     private fun rootDirectory(): String {
         val os =
             System
@@ -25,7 +27,14 @@ object LibraryPaths : LibraryLayout {
                         ?: error("user.home is not set")
                 path(home, "Library", "Application Support", "GameLauncher")
             }
-            else -> error("Unsupported operating system: $os")
+            else -> {
+                // Agent / Linux hosts — keep settings under a writable home path.
+                val home =
+                    System.getProperty("user.home")
+                        ?: System.getProperty("java.io.tmpdir")
+                        ?: "."
+                path(home, ".gamelauncher")
+            }
         }
     }
 

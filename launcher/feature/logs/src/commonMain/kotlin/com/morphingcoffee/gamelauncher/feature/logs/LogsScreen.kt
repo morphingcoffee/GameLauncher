@@ -1,6 +1,5 @@
 package com.morphingcoffee.gamelauncher.feature.logs
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,7 +19,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.morphingcoffee.gamelauncher.core.designsystem.LauncherColors
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherSpacing
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherTheme
 import com.morphingcoffee.gamelauncher.core.designsystem.components.AppHeader
@@ -74,10 +72,7 @@ fun LogsScreenContent(
     }
 
     Box(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(LauncherColors.Background),
+        modifier = Modifier.fillMaxSize(),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             AppHeader(

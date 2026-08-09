@@ -122,8 +122,6 @@ fun CatalogScreenContent(
     val channelLatestVersion = state.channelLatestVersion
 
     Box(modifier = Modifier.fillMaxSize()) {
-        ShaderBackground(modifier = Modifier.fillMaxSize())
-
         Column(
             modifier =
                 Modifier
@@ -214,7 +212,7 @@ fun CatalogScreenContent(
                         }
                         if (!state.isUpdateGateActive) {
                             add(StatusBarAction(label = "STORAGE", onClick = onOpenStorage))
-                            add(StatusBarAction(label = "ABOUT", onClick = onOpenAbout))
+                            add(StatusBarAction(label = "SETTINGS", onClick = onOpenAbout))
                         }
                     },
             )

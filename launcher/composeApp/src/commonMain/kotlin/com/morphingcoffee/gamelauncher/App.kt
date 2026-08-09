@@ -4,6 +4,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -13,16 +14,20 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherTheme
+import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherBackground
 import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
 import com.morphingcoffee.gamelauncher.core.navigation.AppDestination
 import com.morphingcoffee.gamelauncher.core.navigation.DebugNavigation
 import com.morphingcoffee.gamelauncher.core.navigation.NavigationBackInterceptor
 import com.morphingcoffee.gamelauncher.core.navigation.appNavigationConfig
+import com.morphingcoffee.gamelauncher.core.network.InMemoryLauncherSettingsRepository
+import com.morphingcoffee.gamelauncher.core.network.LauncherSettingsRepository
 import com.morphingcoffee.gamelauncher.feature.home.CatalogScreen
 import com.morphingcoffee.gamelauncher.feature.home.CatalogScreenContent
 import com.morphingcoffee.gamelauncher.feature.home.catalogPreviewState
@@ -32,10 +37,11 @@ import com.morphingcoffee.gamelauncher.feature.settings.SettingsScreen
 import com.morphingcoffee.gamelauncher.feature.settings.SettingsScreenContent
 import com.morphingcoffee.gamelauncher.feature.settings.StorageScreen
 import kotlinx.coroutines.flow.collectLatest
+import org.koin.compose.koinInject
 
 @Composable
 fun App() {
-    AppNavigation()
+    AppNavigation(settingsRepository = koinInject())
 }
 
 private fun openLogsDestination(backStack: androidx.navigation3.runtime.NavBackStack<NavKey>) {
@@ -53,10 +59,15 @@ internal fun AppNavigation(
                 onOpenStorage = onOpenStorage,
             )
         },
+    settingsRepository: LauncherSettingsRepository? = null,
 ) {
     LauncherTheme {
         val backStack = rememberNavBackStack(appNavigationConfig, AppDestination.Home)
         val focusRequester = androidx.compose.runtime.remember { FocusRequester() }
+        val resolvedSettingsRepository =
+            settingsRepository
+                ?: androidx.compose.runtime.remember { InMemoryLauncherSettingsRepository() }
+        val backgroundTheme by resolvedSettingsRepository.backgroundTheme.collectAsStateWithLifecycle()
 
         androidx.compose.runtime.LaunchedEffect(Unit) {
             focusRequester.requestFocus()
@@ -81,6 +92,10 @@ internal fun AppNavigation(
                         true
                     },
         ) {
+            LauncherBackground(
+                theme = backgroundTheme,
+                modifier = Modifier.fillMaxSize(),
+            )
             NavDisplay(
                 backStack = backStack,
                 onBack = {

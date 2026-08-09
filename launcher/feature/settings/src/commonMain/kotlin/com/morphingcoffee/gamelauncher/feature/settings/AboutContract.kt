@@ -1,5 +1,6 @@
 package com.morphingcoffee.gamelauncher.feature.settings
 
+import com.morphingcoffee.gamelauncher.core.model.LauncherBackgroundTheme
 import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
 import com.morphingcoffee.gamelauncher.core.model.LauncherRuntime
 import com.morphingcoffee.gamelauncher.core.model.LauncherUpdateEvaluation
@@ -25,6 +26,10 @@ sealed interface AboutEvent {
     data object ShareExtendedDiagnosticsToggled : AboutEvent
 
     data object TestSentryClicked : AboutEvent
+
+    data class BackgroundThemeSelected(
+        val theme: LauncherBackgroundTheme,
+    ) : AboutEvent
 }
 
 data class AboutState(
@@ -43,6 +48,8 @@ data class AboutState(
     val shareExtendedDiagnostics: Boolean = false,
     val isDevBuild: Boolean = LauncherRuntime.isDevBuild(),
     val sentryTestStatus: String? = null,
+    val backgroundTheme: LauncherBackgroundTheme = LauncherBackgroundTheme.DEFAULT,
+    val backgroundThemes: List<LauncherBackgroundTheme> = LauncherBackgroundTheme.entries,
 ) {
     val showLauncherUpdateSignal: Boolean
         get() = updateEvaluation?.status == LauncherUpdateStatus.UpdateAvailable

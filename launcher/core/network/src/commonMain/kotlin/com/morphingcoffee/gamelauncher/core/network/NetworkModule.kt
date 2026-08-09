@@ -13,4 +13,5 @@ val networkModule =
         single { createLauncherUpdateInstaller(get(named("download"))) }
         single { LauncherUpdateRepository(get(), get()) }
         single<GameCatalogDataSource> { GameCatalogRepository(get(), get(), get()) }
+        single<LauncherSettingsRepository> { createLauncherSettingsRepository() }
     }
