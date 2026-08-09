@@ -165,7 +165,8 @@ internal fun storageUninstallAllDialogState(): StorageState =
 
 private fun goldenChannelBuild(): LauncherChannelBuild =
     LauncherChannelBuild(
-        version = "99999.0.0-build99999",
+        // Obviously fake channel label — not a CI run number.
+        version = "0.0.2-build99999",
         artifactType = "dmg",
         downloadUrl = "https://cdn.example/launcher.dmg",
         fileSizeBytes = 48_000_000L,
