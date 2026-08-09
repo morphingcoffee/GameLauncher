@@ -30,9 +30,6 @@ class CatalogViewModel(
             ),
     ) {
     private var installProbeJob: Job? = null
-    private var catalogProbeGeneration: Int = 0
-    private val gameProbeGeneration = mutableMapOf<String, Int>()
-    private var pendingStartupProbeIds: Set<String> = emptySet()
 
     init {
         gameCatalogRepository.downloadProgress
@@ -259,9 +256,7 @@ class CatalogViewModel(
 
     private fun applyLoadedGames(games: List<GameCatalogEntry>) {
         val selectedGameId = state.value.selectedGameId ?: games.firstOrNull()?.id
-        val generation = ++catalogProbeGeneration
         installProbeJob?.cancel()
-        gameProbeGeneration.clear()
 
         updateState {
             copy(
@@ -285,33 +280,15 @@ class CatalogViewModel(
                     }
                 }
             }
-        pendingStartupProbeIds = probeOrder.toSet()
-
-        if (probeOrder.isEmpty()) {
-            return
-        }
+        if (probeOrder.isEmpty()) return
 
         installProbeJob =
             viewModelScope.launch {
-                try {
-                    for (gameId in probeOrder) {
-                        ensureActive()
-                        if (generation != catalogProbeGeneration) return@launch
-                        val gameGeneration = gameProbeGeneration[gameId] ?: 0
-                        val probedInstallState = gameCatalogRepository.getInstallState(gameId)
-                        ensureActive()
-                        if (generation != catalogProbeGeneration) return@launch
-                        if ((gameProbeGeneration[gameId] ?: 0) != gameGeneration) {
-                            pendingStartupProbeIds = pendingStartupProbeIds - gameId
-                            continue
-                        }
-                        publishInstallState(gameId, probedInstallState)
-                        pendingStartupProbeIds = pendingStartupProbeIds - gameId
-                    }
-                } finally {
-                    if (generation == catalogProbeGeneration) {
-                        pendingStartupProbeIds = emptySet()
-                    }
+                for (gameId in probeOrder) {
+                    ensureActive()
+                    val probedInstallState = gameCatalogRepository.getInstallState(gameId)
+                    ensureActive()
+                    publishInstallState(gameId, probedInstallState)
                 }
             }
     }
@@ -353,7 +330,6 @@ class CatalogViewModel(
     }
 
     private fun selectGame(gameId: String) {
-        val cached = state.value.installStatesByGameId[gameId]
         updateState {
             copy(
                 selectedGameId = gameId,
@@ -361,7 +337,7 @@ class CatalogViewModel(
                 versionHistory = emptyList(),
                 isVersionPickerVisible = false,
                 isVersionHistoryLoading = false,
-                installState = cached ?: InstallState.Unknown,
+                installState = InstallState.Unknown,
                 isDownloading = false,
                 isChargingUninstall = false,
                 isUninstalling = false,
@@ -370,15 +346,7 @@ class CatalogViewModel(
                 launchErrorMessage = null,
             )
         }
-        when {
-            cached != null -> {
-                if (cached is InstallState.Installed && state.value.displayVersion == cached.version) {
-                    probeOnDiskSize(gameId)
-                }
-            }
-            gameId in pendingStartupProbeIds -> Unit
-            else -> refreshInstallState(gameId)
-        }
+        probeInstallState(gameId)
     }
 
     private fun moveSelection(delta: Int) {
@@ -448,27 +416,13 @@ class CatalogViewModel(
                 launchErrorMessage = null,
             )
         }
-        val gameId = state.value.selectedGameId ?: return
-        val cached = state.value.installStatesByGameId[gameId]
-        if (cached != null) {
-            if (cached is InstallState.Installed && version == cached.version) {
-                probeOnDiskSize(gameId)
-            } else {
-                updateState { copy(onDiskSizeBytes = null) }
-            }
-            return
-        }
-        if (gameId !in pendingStartupProbeIds) {
-            refreshInstallState(gameId)
-        }
+        state.value.selectedGameId?.let { probeInstallState(it) }
     }
 
-    private fun refreshInstallState(gameId: String) {
-        val gameGeneration = (gameProbeGeneration[gameId] ?: 0) + 1
-        gameProbeGeneration[gameId] = gameGeneration
+    private fun probeInstallState(gameId: String) {
         viewModelScope.launch {
             val probedInstallState = gameCatalogRepository.getInstallState(gameId)
-            if ((gameProbeGeneration[gameId] ?: 0) != gameGeneration) return@launch
+            ensureActive()
             publishInstallState(gameId, probedInstallState)
         }
     }
@@ -478,11 +432,6 @@ class CatalogViewModel(
         version: String,
         executablePath: String,
     ) {
-        // Invalidate any in-flight startup/refresh probe for this game, then publish the known
-        // install result immediately so CTA/cache cannot stay stuck on the pre-download NotInstalled.
-        val gameGeneration = (gameProbeGeneration[gameId] ?: 0) + 1
-        gameProbeGeneration[gameId] = gameGeneration
-        pendingStartupProbeIds = pendingStartupProbeIds - gameId
         publishInstallState(
             gameId,
             InstallState.Installed(
@@ -560,9 +509,6 @@ class CatalogViewModel(
                 result
                     .onSuccess {
                         AppLog.i("Catalog", "Install complete for $gameId version $versionAtStart")
-                        // Publish the known install result immediately (same pattern as uninstall success).
-                        // Relying only on async refresh can leave a stale NotInstalled cache that selection
-                        // now reuses, so the detail CTA stays on DOWNLOAD.
                         markInstalledAfterDownload(
                             gameId = gameId,
                             version = versionAtStart,
@@ -736,7 +682,7 @@ class CatalogViewModel(
                         }
                     }.onFailure { error ->
                         AppLog.e("Catalog", "Uninstall failed for $gameId", error)
-                        refreshInstallState(gameId)
+                        probeInstallState(gameId)
                         updateState {
                             copy(
                                 statusLabel = "ERROR",

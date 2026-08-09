@@ -751,18 +751,17 @@ class CatalogViewModelTest {
             viewModel.onEvent(CatalogEvent.MoveSelection(1))
             assertEquals("beta", viewModel.state.value.selectedGameId)
             assertTrue(viewModel.state.value.isInstallStatePending)
-            assertEquals(listOf("alpha"), repository.probeOrder)
 
+            // Selection starts its own probe immediately; may overlap the startup batch.
             waitForProbeCount(repository, minCount = 2)
-            assertEquals(listOf("alpha", "beta"), repository.probeOrder)
-            assertEquals(1, repository.maxConcurrency)
+            assertTrue(repository.probeOrder.contains("beta"))
             waitUntil {
                 viewModel.state.value.installState == InstallState.NotInstalled
             }
         }
 
     @Test
-    fun gameSelection_reusesCachedInstallStateWithoutDuplicateProbe() =
+    fun gameSelection_reprobesInstallState() =
         runBlocking {
             val repository =
                 TrackingInstallStateDataSource(
@@ -785,8 +784,10 @@ class CatalogViewModelTest {
             assertEquals(listOf("alpha", "beta"), repository.probeOrder)
 
             viewModel.onEvent(CatalogEvent.MoveSelection(1))
-            delay(50)
-            assertEquals("beta", viewModel.state.value.selectedGameId)
+            waitUntil {
+                viewModel.state.value.selectedGameId == "beta" &&
+                    viewModel.state.value.installState is InstallState.Installed
+            }
             assertEquals(
                 InstallState.Installed(
                     version = "0.0.1",
@@ -794,11 +795,11 @@ class CatalogViewModelTest {
                 ),
                 viewModel.state.value.installState,
             )
-            assertEquals(listOf("alpha", "beta"), repository.probeOrder)
+            assertEquals(listOf("alpha", "beta", "beta"), repository.probeOrder)
         }
 
     @Test
-    fun gameSelection_doesNotDuplicateInFlightStartupProbe() =
+    fun gameSelection_probesEvenWhileStartupBatchInFlight() =
         runBlocking {
             val repository =
                 TrackingInstallStateDataSource(
@@ -815,11 +816,13 @@ class CatalogViewModelTest {
             waitForLoadingToFinish(viewModel)
             waitForProbeCount(repository, minCount = 1)
             viewModel.onEvent(CatalogEvent.MoveSelection(1))
-            assertEquals(listOf("alpha"), repository.probeOrder)
+            assertEquals("beta", viewModel.state.value.selectedGameId)
 
             waitForProbeCount(repository, minCount = 2)
-            assertEquals(listOf("alpha", "beta"), repository.probeOrder)
-            assertEquals(1, repository.maxConcurrency)
+            assertTrue(repository.probeOrder.contains("beta"))
+            waitUntil {
+                viewModel.state.value.installState == InstallState.NotInstalled
+            }
         }
 
     @Test
@@ -959,7 +962,7 @@ class CatalogViewModelTest {
         }
 
     @Test
-    fun downloadComplete_afterSelectionMoved_updatesCacheForReturnSelection() =
+    fun downloadComplete_afterSelectionMoved_updatesBadgeAndReprobeOnReturn() =
         runBlocking {
             val previousOs = System.getProperty("os.name")
             val previousArch = System.getProperty("os.arch")
@@ -1004,9 +1007,10 @@ class CatalogViewModelTest {
                 )
 
                 viewModel.onEvent(CatalogEvent.MoveSelection(-1))
-                delay(50)
-                assertEquals("alpha", viewModel.state.value.selectedGameId)
-                assertTrue(viewModel.state.value.isInstalledForDisplay)
+                waitUntil {
+                    viewModel.state.value.selectedGameId == "alpha" &&
+                        viewModel.state.value.isInstalledForDisplay
+                }
             } finally {
                 if (previousOs != null) {
                     System.setProperty("os.name", previousOs)
@@ -1588,6 +1592,7 @@ class CatalogViewModelTest {
         private val build: GameBuild,
         private val downloadDelayMs: Long,
     ) : GameCatalogDataSource {
+        private val installStates = mutableMapOf<String, InstallState>()
         private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
         override val downloadProgress: StateFlow<DownloadProgress?> = _downloadProgress
 
@@ -1622,10 +1627,16 @@ class CatalogViewModelTest {
             build: GameBuild,
         ): Result<Unit> {
             delay(downloadDelayMs)
+            installStates[gameId] =
+                InstallState.Installed(
+                    version = version,
+                    executablePath = build.executablePath,
+                )
             return Result.success(Unit)
         }
 
-        override suspend fun getInstallState(gameId: String): InstallState = InstallState.NotInstalled
+        override suspend fun getInstallState(gameId: String): InstallState =
+            installStates[gameId] ?: InstallState.NotInstalled
 
         override suspend fun uninstallGame(gameId: String): Result<Unit> = Result.success(Unit)
 
