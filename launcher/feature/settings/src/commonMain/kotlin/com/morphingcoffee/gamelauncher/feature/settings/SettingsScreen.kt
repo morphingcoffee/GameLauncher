@@ -132,9 +132,7 @@ fun SettingsScreenContent(
                 TerminalToggleRow(
                     label = "CRASH RPT",
                     checked = state.sendCrashReports,
-                    description =
-                        "Send launcher crash reports and launch/update failures " +
-                            "(game id, title, version, platform, exit code). No user identity.",
+                    description = "Crashes & launch failures. No identity.",
                     onToggle = onSendCrashReportsToggled,
                 )
 
@@ -142,9 +140,7 @@ fun SettingsScreenContent(
                     label = "EXT DIAG",
                     checked = state.shareExtendedDiagnostics,
                     enabled = state.extendedDiagnosticsEnabled,
-                    description =
-                        "When crash reports are on, also include a redacted process output " +
-                            "tail and recent launcher log breadcrumbs on failure events.",
+                    description = "Redacted output + recent logs on failure.",
                     onToggle = onShareExtendedDiagnosticsToggled,
                 )
 
