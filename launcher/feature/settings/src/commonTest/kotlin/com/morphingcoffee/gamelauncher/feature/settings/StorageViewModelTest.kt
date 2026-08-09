@@ -20,6 +20,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -185,6 +186,86 @@ class StorageViewModelTest {
             assertEquals(0L, viewModel.state.value.totalBytes)
         }
 
+    @Test
+    fun screenHidden_cancelsInFlightRefreshAndIgnoresStaleResult() =
+        runTest {
+            val dataSource =
+                StorageTestDataSource(
+                    installed =
+                        listOf(
+                            InstalledGameSummary("alpha", "1.0.0", 100L),
+                        ),
+                    catalog = listOf(catalogEntry("alpha", "Alpha Game")),
+                    blockListUntilReleased = true,
+                )
+            val viewModel = StorageViewModel(dataSource)
+
+            viewModel.onEvent(StorageEvent.Started)
+            dataSource.awaitListStarted()
+            assertTrue(viewModel.state.value.isLoading)
+
+            viewModel.onEvent(StorageEvent.ScreenHidden)
+            assertFalse(viewModel.state.value.isLoading)
+            assertTrue(
+                viewModel.state.value.segments
+                    .isEmpty(),
+            )
+
+            dataSource.releaseList()
+            advanceUntilIdle()
+            kotlinx.coroutines.delay(50)
+            advanceUntilIdle()
+
+            assertFalse(viewModel.state.value.isLoading)
+            assertTrue(
+                viewModel.state.value.segments
+                    .isEmpty(),
+            )
+            assertEquals(1, dataSource.listInvocationCount)
+        }
+
+    @Test
+    fun screenHidden_duringUninstall_doesNotCancelUninstall() =
+        runTest {
+            val dataSource =
+                StorageTestDataSource(
+                    installed =
+                        listOf(
+                            InstalledGameSummary("alpha", "1.0.0", 100L),
+                            InstalledGameSummary("beta", "2.0.0", 300L),
+                        ),
+                    catalog = listOf(catalogEntry("alpha", "Alpha Game"), catalogEntry("beta", "Beta Game")),
+                    uninstallDelayMs = 200,
+                )
+            val viewModel = StorageViewModel(dataSource)
+            viewModel.onEvent(StorageEvent.Started)
+            waitForLoaded(viewModel)
+
+            viewModel.onEvent(StorageEvent.SegmentClicked("beta"))
+            viewModel.onEvent(StorageEvent.UninstallClicked)
+            viewModel.onEvent(StorageEvent.UninstallChargeComplete)
+            viewModel.onEvent(StorageEvent.ChartAnimationFinished)
+            assertTrue(viewModel.state.value.isUninstalling)
+
+            viewModel.onEvent(StorageEvent.ScreenHidden)
+            assertTrue(viewModel.state.value.isUninstalling)
+
+            repeat(40) {
+                advanceUntilIdle()
+                if (!viewModel.state.value.isUninstalling) return@repeat
+                kotlinx.coroutines.delay(25)
+            }
+            advanceUntilIdle()
+            assertFalse(viewModel.state.value.isUninstalling)
+            assertEquals(1, viewModel.state.value.segments.size)
+            assertEquals(
+                "alpha",
+                viewModel.state.value.segments
+                    .single()
+                    .gameId,
+            )
+        }
+
     private suspend fun TestScope.waitForLoaded(viewModel: StorageViewModel) {
         repeat(40) {
             advanceUntilIdle()
@@ -224,12 +305,25 @@ class StorageViewModelTest {
         private val catalog: List<GameCatalogEntry>,
         private val uninstallGameResult: Result<Unit>? = null,
         private val uninstallAllResult: Result<Unit>? = null,
+        private val uninstallDelayMs: Long = 0,
+        private val blockListUntilReleased: Boolean = false,
     ) : GameCatalogDataSource {
         private val installedGames = installed.associate { it.gameId to it.version }.toMutableMap()
         private val sizes = installed.associate { it.gameId to it.sizeBytes }.toMutableMap()
+        var listInvocationCount = 0
+        private val listStarted = kotlinx.coroutines.CompletableDeferred<Unit>()
+        private val listRelease = kotlinx.coroutines.CompletableDeferred<Unit>()
 
         private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
         override val downloadProgress: StateFlow<DownloadProgress?> = _downloadProgress
+
+        suspend fun awaitListStarted() {
+            listStarted.await()
+        }
+
+        fun releaseList() {
+            listRelease.complete(Unit)
+        }
 
         override suspend fun loadCatalog(): Result<List<GameCatalogEntry>> = Result.success(catalog)
 
@@ -250,6 +344,9 @@ class StorageViewModelTest {
             }
 
         override suspend fun uninstallGame(gameId: String): Result<Unit> {
+            if (uninstallDelayMs > 0) {
+                kotlinx.coroutines.delay(uninstallDelayMs)
+            }
             uninstallGameResult?.let { return it }
             return runCatching {
                 check(installedGames.remove(gameId) != null) { "Not installed" }
@@ -266,12 +363,18 @@ class StorageViewModelTest {
 
         override suspend fun openWebGame(url: String): Result<Unit> = Result.success(Unit)
 
-        override suspend fun listInstalledGames(): List<InstalledGameSummary> =
-            installedGames
+        override suspend fun listInstalledGames(): List<InstalledGameSummary> {
+            listInvocationCount++
+            listStarted.complete(Unit)
+            if (blockListUntilReleased) {
+                listRelease.await()
+            }
+            return installedGames
                 .mapNotNull { (gameId, version) ->
                     val sizeBytes = sizes[gameId] ?: return@mapNotNull null
                     InstalledGameSummary(gameId, version, sizeBytes)
                 }.sortedByDescending { it.sizeBytes }
+        }
 
         override suspend fun uninstallAllGames(): Result<Unit> {
             uninstallAllResult?.let { return it }

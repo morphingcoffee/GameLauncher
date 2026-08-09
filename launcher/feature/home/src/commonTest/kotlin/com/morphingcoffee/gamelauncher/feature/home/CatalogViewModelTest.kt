@@ -947,6 +947,108 @@ class CatalogViewModelTest {
         }
 
     @Test
+    fun repeatedStarted_doesNotReloadCatalogOrResetSelection() =
+        runBlocking {
+            var loadCount = 0
+            val manifestRepository =
+                createManifestRepository {
+                    loadCount++
+                    sampleManifestJson()
+                }
+            val repository = createRepository(manifestRepository)
+            val viewModel = createCatalogViewModel(repository, manifestRepository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            waitForLoadingToFinish(viewModel)
+            assertEquals(1, loadCount)
+            assertEquals("alpha", viewModel.state.value.selectedGameId)
+
+            viewModel.onEvent(CatalogEvent.MoveSelection(1))
+            delay(50)
+            assertEquals("beta", viewModel.state.value.selectedGameId)
+            val installSnapshot = viewModel.state.value.installStatesByGameId
+
+            viewModel.onEvent(CatalogEvent.Started)
+            delay(100)
+
+            assertEquals(1, loadCount)
+            assertFalse(viewModel.state.value.isLoading)
+            assertEquals("READY", viewModel.state.value.statusLabel)
+            assertEquals("beta", viewModel.state.value.selectedGameId)
+            assertEquals(installSnapshot, viewModel.state.value.installStatesByGameId)
+        }
+
+    @Test
+    fun startedWhileLoadInFlight_doesNotStartDuplicateLoad() =
+        runBlocking {
+            var loadCount = 0
+            val loadStarted = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val loadRelease = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val manifestRepository =
+                createManifestRepository {
+                    loadCount++
+                    loadStarted.complete(Unit)
+                    loadRelease.await()
+                    sampleManifestJson()
+                }
+            val repository = createRepository(manifestRepository)
+            val viewModel = createCatalogViewModel(repository, manifestRepository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            loadStarted.await()
+            assertTrue(viewModel.state.value.isLoading)
+            assertEquals(1, loadCount)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            delay(40)
+            assertEquals(1, loadCount)
+
+            loadRelease.complete(Unit)
+            waitForLoadingToFinish(viewModel)
+            assertEquals(1, loadCount)
+            assertEquals(2, viewModel.state.value.games.size)
+        }
+
+    @Test
+    fun supersededCatalogLoad_ignoresStaleResult() =
+        runBlocking {
+            var loadCount = 0
+            val firstLoadStarted = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val firstLoadRelease = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val manifestRepository =
+                createManifestRepository {
+                    loadCount++
+                    if (loadCount == 1) {
+                        firstLoadStarted.complete(Unit)
+                        firstLoadRelease.await()
+                        sampleManifestJson()
+                    } else {
+                        singleGameManifestJson(id = "solo", title = "Solo Build")
+                    }
+                }
+            val repository = createRepository(manifestRepository)
+            val viewModel = createCatalogViewModel(repository, manifestRepository)
+
+            viewModel.onEvent(CatalogEvent.Started)
+            firstLoadStarted.await()
+            assertTrue(viewModel.state.value.isLoading)
+
+            viewModel.onEvent(CatalogEvent.RetryLoad)
+            waitForLoadingToFinish(viewModel)
+            firstLoadRelease.complete(Unit)
+            delay(50)
+
+            assertEquals(2, loadCount)
+            assertEquals(
+                listOf("solo"),
+                viewModel.state.value.games
+                    .map { it.id },
+            )
+            assertEquals("solo", viewModel.state.value.selectedGameId)
+            assertFalse(viewModel.state.value.isLoading)
+        }
+
+    @Test
     fun uninstallFailure_refreshesCachedInstallState() =
         runBlocking {
             val repository = FailingUninstallInstallStateDataSource()
@@ -1186,7 +1288,7 @@ class CatalogViewModelTest {
     private fun createManifestRepository(manifestJson: String): ManifestRepository =
         createManifestRepository { manifestJson }
 
-    private fun createManifestRepository(manifestJsonProvider: () -> String): ManifestRepository {
+    private fun createManifestRepository(manifestJsonProvider: suspend () -> String): ManifestRepository {
         val client =
             HttpClient(
                 MockEngine {
@@ -1203,6 +1305,34 @@ class CatalogViewModelTest {
             }
         return ManifestRepository(client, manifestUrl = "https://example.com/manifest.json")
     }
+
+    private fun singleGameManifestJson(
+        id: String,
+        title: String,
+    ): String =
+        """
+        {
+          "launcher_minimum_version": "0.0.1",
+          "games": [
+            {
+              "id": "$id",
+              "title": "$title",
+              "description": "Preview",
+              "thumbnail_url": "https://example.com/$id.webp",
+              "latest_version": "0.0.1",
+              "versions_url": "https://example.com/$id/versions.json",
+              "builds": {
+                "macos-arm64": {
+                  "download_url": "https://example.com/$id.zip",
+                  "executable_path": "Game.app/Contents/MacOS/Game",
+                  "file_size_bytes": 1024,
+                  "sha256": "abc"
+                }
+              }
+            }
+          ]
+        }
+        """.trimIndent()
 
     private class WebGameOpenDataSource(
         private val webUrl: String,

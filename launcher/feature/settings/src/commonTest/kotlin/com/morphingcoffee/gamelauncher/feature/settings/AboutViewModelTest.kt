@@ -18,10 +18,15 @@ import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -29,17 +34,20 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class AboutViewModelTest {
     @BeforeTest
     fun clearDevProperty() {
         System.clearProperty("game.launcher.dev")
         CrashReporting.resetForTests()
+        Dispatchers.setMain(UnconfinedTestDispatcher())
     }
 
     @AfterTest
     fun tearDown() {
         System.clearProperty("game.launcher.dev")
         CrashReporting.resetForTests()
+        Dispatchers.resetMain()
     }
 
     @Test
@@ -174,11 +182,11 @@ class AboutViewModelTest {
                     settingsRepository = settings,
                 )
             viewModel.onEvent(AboutEvent.Started)
+            advanceUntilIdle()
             assertEquals(LauncherBackgroundTheme.DEFAULT, viewModel.state.value.backgroundTheme)
-            assertEquals(LauncherBackgroundTheme.STATIC_TERMINAL, viewModel.state.value.backgroundTheme)
 
             viewModel.onEvent(AboutEvent.BackgroundThemeSelected(LauncherBackgroundTheme.SPECTRAL_TOPOLOGY))
-            delay(20)
+            advanceUntilIdle()
 
             assertEquals(LauncherBackgroundTheme.SPECTRAL_TOPOLOGY, settings.backgroundTheme.value)
             assertEquals(LauncherBackgroundTheme.SPECTRAL_TOPOLOGY, viewModel.state.value.backgroundTheme)
