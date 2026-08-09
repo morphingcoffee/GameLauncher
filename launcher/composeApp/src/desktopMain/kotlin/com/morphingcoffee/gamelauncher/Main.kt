@@ -1,5 +1,6 @@
 package com.morphingcoffee.gamelauncher
 
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
@@ -25,6 +26,8 @@ fun main() {
             state = rememberWindowState(width = 900.dp, height = 620.dp),
             onCloseRequest = ::exitApplication,
             title = if (isDev) "MC.GAME.LAUNCHER [DEV]" else "MC.GAME.LAUNCHER",
+            // Runtime window/taskbar icon (packaging still uses icons/icon.ico|.icns).
+            icon = painterResource("window-icon.png"),
         ) {
             DesktopGlobalShortcuts()
             App()
