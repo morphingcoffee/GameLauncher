@@ -10,6 +10,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -22,6 +23,9 @@ private const val READ_BUFFER_SIZE = 256 * 1024
 
 actual class GameInstaller(
     private val downloadHttpClient: HttpClient,
+    private val libraryLayout: LibraryLayout = LibraryPaths,
+    private val isMacOs: () -> Boolean = { MacGameSupport.isMacOs() },
+    private val fileDeleter: FileDeleter = RealFileDeleter,
 ) {
     actual suspend fun downloadAndInstall(
         gameId: String,
@@ -34,7 +38,7 @@ actual class GameInstaller(
                 error("Build file size must be greater than zero")
             }
 
-            val stagingFile = File(LibraryPaths.downloadStagingFile(gameId, version))
+            val stagingFile = File(libraryLayout.downloadStagingFile(gameId, version))
             stagingFile.parentFile?.mkdirs()
 
             var resumeOffset = 0L
@@ -58,8 +62,10 @@ actual class GameInstaller(
                     verifySha256(stagingFile, build.sha256)
                 }
 
-                val gameDir = File(LibraryPaths.gameDirectory(gameId))
+                val gameDir = File(libraryLayout.gameDirectory(gameId))
                 withContext(Dispatchers.IO) {
+                    // Current behavior: replace-in-place by deleting the previous install first.
+                    // There is no atomic swap or rollback of the previous version.
                     if (gameDir.exists()) {
                         gameDir.deleteRecursively()
                     }
@@ -72,6 +78,12 @@ actual class GameInstaller(
                 }
 
                 val executable = File(gameDir, build.executablePath)
+                if (!isPathInsideDirectory(executable, gameDir)) {
+                    withContext(Dispatchers.IO) {
+                        gameDir.deleteRecursively()
+                    }
+                    error("Executable path escapes game directory: ${build.executablePath}")
+                }
                 if (!executable.exists()) {
                     withContext(Dispatchers.IO) {
                         gameDir.deleteRecursively()
@@ -80,7 +92,7 @@ actual class GameInstaller(
                 }
 
                 withContext(Dispatchers.IO) {
-                    if (MacGameSupport.isMacOs()) {
+                    if (isMacOs()) {
                         MacGameSupport.prepareInstall(gameDir, executable)
                     } else {
                         prepareExtractedExecutable(executable)
@@ -97,7 +109,7 @@ actual class GameInstaller(
                 }
                 AppLog.i("GameInstaller", "Install complete for $gameId version $version")
             } finally {
-                withContext(Dispatchers.IO) {
+                withContext(NonCancellable + Dispatchers.IO) {
                     if (stagingFile.exists()) {
                         stagingFile.delete()
                     }
@@ -106,15 +118,16 @@ actual class GameInstaller(
         }
 
     actual fun getInstallState(gameId: String): InstallState {
-        val recordFile = File(LibraryPaths.installRecordFile(gameId))
+        val recordFile = File(libraryLayout.installRecordFile(gameId))
         if (!recordFile.exists()) {
             return InstallState.NotInstalled
         }
 
         return runCatching {
             val record = Json.decodeFromString<GameInstallRecord>(recordFile.readText())
-            val executable = File(LibraryPaths.gameDirectory(gameId), record.executablePath)
-            if (!executable.exists()) {
+            val gameDir = File(libraryLayout.gameDirectory(gameId))
+            val executable = File(gameDir, record.executablePath)
+            if (!isPathInsideDirectory(executable, gameDir) || !executable.exists()) {
                 InstallState.NotInstalled
             } else {
                 InstallState.Installed(
@@ -137,7 +150,7 @@ actual class GameInstaller(
     actual fun getOnDiskSizeBytes(gameId: String): Long? = measureGameDirectoryBytes(gameId)
 
     actual fun listInstalledGames(): List<InstalledGameSummary> {
-        val gamesRoot = File(LibraryPaths.gamesRootDirectory())
+        val gamesRoot = File(libraryLayout.gamesRootDirectory())
         if (!gamesRoot.exists()) {
             return emptyList()
         }
@@ -165,12 +178,12 @@ actual class GameInstaller(
     }
 
     private fun measureGameDirectoryBytes(gameId: String): Long? {
-        val gameDir = File(LibraryPaths.gameDirectory(gameId))
+        val gameDir = File(libraryLayout.gameDirectory(gameId))
         if (!gameDir.exists()) {
             return null
         }
 
-        val recordFile = File(LibraryPaths.installRecordFile(gameId))
+        val recordFile = File(libraryLayout.installRecordFile(gameId))
         if (!recordFile.exists()) {
             return null
         }
@@ -186,7 +199,7 @@ actual class GameInstaller(
     }
 
     private fun deleteGameInstall(gameId: String) {
-        val gameDir = File(LibraryPaths.gameDirectory(gameId))
+        val gameDir = File(libraryLayout.gameDirectory(gameId))
         if (!gameDir.exists()) {
             AppLog.i("GameInstaller", "Uninstall skipped; no install directory for $gameId")
             return
@@ -197,7 +210,7 @@ actual class GameInstaller(
         gameDir
             .walkBottomUp()
             .forEach { file ->
-                if (!file.delete() && file.exists()) {
+                if (!fileDeleter.delete(file) && file.exists()) {
                     failures += file.name
                 }
             }
@@ -295,15 +308,16 @@ actual class GameInstaller(
         ZipInputStream(stagingFile.inputStream()).use { zip ->
             var entry = zip.nextEntry
             while (entry != null) {
-                val destFile = File(gameDir, entry.name)
-                val canonicalDest = destFile.canonicalPath
-                val canonicalGameDir = gameDir.canonicalPath
-                val isInsideGameDir =
-                    canonicalDest == canonicalGameDir ||
-                        canonicalDest.startsWith("$canonicalGameDir${File.separator}")
-
-                if (!isInsideGameDir) {
-                    throw SecurityException("Zip entry escapes game directory: ${entry.name}")
+                val entryName = entry.name
+                if (entryName.startsWith("/") ||
+                    entryName.startsWith("\\") ||
+                    (entryName.length >= 3 && entryName[1] == ':' && (entryName[2] == '/' || entryName[2] == '\\'))
+                ) {
+                    throw SecurityException("Zip entry escapes game directory: $entryName")
+                }
+                val destFile = File(gameDir, entryName)
+                if (!isPathInsideDirectory(destFile, gameDir)) {
+                    throw SecurityException("Zip entry escapes game directory: $entryName")
                 }
 
                 if (entry.isDirectory) {
@@ -341,10 +355,20 @@ actual class GameInstaller(
                 executablePath = executablePath,
                 sha256 = sha256,
             )
-        val recordFile = File(LibraryPaths.installRecordFile(gameId))
+        val recordFile = File(libraryLayout.installRecordFile(gameId))
         recordFile.parentFile?.mkdirs()
         recordFile.writeText(Json.encodeToString(record))
     }
+}
+
+internal fun isPathInsideDirectory(
+    candidate: File,
+    directory: File,
+): Boolean {
+    val canonicalCandidate = candidate.canonicalPath
+    val canonicalDirectory = directory.canonicalPath
+    return canonicalCandidate == canonicalDirectory ||
+        canonicalCandidate.startsWith("$canonicalDirectory${File.separator}")
 }
 
 private fun ByteArray.toHexString(): String = joinToString(separator = "") { byte -> "%02x".format(byte) }

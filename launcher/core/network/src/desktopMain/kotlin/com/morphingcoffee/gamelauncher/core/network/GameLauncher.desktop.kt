@@ -15,7 +15,15 @@ import java.net.URI
 import java.nio.charset.StandardCharsets
 import kotlin.concurrent.thread
 
-actual class GameLauncher {
+actual class GameLauncher(
+    private val libraryLayout: LibraryLayout = LibraryPaths,
+    private val isMacOs: () -> Boolean = {
+        val os = System.getProperty("os.name").lowercase()
+        "mac" in os || "darwin" in os
+    },
+    private val processLauncher: ProcessLauncher = RealProcessLauncher,
+    private val desktopActions: DesktopActions = RealDesktopActions,
+) {
     actual suspend fun launch(identity: GameLaunchIdentity): Result<Unit> {
         val startedAt = System.currentTimeMillis()
         var installedVersion: String? = null
@@ -25,39 +33,46 @@ actual class GameLauncher {
 
         return runCatching {
             AppLog.i("GameLauncher", "Launch requested for ${identity.gameId}")
-            val recordFile = File(LibraryPaths.installRecordFile(identity.gameId))
+            val recordFile = File(libraryLayout.installRecordFile(identity.gameId))
             if (!recordFile.exists()) {
                 error("Game is not installed: ${identity.gameId}")
             }
 
             val record = Json.decodeFromString<GameInstallRecord>(recordFile.readText())
             installedVersion = record.version
-            val gameDir = File(LibraryPaths.gameDirectory(identity.gameId))
+            val gameDir = File(libraryLayout.gameDirectory(identity.gameId))
             val executable = File(gameDir, record.executablePath)
-            if (!executable.exists()) {
+            if (!isPathInsideDirectory(executable, gameDir) || !executable.exists()) {
                 error("Executable not found for ${identity.gameId}")
             }
 
-            val os = System.getProperty("os.name").lowercase()
-            isMac = "mac" in os || "darwin" in os
+            isMac = isMacOs()
 
             val outputBuffer = ProcessOutputBuffer()
             val process =
                 if (isMac) {
                     withContext(Dispatchers.IO) {
                         MacGameSupport.prepareLaunch(executable)
-                        MacGameSupport.launchCommand(gameDir, executable).start()
+                        val appBundle =
+                            MacGameSupport.macAppBundle(executable)
+                                ?: error("macOS launch requires an .app bundle path, got ${executable.path}")
+                        processLauncher.start(
+                            command = listOf("open", "-n", appBundle.absolutePath),
+                            workingDirectory = gameDir,
+                            redirectErrorStream = false,
+                        )
                     }
                 } else {
                     if (!executable.canExecute()) {
                         executable.setExecutable(true, false)
                     }
                     withContext(Dispatchers.IO) {
-                        val builder =
-                            ProcessBuilder(executable.absolutePath)
-                                .directory(gameDir)
-                                .redirectErrorStream(true)
-                        val started = builder.start()
+                        val started =
+                            processLauncher.start(
+                                command = listOf(executable.absolutePath),
+                                workingDirectory = gameDir,
+                                redirectErrorStream = true,
+                            )
                         pumpProcessOutput(started, outputBuffer)
                         started
                     }
@@ -110,7 +125,7 @@ actual class GameLauncher {
             AppLog.i("GameLauncher", "Opening URL in browser: $url")
             // Desktop.browse uses AWT; on Compose Desktop this must run on the Swing main thread.
             withContext(Dispatchers.Main) {
-                if (!Desktop.isDesktopSupported()) {
+                if (!desktopActions.isDesktopSupported()) {
                     error("Desktop API is not supported on this platform")
                 }
                 val desktop = Desktop.getDesktop()

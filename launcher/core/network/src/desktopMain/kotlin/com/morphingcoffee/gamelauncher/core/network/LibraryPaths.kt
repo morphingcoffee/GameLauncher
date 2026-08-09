@@ -2,7 +2,7 @@ package com.morphingcoffee.gamelauncher.core.network
 
 import java.nio.file.Paths
 
-object LibraryPaths {
+object LibraryPaths : LibraryLayout {
     fun appSupportRoot(): String = rootDirectory()
 
     fun preferencesFile(): String = path(rootDirectory(), "preferences.json")
@@ -31,20 +31,20 @@ object LibraryPaths {
 
     fun downloadsDirectory(): String = path(rootDirectory(), "downloads")
 
-    fun downloadStagingFile(
+    override fun downloadStagingFile(
         gameId: String,
         version: String,
     ): String = path(downloadsDirectory(), "$gameId-$version.zip.part")
 
-    fun gamesRootDirectory(): String = path(rootDirectory(), "games")
+    override fun gamesRootDirectory(): String = path(rootDirectory(), "games")
 
-    fun gameDirectory(gameId: String): String = path(gamesRootDirectory(), gameId)
+    override fun gameDirectory(gameId: String): String = path(gamesRootDirectory(), gameId)
 
-    fun installRecordFile(gameId: String): String = path(gameDirectory(gameId), ".install_record.json")
+    override fun installRecordFile(gameId: String): String = path(gameDirectory(gameId), ".install_record.json")
 
-    fun launcherUpdatesDirectory(): String = path(rootDirectory(), "updates")
+    override fun launcherUpdatesDirectory(): String = path(rootDirectory(), "updates")
 
-    fun userDownloadsDirectory(): String {
+    override fun userDownloadsDirectory(): String {
         val os =
             System
                 .getProperty("os.name")
