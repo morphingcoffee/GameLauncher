@@ -5,7 +5,6 @@ import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
@@ -18,7 +17,8 @@ import com.morphingcoffee.gamelauncher.core.designsystem.LauncherSpacing
 /**
  * Terminal-style selectable option row (`[X]` / `[ ]`) for settings lists.
  *
- * Built on [clickable], so it participates in keyboard focus and activates with Enter/Space.
+ * Width hugs content. Built on [clickable], so it participates in keyboard focus
+ * and activates with Enter/Space.
  */
 @Composable
 fun TerminalOptionRow(
@@ -33,7 +33,6 @@ fun TerminalOptionRow(
     Row(
         modifier =
             modifier
-                .fillMaxWidth()
                 .hoverable(interactionSource = interactionSource, enabled = enabled)
                 .clickable(
                     enabled = enabled,

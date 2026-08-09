@@ -146,12 +146,7 @@ fun SettingsScreenContent(
 
                 TerminalRule()
 
-                MonoLabel(text = "ABOUT", muted = true)
-
-                LauncherUpdateInfoRow(
-                    label = "VERSION",
-                    value = formatLauncherVersionInfoValue(state.appVersion),
-                )
+                MonoLabel(text = "TELEMETRY / CRASH REPORTING", muted = true)
 
                 TerminalToggleRow(
                     label = "CRASH RPT",
@@ -178,6 +173,15 @@ fun SettingsScreenContent(
                         MonoLabel(text = status, muted = true)
                     }
                 }
+
+                TerminalRule()
+
+                MonoLabel(text = "ABOUT", muted = true)
+
+                LauncherUpdateInfoRow(
+                    label = "VERSION",
+                    value = formatLauncherVersionInfoValue(state.appVersion),
+                )
 
                 state.links.forEach { link ->
                     TerminalLinkRow(
