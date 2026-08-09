@@ -1,9 +1,12 @@
 package com.morphingcoffee.gamelauncher
 
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -20,6 +23,10 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.morphingcoffee.gamelauncher.core.designsystem.LauncherTheme
 import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherBackground
+import com.morphingcoffee.gamelauncher.core.designsystem.components.LauncherBackgroundPointerProbe
+import com.morphingcoffee.gamelauncher.core.designsystem.components.LocalLauncherBackgroundPointerProbe
+import com.morphingcoffee.gamelauncher.core.designsystem.components.observeLauncherBackgroundPointer
+import com.morphingcoffee.gamelauncher.core.model.LauncherBackgroundTheme
 import com.morphingcoffee.gamelauncher.core.model.LauncherMetadata
 import com.morphingcoffee.gamelauncher.core.navigation.AppDestination
 import com.morphingcoffee.gamelauncher.core.navigation.DebugNavigation
@@ -62,11 +69,13 @@ internal fun AppNavigation(
 ) {
     LauncherTheme {
         val backStack = rememberNavBackStack(appNavigationConfig, AppDestination.Home)
-        val focusRequester = androidx.compose.runtime.remember { FocusRequester() }
+        val focusRequester = remember { FocusRequester() }
         val resolvedSettingsRepository =
             settingsRepository
-                ?: androidx.compose.runtime.remember { InMemoryLauncherSettingsRepository() }
+                ?: remember { InMemoryLauncherSettingsRepository() }
         val backgroundTheme by resolvedSettingsRepository.backgroundTheme.collectAsStateWithLifecycle()
+        val pointerProbe = remember { LauncherBackgroundPointerProbe() }
+        val trackPointer = backgroundTheme != LauncherBackgroundTheme.STATIC_TERMINAL
 
         androidx.compose.runtime.LaunchedEffect(Unit) {
             focusRequester.requestFocus()
@@ -78,63 +87,72 @@ internal fun AppNavigation(
             }
         }
 
-        LauncherBackground(
-            theme = backgroundTheme,
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .focusRequester(focusRequester)
-                    .focusable()
-                    .onPreviewKeyEvent { event ->
-                        if (!LauncherMetadata.DEBUG_TOOLS_ENABLED) return@onPreviewKeyEvent false
-                        if (event.type != KeyEventType.KeyDown || event.key != Key.F12) return@onPreviewKeyEvent false
-                        DebugNavigation.requestOpenLogs()
-                        true
+        CompositionLocalProvider(LocalLauncherBackgroundPointerProbe provides pointerProbe) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .observeLauncherBackgroundPointer(pointerProbe, enabled = trackPointer)
+                        .focusRequester(focusRequester)
+                        .focusable()
+                        .onPreviewKeyEvent { event ->
+                            if (!LauncherMetadata.DEBUG_TOOLS_ENABLED) return@onPreviewKeyEvent false
+                            if (event.type != KeyEventType.KeyDown || event.key != Key.F12) {
+                                return@onPreviewKeyEvent false
+                            }
+                            DebugNavigation.requestOpenLogs()
+                            true
+                        },
+            ) {
+                // Sibling behind NavDisplay — never a content{} slot wrapping navigation.
+                LauncherBackground(
+                    theme = backgroundTheme,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                NavDisplay(
+                    backStack = backStack,
+                    onBack = {
+                        if (NavigationBackInterceptor.handler?.invoke() == true) return@NavDisplay
+                        if (backStack.size > 1) backStack.removeLastOrNull()
                     },
-        ) {
-            NavDisplay(
-                backStack = backStack,
-                onBack = {
-                    if (NavigationBackInterceptor.handler?.invoke() == true) return@NavDisplay
-                    if (backStack.size > 1) backStack.removeLastOrNull()
-                },
-                entryProvider = { key ->
-                    when (key) {
-                        AppDestination.Home ->
-                            NavEntry(key) {
-                                catalogContent(
-                                    { backStack.add(AppDestination.Settings) },
-                                    { backStack.add(AppDestination.Storage) },
-                                )
-                            }
-                        AppDestination.Settings ->
-                            NavEntry(key) {
-                                SettingsScreen(
-                                    onBack = {
-                                        if (backStack.size > 1) backStack.removeLastOrNull()
-                                    },
-                                )
-                            }
-                        AppDestination.Storage ->
-                            NavEntry(key) {
-                                StorageScreen(
-                                    onBack = {
-                                        if (backStack.size > 1) backStack.removeLastOrNull()
-                                    },
-                                )
-                            }
-                        AppDestination.Logs ->
-                            NavEntry(key) {
-                                LogsScreen(
-                                    onBack = {
-                                        if (backStack.size > 1) backStack.removeLastOrNull()
-                                    },
-                                )
-                            }
-                        else -> error("Unknown destination: $key")
-                    }
-                },
-            )
+                    entryProvider = { key ->
+                        when (key) {
+                            AppDestination.Home ->
+                                NavEntry(key) {
+                                    catalogContent(
+                                        { backStack.add(AppDestination.Settings) },
+                                        { backStack.add(AppDestination.Storage) },
+                                    )
+                                }
+                            AppDestination.Settings ->
+                                NavEntry(key) {
+                                    SettingsScreen(
+                                        onBack = {
+                                            if (backStack.size > 1) backStack.removeLastOrNull()
+                                        },
+                                    )
+                                }
+                            AppDestination.Storage ->
+                                NavEntry(key) {
+                                    StorageScreen(
+                                        onBack = {
+                                            if (backStack.size > 1) backStack.removeLastOrNull()
+                                        },
+                                    )
+                                }
+                            AppDestination.Logs ->
+                                NavEntry(key) {
+                                    LogsScreen(
+                                        onBack = {
+                                            if (backStack.size > 1) backStack.removeLastOrNull()
+                                        },
+                                    )
+                                }
+                            else -> error("Unknown destination: $key")
+                        }
+                    },
+                )
+            }
         }
     }
 }

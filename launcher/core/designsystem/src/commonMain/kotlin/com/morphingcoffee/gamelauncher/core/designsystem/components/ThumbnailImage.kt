@@ -119,6 +119,13 @@ private fun ThumbnailImageContent(
             }
         }
 
+    // Home remounts ThumbnailImage when returning from Settings; skip shimmer if Coil already
+    // has disk bytes so the banner does not flash empty while memory resolves.
+    val hasCachedThumbnail =
+        remember(imageUrl, imageLoader) {
+            hasDiskCacheEntry(imageLoader, imageUrl)
+        }
+
     LaunchedEffect(imageUrl) {
         overlayAlpha = 0f
         overlayImage = null
@@ -195,7 +202,7 @@ private fun ThumbnailImageContent(
                 SubcomposeAsyncImageContent()
             },
             loading = {
-                if (overlayImage == null) {
+                if (overlayImage == null && !hasCachedThumbnail) {
                     ThumbnailShimmer(modifier = Modifier.fillMaxSize())
                 }
             },
@@ -261,8 +268,10 @@ private fun HeroViewportScrim(ambientColor: Color) {
                                     0f to topTint,
                                     0.35f to Color.Transparent,
                                     0.62f to Color.Transparent,
-                                    0.88f to LauncherColors.Background.copy(alpha = 0.72f),
-                                    1f to LauncherColors.Background,
+                                    // Fade to transparent so the app-wide background shows through;
+                                    // opaque Background here fights transparent LauncherTheme surfaces.
+                                    0.88f to LauncherColors.Background.copy(alpha = 0.45f),
+                                    1f to Color.Transparent,
                                 ),
                         ),
                 ),

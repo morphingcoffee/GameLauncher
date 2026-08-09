@@ -86,7 +86,8 @@ internal fun GameDetailPane(
             val isActiveSelection = animatedGameId == selectedGameId
 
             when {
-                isLoading -> {
+                // Keep an already-populated detail/thumbnail tree mounted during silent refreshes.
+                isLoading && games.isEmpty() -> {
                     DetailMessage(text = "LOADING CATALOG...")
                 }
 
