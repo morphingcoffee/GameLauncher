@@ -250,7 +250,7 @@ private fun compileEffect(theme: LauncherBackgroundTheme): RuntimeEffect? {
     return try {
         RuntimeEffect.makeForShader(source)
     } catch (error: Exception) {
-        AppLog.w(TAG, "SkSL compile failed for ${theme.id}; falling back to Static Terminal", error)
+        AppLog.w(TAG, "SkSL compile failed for ${theme.id}; falling back to STATIC//TERMINAL", error)
         null
     }
 }

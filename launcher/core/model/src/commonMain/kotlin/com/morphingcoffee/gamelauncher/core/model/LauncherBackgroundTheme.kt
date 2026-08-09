@@ -12,11 +12,11 @@ enum class LauncherBackgroundTheme(
 ) {
     STATIC_TERMINAL(
         id = "static_terminal",
-        displayName = "Static Terminal",
+        displayName = "STATIC//TERMINAL",
     ),
     SPECTRAL_TOPOLOGY(
         id = "spectral_topology",
-        displayName = "Spectral Topology",
+        displayName = "SPECTRAL//TOPOLOGY",
     ),
     BACKPLANE_LIVE(
         id = "backplane_live",
